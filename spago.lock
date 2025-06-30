@@ -8,7 +8,10 @@
             "console",
             "effect",
             "halogen",
-            "prelude"
+            "halogen-svg-elems",
+            "prelude",
+            "yoga-tree",
+            "yoga-tree-utils"
           ],
           "build_plan": [
             "aff",
@@ -37,12 +40,15 @@
             "functions",
             "functors",
             "gen",
+            "graphs",
             "halogen",
             "halogen-subscriptions",
+            "halogen-svg-elems",
             "halogen-vdom",
             "identity",
             "integers",
             "invariant",
+            "js-bigints",
             "js-date",
             "js-promise",
             "lazy",
@@ -60,6 +66,7 @@
             "partial",
             "prelude",
             "profunctor",
+            "record",
             "refs",
             "safe-coerce",
             "st",
@@ -70,8 +77,10 @@
             "type-equality",
             "typelevel-prelude",
             "unfoldable",
+            "unicode",
             "unsafe-coerce",
             "unsafe-reference",
+            "variant",
             "web-clipboard",
             "web-dom",
             "web-events",
@@ -80,7 +89,10 @@
             "web-pointerevents",
             "web-storage",
             "web-touchevents",
-            "web-uievents"
+            "web-uievents",
+            "yoga-json",
+            "yoga-tree",
+            "yoga-tree-utils"
           ]
         },
         "test": {
@@ -631,7 +643,12 @@
         "zipperarray": "2.0.0"
       }
     },
-    "extra_packages": {}
+    "extra_packages": {
+      "yoga-tree-utils": {
+        "git": "https://github.com/shamansir/purescript-yoga-tree-utils.git",
+        "ref": "e4f72ec0ee62ae63912b346560047947a68f0053"
+      }
+    }
   },
   "packages": {
     "aff": {
@@ -997,6 +1014,15 @@
         "unfoldable"
       ]
     },
+    "graphs": {
+      "type": "registry",
+      "version": "8.1.0",
+      "integrity": "sha256-mLOuNSMB/kHUBEIV+pePLc1Exo5z/WmT3BHmGIGlxQw=",
+      "dependencies": [
+        "catenable-lists",
+        "ordered-collections"
+      ]
+    },
     "halogen": {
       "type": "registry",
       "version": "7.0.0",
@@ -1038,6 +1064,14 @@
         "refs",
         "safe-coerce",
         "unsafe-reference"
+      ]
+    },
+    "halogen-svg-elems": {
+      "type": "registry",
+      "version": "8.0.0",
+      "integrity": "sha256-NtZ30NoNyadVEsRcdY0zvm2yyahxUTgpioDNVz5gEIA=",
+      "dependencies": [
+        "halogen"
       ]
     },
     "halogen-vdom": {
@@ -1084,6 +1118,16 @@
       "integrity": "sha256-RGWWyYrz0Hs1KjPDA+87Kia67ZFBhfJ5lMGOMCEFoLo=",
       "dependencies": [
         "control",
+        "prelude"
+      ]
+    },
+    "js-bigints": {
+      "type": "registry",
+      "version": "2.2.1",
+      "integrity": "sha256-hKWZo9NxtsAaHmNXr6B8GY4c0olQbYLXPVGWm4TF2Ss=",
+      "dependencies": [
+        "integers",
+        "maybe",
         "prelude"
       ]
     },
@@ -1285,6 +1329,16 @@
         "tuples"
       ]
     },
+    "record": {
+      "type": "registry",
+      "version": "4.0.0",
+      "integrity": "sha256-Za5U85bTRJEfGK5Sk4hM41oXy84YQI0I8TL3WUn1Qzg=",
+      "dependencies": [
+        "functions",
+        "prelude",
+        "unsafe-coerce"
+      ]
+    },
     "refs": {
       "type": "registry",
       "version": "6.0.0",
@@ -1410,6 +1464,16 @@
         "tuples"
       ]
     },
+    "unicode": {
+      "type": "registry",
+      "version": "6.0.0",
+      "integrity": "sha256-QJnTVZpmihEAUiMeYrfkusVoziJWp2hJsgi9bMQLue8=",
+      "dependencies": [
+        "foldable-traversable",
+        "maybe",
+        "strings"
+      ]
+    },
     "unsafe-coerce": {
       "type": "registry",
       "version": "6.0.0",
@@ -1422,6 +1486,21 @@
       "integrity": "sha256-zU7BhfJU14nXQRZG9iADsp0mSiKhz07OcKyjRB2YT+Y=",
       "dependencies": [
         "prelude"
+      ]
+    },
+    "variant": {
+      "type": "registry",
+      "version": "8.0.0",
+      "integrity": "sha256-SR//zQDg2dnbB8ZHslcxieUkCeNlbMToapvmh9onTtw=",
+      "dependencies": [
+        "enums",
+        "lists",
+        "maybe",
+        "partial",
+        "prelude",
+        "record",
+        "tuples",
+        "unsafe-coerce"
       ]
     },
     "web-clipboard": {
@@ -1508,6 +1587,76 @@
       "integrity": "sha256-5I+ut9JYno3wowti3vJGs1afKCm1ucppKuy+zhuSyss=",
       "dependencies": [
         "web-html"
+      ]
+    },
+    "yoga-json": {
+      "type": "registry",
+      "version": "5.1.0",
+      "integrity": "sha256-ei/fyvrh8fGgcqGrdRQ7+r6dwSYcfEGOFf5yKc1g7oE=",
+      "dependencies": [
+        "arrays",
+        "bifunctors",
+        "control",
+        "datetime",
+        "effect",
+        "either",
+        "exceptions",
+        "foldable-traversable",
+        "foreign",
+        "foreign-object",
+        "free",
+        "identity",
+        "integers",
+        "js-bigints",
+        "js-date",
+        "lists",
+        "maybe",
+        "newtype",
+        "nullable",
+        "numbers",
+        "ordered-collections",
+        "partial",
+        "prelude",
+        "record",
+        "strings",
+        "transformers",
+        "tuples",
+        "typelevel-prelude",
+        "unsafe-coerce",
+        "variant",
+        "yoga-tree"
+      ]
+    },
+    "yoga-tree": {
+      "type": "registry",
+      "version": "1.0.0",
+      "integrity": "sha256-wBjfEYrX1ffTHa/mE9B26C6td0FFfjYNnysTJ9/N8Hc=",
+      "dependencies": [
+        "arrays",
+        "control",
+        "foldable-traversable",
+        "free",
+        "maybe",
+        "prelude",
+        "tailrec"
+      ]
+    },
+    "yoga-tree-utils": {
+      "type": "git",
+      "url": "https://github.com/shamansir/purescript-yoga-tree-utils.git",
+      "rev": "e4f72ec0ee62ae63912b346560047947a68f0053",
+      "dependencies": [
+        "arrays",
+        "foldable-traversable",
+        "free",
+        "graphs",
+        "maybe",
+        "prelude",
+        "strings",
+        "tuples",
+        "unicode",
+        "yoga-json",
+        "yoga-tree"
       ]
     }
   }
