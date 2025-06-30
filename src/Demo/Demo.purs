@@ -74,7 +74,7 @@ component =
                     <$> Play.layout
                     <$> examples
 
-        renderItem rect item =
+        renderItem item rect =
             HS.rect
                 [ HA.x rect.x
                 , HA.y rect.y

@@ -6,11 +6,12 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (uncurry) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (foldl)
+import Data.Bifunctor (lmap)
 import Data.Array (concat) as Array
 
 import Yoga.Tree (Tree)
 import Yoga.Tree (mkTree) as Tree
-import Yoga.Tree.Extended (break) as Tree
+import Yoga.Tree.Extended (node, leaf, break, flatten) as Tree
 
 
 data Direction
@@ -19,7 +20,8 @@ data Direction
 
 
 data Sizing
-    = Fixed Number
+    = Calc
+    | Fixed Number
     | Fit
     | FitMinMax { min :: Number, max :: Number }
     | Grow
@@ -46,27 +48,54 @@ data Play a =
 
 
 type Rect =
-    { x :: Number
+    { pos :: Pos
+    , size :: Size
+    }
+
+
+type Pos =
+    { x  :: Number
     , y :: Number
-    , width :: Number
+    }
+
+
+type Size =
+    { width  :: Number
     , height :: Number
     }
 
 
-layout :: forall a. Play a -> Array (Rect /\ a)
-layout = toTree >>> Tree.break (Tuple.uncurry breakF)
+layout :: forall a. Play a -> Array (a /\ Rect)
+layout =
+    toTree
+        >>> Tree.break (Tuple.uncurry doSizing)
+        >>> Tree.break (Tuple.uncurry doPosition)
+        >>> Tree.flatten
     where
-        breakF :: a -> Maybe Def -> Array (Tree (a /\ Maybe Def)) -> Array (Rect /\ a)
-        breakF a mbDef xs =
+        rect :: Pos -> Size -> Rect
+        rect pos size = { pos, size }
+        doSizing :: a -> Maybe Def -> Array (Tree (a /\ Maybe Def)) -> Tree (a /\ Maybe Def /\ Size)
+        doSizing a mbDef xs =
             let
-                rect = case mbDef of
-                    Just { sizing } ->
+                size = case mbDef of
+                    Just { sizing, direction } ->
                         case sizing.width /\ sizing.height of
-                            Fixed w /\ Fixed h -> { x : 0.0, y : 0.0, width : w, height : h }
-                            _ -> { x : 0.0, y : 0.0, width : 0.0, height : 0.0 }
-                    Nothing -> { x : 0.0, y : 0.0, width : 0.0, height : 0.0 }
+                            Fixed w /\ Fixed h -> { width : w, height : h }
+                            _ -> { width : 0.0, height : 0.0 }
+                    Nothing -> { width : 0.0, height : 0.0 }
             in
-                [ rect /\ a ] <> (Array.concat $ Tree.break (Tuple.uncurry breakF) <$> xs)
+                Tree.node
+                    (a /\ mbDef /\ size)
+                    $ Tree.break (Tuple.uncurry doSizing) <$> xs
+        doPosition :: a -> (Maybe Def /\ Size) -> Array (Tree (a /\ Maybe Def /\ Size)) -> Tree (a /\ Rect)
+        doPosition a (Nothing /\ size) xs =
+            Tree.node
+                (a /\ rect { x : 0.0, y : 0.0 } size)
+                $ Tree.break (Tuple.uncurry doPosition) <$> xs
+        doPosition a (Just def /\ size) xs =
+            Tree.node
+                (a /\ rect { x : 0.0, y : 0.0 } size)
+                $ Tree.break (Tuple.uncurry doPosition) <$> xs
 
 
 toTree :: forall a. Play a -> Tree (a /\ Maybe Def)
