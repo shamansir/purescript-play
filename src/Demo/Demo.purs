@@ -64,7 +64,6 @@ component =
                     <$> examples
                 ]
 
-
         layoutExample :: Example -> LayedOutExample
         layoutExample (Example size label play) = { label, size, layout : Play.layout play }
 
@@ -87,6 +86,8 @@ component =
                         [ HS.rect
                             [ HA.x rect.pos.x
                             , HA.y rect.pos.y
+                            , HA.rx 3.0
+                            , HA.ry 3.0
                             , HA.width rect.size.width
                             , HA.height rect.size.height
                             , HA.fill $ case mbCol of

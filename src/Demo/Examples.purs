@@ -30,6 +30,7 @@ pink   = ic (HA.Named "pink")   "Pink"   :: Item
 red    = ic (HA.Named "red")    "Red"    :: Item
 yellow = ic (HA.Named "yellow") "Yellow" :: Item
 green  = ic (HA.Named "green")  "Green"  :: Item
+purple = ic (HA.Named "purple") "Purple" :: Item
 
 
 ex :: String -> Number -> Number -> Play Item -> Example
@@ -38,7 +39,32 @@ ex label w h = Example { width : w, height : h } label
 
 theExamples :: Array Example
 theExamples =
-    [ ex "Fixed, no padding, no child gap" 1000.0 600.0
+    [ ex "Menu example" 350.0 650.0
+        $ Play.i purple
+        # (Play.width    $ Play.Fixed 250.0)
+        # (Play.height   $ Play.Fit)
+        # (Play.padding  $ Play.all 5.0)
+        # (Play.direction Play.TopToBottom)
+        # (Play.childGap 5.0)
+        # Play.with (
+            (\itemName ->
+                Play.i (ic (HA.Named "lightblue") "")
+                     # (Play.width Play.Grow)
+                     # (Play.height $ Play.Fixed 60.0)
+                     # (Play.direction Play.LeftToRight)
+                     # (Play.padding $ Play.all 3.0)
+                     # Play.with
+                        [ Play.i (il itemName)
+                            # (Play.width Play.Grow)
+                            # (Play.height $ Play.Fixed 60.0)
+                        , Play.i (ic (HA.Named "yellow") "icon")
+                            # (Play.width $ Play.Fixed 60.0)
+                            # (Play.height $ Play.Fixed 60.0)
+                        ]
+            )
+            <$> [ "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6" ])
+
+    , ex "Fixed, no padding, no child gap" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 960.0)
         # (Play.height   $ Play.Fixed 540.0)
