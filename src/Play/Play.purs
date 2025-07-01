@@ -2,18 +2,18 @@ module Play where
 
 import Prelude
 
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Tuple (uncurry, fst, snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (foldl)
 import Data.Bifunctor (lmap)
 import Data.Array ((:))
-import Data.Array (concat, length) as Array
+import Data.Array (concat, length, filter) as Array
 import Data.Int (toNumber) as Int
 
 import Yoga.Tree (Tree)
 import Yoga.Tree (mkTree) as Tree
-import Yoga.Tree.Extended (node, leaf, break, flatten, value, children) as Tree
+import Yoga.Tree.Extended (node, leaf, break, flatten, value, children, update) as Tree
 
 
 data Direction
@@ -22,11 +22,15 @@ data Direction
 
 
 data Sizing
-    = Calc
-    | Fixed Number
+    = Fixed Number
     | Fit
-    | FitMinMax { min :: Number, max :: Number }
+    -- | FitMin { min :: Number }
+    -- | FitMax { max :: Number }
+    -- | FitMinMax { min :: Number, max :: Number }
     | Grow
+
+
+derive instance Eq Sizing
 
 
 type Padding =
@@ -84,7 +88,8 @@ layout :: forall a. Play a -> Array (a /\ Rect)
 layout =
     toTree
         >>> Tree.break (Tuple.uncurry doFitSizing)
-        >>> Tree.break (Tuple.uncurry $ doPosition { x : 0.0, y : 0.0 })
+        >>> Tree.break (Tuple.uncurry doGrowSizing)
+        >>> Tree.break (Tuple.uncurry $ doPositioning { x : 0.0, y : 0.0 })
         >>> Tree.flatten
     where
 
@@ -125,7 +130,7 @@ layout =
                                     case def.direction of
                                         LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
                                         TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
-                        _ -> 0.0
+                        Grow -> 0.0
 
                 size =
                     let
@@ -137,8 +142,58 @@ layout =
                     (a /\ mbDef /\ size)
                     $ childrenSizes
 
-        doPosition :: Pos -> a -> (Maybe Def /\ Size) -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
-        doPosition pos a (mbDef /\ size) xs =
+        doGrowSizing :: a -> Maybe Def /\ Size -> Array (Tree (WithDefSize a)) -> Tree (WithDefSize a)
+        doGrowSizing a (mbDef /\ size) children =
+            let
+                def = fromMaybe default mbDef :: Def
+
+                hasGrowingSide :: Def -> Boolean
+                hasGrowingSide = _.sizing >>> case _ of
+                    { width  : Grow } -> true
+                    { height : Grow } -> true
+                    _ -> false
+                childrenCount = Array.length children
+                growChildrenCount =
+                    Array.length
+                         $  Array.filter (maybe false hasGrowingSide)
+                         $  (Tree.value >>> Tuple.snd >>> Tuple.fst)
+                        <$> children
+            in if growChildrenCount > 0 then
+                let
+                    wop = case mbDef of
+                            Just { direction : LeftToRight } -> (+)
+                            Just { direction : TopToBottom } -> max
+                            Nothing -> (+)
+                    hop = case mbDef of
+                            Just { direction : LeftToRight } -> max
+                            Just { direction : TopToBottom } -> (+)
+                            Nothing -> (+)
+                    knownWidth  = (foldl wop 0.0 $ (Tree.value >>> Tuple.snd >>> Tuple.snd >>> _.width ) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                    knownHeight = (foldl hop 0.0 $ (Tree.value >>> Tuple.snd >>> Tuple.snd >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                    addChildGrowing :: Tree (WithDefSize a) -> Tree (WithDefSize a)
+                    addChildGrowing child =
+                        case Tree.value child of
+                            (a /\ mbDef /\ chSize) ->
+                                case mbDef <#> _.sizing of
+                                    Just sizing ->
+                                        let
+                                            addWidth s =
+                                                if sizing.width == Grow then
+                                                    s { width  = (size.width - knownWidth) / Int.toNumber growChildrenCount }
+                                                else s
+                                            addHeight s =
+                                                if sizing.height == Grow then
+                                                    s { height = (size.height - knownHeight) / Int.toNumber growChildrenCount }
+                                                else s
+                                        in
+                                            Tree.update (map $ map (addHeight <<< addWidth)) child
+                                    Nothing -> child
+                in Tree.node (a /\ mbDef /\ size)
+                        $ Tree.break (Tuple.uncurry doGrowSizing) <$> addChildGrowing <$> children
+            else Tree.node (a /\ mbDef /\ size) $ Tree.break (Tuple.uncurry doGrowSizing) <$> children
+
+        doPositioning :: Pos -> a -> (Maybe Def /\ Size) -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
+        doPositioning pos a (mbDef /\ size) xs =
             Tree.node
                 (a /\ rect pos size)
                 $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
@@ -167,7 +222,7 @@ layout =
                             :: Offset
                         nextNode =
                             Tree.node ( curVal /\ rect offset curSize )
-                            $ Tree.break (Tuple.uncurry $ doPosition offset) <$> Tree.children tree
+                            $ Tree.break (Tuple.uncurry $ doPositioning offset) <$> Tree.children tree
                     in nextOffset
                         /\ (nextNode : prev)
 

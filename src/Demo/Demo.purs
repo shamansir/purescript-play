@@ -51,6 +51,7 @@ blue   = ic (HA.Named "blue")   "Blue"   :: Item
 pink   = ic (HA.Named "pink")   "Pink"   :: Item
 red    = ic (HA.Named "red")    "Red"    :: Item
 yellow = ic (HA.Named "yellow") "Yellow" :: Item
+green  = ic (HA.Named "green")  "Green"  :: Item
 
 
 ex :: String -> Number -> Number -> Play Item -> Example
@@ -198,6 +199,45 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
+    , ex "Fit, grow red part" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
+            # (Play.padding  $ Play.all 32.0)
+            # (Play.childGap 10.0)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                ]
+    , ex "Fit, grow middle parts" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
+            # (Play.padding  $ Play.all 32.0)
+            # (Play.childGap 10.0)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i green
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                ]
     ]
 
 

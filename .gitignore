@@ -11,3 +11,4 @@ dist/
 .purs*
 .psa*
 .spago
+index.js
