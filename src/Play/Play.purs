@@ -83,36 +83,36 @@ data Side_
     | Height
 
 
-type WithDef a     = a /\ Def
-type WithDefSize a = a /\ Def /\ Size
-type WithRect a    = a /\ Rect
+type WithDef a     = { v :: a, def :: Def }
+type WithDefSize a = { v :: a, def :: Def, size :: Size }
+type WithRect a    = { v :: a, rect :: Rect }
 
 
-layout :: forall a. Play a -> Array (a /\ Rect)
+layout :: forall a. Play a -> Array (WithRect a)
 layout =
     toTree
-        >>> Tree.break (Tuple.uncurry doFitSizing)
-        >>> Tree.break (Tuple.uncurry doGrowSizing)
-        >>> Tree.break (Tuple.uncurry $ doPositioning { x : 0.0, y : 0.0 })
+        >>> Tree.break doFitSizing
+        >>> Tree.break doGrowSizing
+        >>> Tree.break (doPositioning { x : 0.0, y : 0.0 })
         >>> Tree.flatten
     where
 
         rect :: Pos -> Size -> Rect
         rect pos size = { pos, size }
 
-        doFitSizing :: a -> Def -> Array (Tree (WithDef a)) -> Tree (WithDefSize a)
-        doFitSizing a def xs =
+        doFitSizing :: WithDef a -> Array (Tree (WithDef a)) -> Tree (WithDefSize a)
+        doFitSizing { v, def } xs =
             let
                 childrenSizes :: Array (Tree (WithDefSize a))
-                childrenSizes = Tree.break (Tuple.uncurry doFitSizing) <$> xs
+                childrenSizes = Tree.break doFitSizing <$> xs
 
                 childrenCount = Array.length xs :: Int
 
                 foldFMain :: (Size -> Number) -> Number -> Tree (WithDefSize a) -> Number
-                foldFMain extract n tree = n +   (tree # Tree.value # Tuple.snd # Tuple.snd # extract)
+                foldFMain extract n tree = n +   (tree # Tree.value # _.size # extract)
 
                 foldFSec  :: (Size -> Number) -> Number -> Tree (WithDefSize a) -> Number
-                foldFSec  extract n tree = max n (tree # Tree.value # Tuple.snd # Tuple.snd # extract)
+                foldFSec  extract n tree = max n (tree # Tree.value # _.size # extract)
 
                 calcSide :: Side_ -> Number
                 calcSide side =
@@ -142,11 +142,11 @@ layout =
                     in { width : calcWidth, height : calcHeight }
             in
                 Tree.node
-                    (a /\ def /\ size)
+                    { v, def, size }
                     $ childrenSizes
 
-        doGrowSizing :: a -> Def /\ Size -> Array (Tree (WithDefSize a)) -> Tree (WithDefSize a)
-        doGrowSizing a (def /\ size) children =
+        doGrowSizing :: WithDefSize a -> Array (Tree (WithDefSize a)) -> Tree (WithDefSize a)
+        doGrowSizing { v, def, size } children =
             let
                 hasGrowingSide :: Def -> Boolean
                 hasGrowingSide = _.sizing >>> case _ of
@@ -157,7 +157,7 @@ layout =
                 growChildrenCount =
                     Array.length
                          $  Array.filter hasGrowingSide
-                         $  (Tree.value >>> Tuple.snd >>> Tuple.fst)
+                         $  (Tree.value >>> _.def)
                         <$> children
             in if growChildrenCount > 0 then
                 let
@@ -167,31 +167,31 @@ layout =
                     hop = case def.direction of
                             LeftToRight -> max
                             TopToBottom -> (+)
-                    knownWidth  = (foldl wop 0.0 $ (Tree.value >>> Tuple.snd >>> Tuple.snd >>> _.width ) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
-                    knownHeight = (foldl hop 0.0 $ (Tree.value >>> Tuple.snd >>> Tuple.snd >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                    knownWidth  = (foldl wop 0.0 $ (Tree.value >>> _.size >>> _.width ) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                    knownHeight = (foldl hop 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
                     addChildGrowing :: Tree (WithDefSize a) -> Tree (WithDefSize a)
                     addChildGrowing child =
                         case Tree.value child of
-                            (a /\ chDef /\ chSize) ->
+                            ch ->
                                 let
                                     addWidth s =
-                                        if chDef.sizing.width == Grow then
+                                        if ch.def.sizing.width == Grow then
                                             s { width  = (size.width - knownWidth) / Int.toNumber growChildrenCount }
                                         else s
                                     addHeight s =
-                                        if chDef.sizing.height == Grow then
+                                        if ch.def.sizing.height == Grow then
                                             s { height = (size.height - knownHeight) / Int.toNumber growChildrenCount }
                                         else s
                                 in
-                                    Tree.update (map $ map (addHeight <<< addWidth)) child
-                in Tree.node (a /\ def /\ size)
-                        $ Tree.break (Tuple.uncurry doGrowSizing) <$> addChildGrowing <$> children
-            else Tree.node (a /\ def /\ size) $ Tree.break (Tuple.uncurry doGrowSizing) <$> children
+                                    Tree.update (\v -> v { size = addHeight $ addWidth v.size }) child
+                in Tree.node { v, def, size }
+                        $ Tree.break doGrowSizing <$> addChildGrowing <$> children
+            else Tree.node { v, def, size } $ Tree.break doGrowSizing <$> children
 
-        doPositioning :: Pos -> a -> Def /\ Size -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
-        doPositioning pos a (def /\ size) xs =
+        doPositioning :: Pos -> WithDefSize a -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
+        doPositioning pos { v, def, size } xs =
             Tree.node
-                (a /\ rect pos size)
+                { v, rect : rect pos size }
                 $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
             where
                 withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
@@ -202,8 +202,8 @@ layout =
                     -> Offset /\ Array (Tree (WithRect a))
                 foldF (offset /\ prev) tree =
                     let
-                        curVal  = Tuple.fst $ Tree.value tree :: a
-                        curSize = Tuple.snd $ Tuple.snd $ Tree.value tree :: Size
+                        curVal  = _.v    $ Tree.value tree :: a
+                        curSize = _.size $ Tree.value tree :: Size
                         nextOffset =
                             case def.direction of
                                 LeftToRight ->
@@ -216,14 +216,14 @@ layout =
                                     }
                             :: Offset
                         nextNode =
-                            Tree.node ( curVal /\ rect offset curSize )
-                            $ Tree.break (Tuple.uncurry $ doPositioning offset) <$> Tree.children tree
+                            Tree.node { v : curVal, rect : rect offset curSize }
+                            $ Tree.break (doPositioning offset) <$> Tree.children tree
                     in nextOffset
                         /\ (nextNode : prev)
 
 
 toTree :: forall a. Play a -> Tree (WithDef a)
-toTree (Play mbDef a ps) = Tree.mkTree (a /\ mbDef) $ toTree <$> ps
+toTree (Play def a ps) = Tree.mkTree { v : a, def } $ toTree <$> ps
 
 
 default :: Def

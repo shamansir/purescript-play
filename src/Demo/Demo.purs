@@ -299,10 +299,10 @@ component =
                 ]
 
 
-        layoutExample :: Example -> String /\ Play.Size /\ Array (Item /\ Play.Rect)
+        layoutExample :: Example -> String /\ Play.Size /\ Array (Play.WithRect Item)
         layoutExample (Example size label play) = label /\ size /\ Play.layout play
 
-        renderOne :: String /\ Play.Size /\ Array (Item /\ Play.Rect) -> _
+        renderOne :: String /\ Play.Size /\ Array (Play.WithRect Item) -> _
         renderOne (label /\ size /\ items) =
             HH.div_
                 [ HH.div [] [ HH.text label ]
@@ -310,34 +310,36 @@ component =
                     [ HA.width  size.width
                     , HA.height size.height
                     ]
-                    $ uncurry renderItem <$> items
+                    $ renderItem <$> items
                 ]
 
-        renderItem (Item mbCol label) rect =
-            HS.g
-                []
-                [ HS.rect
-                    [ HA.x rect.pos.x
-                    , HA.y rect.pos.y
-                    , HA.width rect.size.width
-                    , HA.height rect.size.height
-                    , HA.fill $ case mbCol of
-                        Just col -> col
-                        Nothing -> HA.Named "transparent"
-                    , HA.stroke $ case mbCol of
-                        Just _ -> HA.Named "transparent"
-                        Nothing -> HA.Named "black"
-                    ]
-                , HS.text
-                    [ HA.x $ rect.pos.x + 3.0
-                    , HA.y $ rect.pos.y + 12.0
-                    -- , HA.fontSize $ HA.Px ?wh
-                    -- , HA.fontWeight $ HA.Px ?wh
-                    , HA.fill $ HA.Named "white"
-                    -- , HA.stroke $ HA.Named "black"
-                    , HA.strokeWidth 0.5
-                    ]
-                    [ HH.text label ]
-                ]
+        renderItem { v, rect } =
+            case v of
+                Item mbCol label ->
+                    HS.g
+                        []
+                        [ HS.rect
+                            [ HA.x rect.pos.x
+                            , HA.y rect.pos.y
+                            , HA.width rect.size.width
+                            , HA.height rect.size.height
+                            , HA.fill $ case mbCol of
+                                Just col -> col
+                                Nothing -> HA.Named "transparent"
+                            , HA.stroke $ case mbCol of
+                                Just _ -> HA.Named "transparent"
+                                Nothing -> HA.Named "black"
+                            ]
+                        , HS.text
+                            [ HA.x $ rect.pos.x + 3.0
+                            , HA.y $ rect.pos.y + 12.0
+                            -- , HA.fontSize $ HA.Px ?wh
+                            -- , HA.fontWeight $ HA.Px ?wh
+                            , HA.fill $ HA.Named "white"
+                            -- , HA.stroke $ HA.Named "black"
+                            , HA.strokeWidth 0.5
+                            ]
+                            [ HH.text label ]
+                        ]
 
         handleAction = const $ pure unit
