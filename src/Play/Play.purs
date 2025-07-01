@@ -96,8 +96,10 @@ layout =
         doPosition pos a (mbDef /\ size) xs =
             Tree.node
                 (a /\ rect pos size)
-                $ Tuple.snd $ foldl foldF (pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
+                $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
             where
+                withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
+                def = fromMaybe default mbDef :: Def
                 foldF
                     :: Offset /\ Array (Tree (a /\ Rect))
                     -> Tree (a /\ Maybe Def /\ Size)
@@ -106,7 +108,17 @@ layout =
                     let
                         curVal = Tuple.fst $ Tree.value tree :: a
                         curSize = Tuple.snd $ Tuple.snd $ Tree.value tree :: Size
-                        nextOffset = { x : offset.x + curSize.width, y : offset.y } :: Offset
+                        nextOffset =
+                            case def.direction of
+                                LeftToRight ->
+                                    { x : offset.x + curSize.width + def.childGap
+                                    , y : offset.y
+                                    }
+                                TopToBottom ->
+                                    { x : offset.x
+                                    , y : offset.y + curSize.height + def.childGap
+                                    }
+                            :: Offset
                         nextNode =
                             Tree.node ( curVal /\ rect offset curSize )
                             $ Tree.break (Tuple.uncurry $ doPosition offset) <$> Tree.children tree
