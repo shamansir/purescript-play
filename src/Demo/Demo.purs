@@ -76,10 +76,10 @@ component =
 
         renderItem item rect =
             HS.rect
-                [ HA.x rect.x
-                , HA.y rect.y
-                , HA.width rect.width
-                , HA.height rect.height
+                [ HA.x rect.pos.x
+                , HA.y rect.pos.y
+                , HA.width rect.size.width
+                , HA.height rect.size.height
                 , HA.fill $ case item of
                         Blue   -> HA.Named "blue"
                         Pink   -> HA.Named "pink"

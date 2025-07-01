@@ -3,15 +3,16 @@ module Play where
 import Prelude
 
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Tuple (uncurry) as Tuple
+import Data.Tuple (uncurry, fst, snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (foldl)
 import Data.Bifunctor (lmap)
+import Data.Array ((:))
 import Data.Array (concat) as Array
 
 import Yoga.Tree (Tree)
 import Yoga.Tree (mkTree) as Tree
-import Yoga.Tree.Extended (node, leaf, break, flatten) as Tree
+import Yoga.Tree.Extended (node, leaf, break, flatten, value, children) as Tree
 
 
 data Direction
@@ -59,6 +60,9 @@ type Pos =
     }
 
 
+type Offset = Pos
+
+
 type Size =
     { width  :: Number
     , height :: Number
@@ -69,7 +73,7 @@ layout :: forall a. Play a -> Array (a /\ Rect)
 layout =
     toTree
         >>> Tree.break (Tuple.uncurry doSizing)
-        >>> Tree.break (Tuple.uncurry doPosition)
+        >>> Tree.break (Tuple.uncurry $ doPosition { x : 0.0, y : 0.0 })
         >>> Tree.flatten
     where
         rect :: Pos -> Size -> Rect
@@ -77,6 +81,7 @@ layout =
         doSizing :: a -> Maybe Def -> Array (Tree (a /\ Maybe Def)) -> Tree (a /\ Maybe Def /\ Size)
         doSizing a mbDef xs =
             let
+                childrenSizes = Tree.break (Tuple.uncurry doSizing) <$> xs
                 size = case mbDef of
                     Just { sizing, direction } ->
                         case sizing.width /\ sizing.height of
@@ -86,16 +91,27 @@ layout =
             in
                 Tree.node
                     (a /\ mbDef /\ size)
-                    $ Tree.break (Tuple.uncurry doSizing) <$> xs
-        doPosition :: a -> (Maybe Def /\ Size) -> Array (Tree (a /\ Maybe Def /\ Size)) -> Tree (a /\ Rect)
-        doPosition a (Nothing /\ size) xs =
+                    $ childrenSizes
+        doPosition :: Pos -> a -> (Maybe Def /\ Size) -> Array (Tree (a /\ Maybe Def /\ Size)) -> Tree (a /\ Rect)
+        doPosition pos a (mbDef /\ size) xs =
             Tree.node
-                (a /\ rect { x : 0.0, y : 0.0 } size)
-                $ Tree.break (Tuple.uncurry doPosition) <$> xs
-        doPosition a (Just def /\ size) xs =
-            Tree.node
-                (a /\ rect { x : 0.0, y : 0.0 } size)
-                $ Tree.break (Tuple.uncurry doPosition) <$> xs
+                (a /\ rect pos size)
+                $ Tuple.snd $ foldl foldF (pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
+            where
+                foldF
+                    :: Offset /\ Array (Tree (a /\ Rect))
+                    -> Tree (a /\ Maybe Def /\ Size)
+                    -> Offset /\ Array (Tree (a /\ Rect))
+                foldF (offset /\ prev) tree =
+                    let
+                        curVal = Tuple.fst $ Tree.value tree :: a
+                        curSize = Tuple.snd $ Tuple.snd $ Tree.value tree :: Size
+                        nextOffset = { x : offset.x + curSize.width, y : offset.y } :: Offset
+                        nextNode =
+                            Tree.node ( curVal /\ rect offset curSize )
+                            $ Tree.break (Tuple.uncurry $ doPosition offset) <$> Tree.children tree
+                    in nextOffset
+                        /\ (nextNode : prev)
 
 
 toTree :: forall a. Play a -> Tree (a /\ Maybe Def)
