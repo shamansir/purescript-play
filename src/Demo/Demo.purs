@@ -147,7 +147,7 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-    , ex "Fit w/padding and gap" 1000.0 600.0
+    , ex "Fit w/padding (32.0) and gap (10.0)" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fit)
         # (Play.height   $ Play.Fit)
@@ -181,7 +181,7 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-    , ex "Fit w/padding and gap, top to bottom" 600.0 1000.0
+    , ex "Fit w/padding (32.0) and gap (10.0), top to bottom" 600.0 1000.0
         $ Play.i blue
         # (Play.width    $ Play.Fit)
         # (Play.height   $ Play.Fit)
@@ -203,6 +203,41 @@ theExamples =
         $ Play.i blue
             # (Play.width    $ Play.Fixed 960.0)
             # (Play.height   $ Play.Fit)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                ]
+    , ex "Fit, grow middle parts" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i green
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                ]
+    , ex "Fit left-to-right w/padding (32.0) and gap (10.0), grow red part" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
             # (Play.padding  $ Play.all 32.0)
             # (Play.childGap 10.0)
             -- # (Play.direction Play.TopToBottom)
@@ -217,7 +252,7 @@ theExamples =
                 # (Play.width    $ Play.Grow)
                 # (Play.height   $ Play.Fixed 250.0)
                 ]
-    , ex "Fit, grow middle parts" 1000.0 600.0
+    , ex "Fit left-to-right w/padding (32.0) and gap (10.0), grow middle parts" 1000.0 600.0
         $ Play.i blue
             # (Play.width    $ Play.Fixed 960.0)
             # (Play.height   $ Play.Fit)

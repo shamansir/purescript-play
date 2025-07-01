@@ -28,6 +28,7 @@ data Sizing
     -- | FitMax { max :: Number }
     -- | FitMinMax { min :: Number, max :: Number }
     | Grow
+    | None
 
 
 derive instance Eq Sizing
@@ -45,12 +46,15 @@ type Def =
     { direction :: Direction
     , padding :: Padding
     , childGap :: Number
-    , sizing :: { width :: Sizing, height :: Sizing }
+    , sizing ::
+        { width :: Sizing
+        , height :: Sizing
+        }
     }
 
 
 data Play a =
-    Play (Maybe Def) a (Array (Play a)) -- technically a tree
+    Play Def a (Array (Play a)) -- technically a tree
 
 
 type Rect =
@@ -79,8 +83,8 @@ data Side_
     | Height
 
 
-type WithDef a     = a /\ Maybe Def
-type WithDefSize a = a /\ Maybe Def /\ Size
+type WithDef a     = a /\ Def
+type WithDefSize a = a /\ Def /\ Size
 type WithRect a    = a /\ Rect
 
 
@@ -96,11 +100,9 @@ layout =
         rect :: Pos -> Size -> Rect
         rect pos size = { pos, size }
 
-        doFitSizing :: a -> Maybe Def -> Array (Tree (WithDef a)) -> Tree (WithDefSize a)
-        doFitSizing a mbDef xs =
+        doFitSizing :: a -> Def -> Array (Tree (WithDef a)) -> Tree (WithDefSize a)
+        doFitSizing a def xs =
             let
-                def = fromMaybe default mbDef :: Def
-
                 childrenSizes :: Array (Tree (WithDefSize a))
                 childrenSizes = Tree.break (Tuple.uncurry doFitSizing) <$> xs
 
@@ -131,6 +133,7 @@ layout =
                                         LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
                                         TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
                         Grow -> 0.0
+                        None -> 0.0
 
                 size =
                     let
@@ -139,14 +142,12 @@ layout =
                     in { width : calcWidth, height : calcHeight }
             in
                 Tree.node
-                    (a /\ mbDef /\ size)
+                    (a /\ def /\ size)
                     $ childrenSizes
 
-        doGrowSizing :: a -> Maybe Def /\ Size -> Array (Tree (WithDefSize a)) -> Tree (WithDefSize a)
-        doGrowSizing a (mbDef /\ size) children =
+        doGrowSizing :: a -> Def /\ Size -> Array (Tree (WithDefSize a)) -> Tree (WithDefSize a)
+        doGrowSizing a (def /\ size) children =
             let
-                def = fromMaybe default mbDef :: Def
-
                 hasGrowingSide :: Def -> Boolean
                 hasGrowingSide = _.sizing >>> case _ of
                     { width  : Grow } -> true
@@ -155,50 +156,44 @@ layout =
                 childrenCount = Array.length children
                 growChildrenCount =
                     Array.length
-                         $  Array.filter (maybe false hasGrowingSide)
+                         $  Array.filter hasGrowingSide
                          $  (Tree.value >>> Tuple.snd >>> Tuple.fst)
                         <$> children
             in if growChildrenCount > 0 then
                 let
-                    wop = case mbDef of
-                            Just { direction : LeftToRight } -> (+)
-                            Just { direction : TopToBottom } -> max
-                            Nothing -> (+)
-                    hop = case mbDef of
-                            Just { direction : LeftToRight } -> max
-                            Just { direction : TopToBottom } -> (+)
-                            Nothing -> (+)
+                    wop = case def.direction of
+                            LeftToRight -> (+)
+                            TopToBottom -> max
+                    hop = case def.direction of
+                            LeftToRight -> max
+                            TopToBottom -> (+)
                     knownWidth  = (foldl wop 0.0 $ (Tree.value >>> Tuple.snd >>> Tuple.snd >>> _.width ) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
                     knownHeight = (foldl hop 0.0 $ (Tree.value >>> Tuple.snd >>> Tuple.snd >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
                     addChildGrowing :: Tree (WithDefSize a) -> Tree (WithDefSize a)
                     addChildGrowing child =
                         case Tree.value child of
-                            (a /\ mbDef /\ chSize) ->
-                                case mbDef <#> _.sizing of
-                                    Just sizing ->
-                                        let
-                                            addWidth s =
-                                                if sizing.width == Grow then
-                                                    s { width  = (size.width - knownWidth) / Int.toNumber growChildrenCount }
-                                                else s
-                                            addHeight s =
-                                                if sizing.height == Grow then
-                                                    s { height = (size.height - knownHeight) / Int.toNumber growChildrenCount }
-                                                else s
-                                        in
-                                            Tree.update (map $ map (addHeight <<< addWidth)) child
-                                    Nothing -> child
-                in Tree.node (a /\ mbDef /\ size)
+                            (a /\ chDef /\ chSize) ->
+                                let
+                                    addWidth s =
+                                        if chDef.sizing.width == Grow then
+                                            s { width  = (size.width - knownWidth) / Int.toNumber growChildrenCount }
+                                        else s
+                                    addHeight s =
+                                        if chDef.sizing.height == Grow then
+                                            s { height = (size.height - knownHeight) / Int.toNumber growChildrenCount }
+                                        else s
+                                in
+                                    Tree.update (map $ map (addHeight <<< addWidth)) child
+                in Tree.node (a /\ def /\ size)
                         $ Tree.break (Tuple.uncurry doGrowSizing) <$> addChildGrowing <$> children
-            else Tree.node (a /\ mbDef /\ size) $ Tree.break (Tuple.uncurry doGrowSizing) <$> children
+            else Tree.node (a /\ def /\ size) $ Tree.break (Tuple.uncurry doGrowSizing) <$> children
 
-        doPositioning :: Pos -> a -> (Maybe Def /\ Size) -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
-        doPositioning pos a (mbDef /\ size) xs =
+        doPositioning :: Pos -> a -> Def /\ Size -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
+        doPositioning pos a (def /\ size) xs =
             Tree.node
                 (a /\ rect pos size)
                 $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
             where
-                def = fromMaybe default mbDef :: Def
                 withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
 
                 foldF
@@ -236,56 +231,56 @@ default =
     { direction : LeftToRight
     , padding : all 0.0
     , childGap : 0.0
-    , sizing : { width : Grow, height : Grow }
+    , sizing : { width : None, height : None }
     }
 
 
 p :: forall a. a -> Array (Play a) -> Play a
-p = Play Nothing
+p = Play default
 
 
 i :: forall a. a -> Play a
 i a = p a []
 
 
-_dir :: Direction -> Maybe Def -> Def
-_dir upd = fromMaybe default >>> _ { direction = upd }
+_dir :: Direction -> Def -> Def
+_dir upd = _ { direction = upd }
 
 
-_padding :: Padding -> Maybe Def -> Def
-_padding upd = fromMaybe default >>> _ { padding = upd }
+_padding :: Padding -> Def -> Def
+_padding upd = _ { padding = upd }
 
 
-_childGap :: Number -> Maybe Def -> Def
-_childGap upd = fromMaybe default >>> _ { childGap = upd }
+_childGap :: Number -> Def -> Def
+_childGap upd = _ { childGap = upd }
 
 
-_width :: Sizing -> Maybe Def -> Def
-_width upd = fromMaybe default >>> \x -> x { sizing = { width : upd, height : x.sizing.height } }
+_width :: Sizing -> Def -> Def
+_width upd x = x { sizing = { width : upd, height : x.sizing.height } }
 
 
-_height :: Sizing -> Maybe Def -> Def
-_height upd = fromMaybe default >>> \x -> x { sizing = { width : x.sizing.width, height : upd } }
+_height :: Sizing -> Def -> Def
+_height upd x = x { sizing = { width : x.sizing.width, height : upd } }
 
 
 direction :: forall a. Direction -> Play a -> Play a
-direction upd (Play mbDef a ps) = Play (Just $ _dir upd mbDef) a ps
+direction upd (Play mbDef a ps) = Play (_dir upd mbDef) a ps
 
 
 padding :: forall a. Padding -> Play a -> Play a
-padding   upd (Play mbDef a ps) = Play (Just $ _padding upd mbDef) a ps
+padding   upd (Play mbDef a ps) = Play (_padding upd mbDef) a ps
 
 
 childGap :: forall a. Number -> Play a -> Play a
-childGap  upd (Play mbDef a ps) = Play (Just $ _childGap upd mbDef) a ps
+childGap  upd (Play mbDef a ps) = Play (_childGap upd mbDef) a ps
 
 
 width :: forall a. Sizing -> Play a -> Play a
-width     upd (Play mbDef a ps) = Play (Just $ _width upd mbDef) a ps
+width     upd (Play mbDef a ps) = Play ( _width upd mbDef) a ps
 
 
 height :: forall a. Sizing -> Play a -> Play a
-height    upd (Play mbDef a ps) = Play (Just $ _height upd mbDef) a ps
+height    upd (Play mbDef a ps) = Play (_height upd mbDef) a ps
 
 
 with :: forall a. Array (Play a) -> Play a -> Play a
