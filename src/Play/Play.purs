@@ -83,6 +83,9 @@ data Side_
     | Height
 
 
+derive instance Eq Side_
+
+
 type WithDef a     = { v :: a, def :: Def }
 type WithDefSize a = { v :: a, def :: Def, size :: Size }
 type WithRect a    = { v :: a, rect :: Rect }
@@ -148,45 +151,47 @@ layout =
         doGrowSizing :: WithDefSize a -> Array (Tree (WithDefSize a)) -> Tree (WithDefSize a)
         doGrowSizing { v, def, size } children =
             let
-                hasGrowingSide :: Def -> Boolean
-                hasGrowingSide = _.sizing >>> case _ of
-                    { width  : Grow } -> true
+                hasGrowingSide :: Side_ -> Def -> Boolean
+                hasGrowingSide Width = _.sizing >>> case _ of
+                    { width : Grow } -> true
+                    _ -> false
+                hasGrowingSide Height = _.sizing >>> case _ of
                     { height : Grow } -> true
                     _ -> false
                 childrenCount = Array.length children
-                growChildrenCount =
+                growChildrenCount side =
                     Array.length
-                         $  Array.filter hasGrowingSide
+                         $  Array.filter (hasGrowingSide side)
                          $  (Tree.value >>> _.def)
                         <$> children
-            in if growChildrenCount > 0 then
+                growChildrenByW = growChildrenCount Width
+                growChildrenByH = growChildrenCount Height
+            in if growChildrenByW > 0 || growChildrenByH > 0 then
                 let
-                    wop = case def.direction of
-                            LeftToRight -> (+)
-                            TopToBottom -> max
-                    hop = case def.direction of
-                            LeftToRight -> max
-                            TopToBottom -> (+)
-                    knownWidth  = (foldl wop 0.0 $ (Tree.value >>> _.size >>> _.width ) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
-                    knownHeight = (foldl hop 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
-                    addChildGrowing :: Tree (WithDefSize a) -> Tree (WithDefSize a)
-                    addChildGrowing child =
+                    growWidth = case def.direction of
+                        LeftToRight ->
+                            let knownWidth = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.width ) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                            in (size.width - knownWidth)  / Int.toNumber growChildrenByW
+                        TopToBottom ->
+                            size.width - def.padding.right - def.padding.left
+                    growHeight = case def.direction of
+                        LeftToRight ->
+                            size.height - def.padding.top - def.padding.bottom
+                        TopToBottom ->
+                            let knownHeight = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                            in (size.height - knownHeight) / Int.toNumber growChildrenByH
+                    addGrowingToChild :: Tree (WithDefSize a) -> Tree (WithDefSize a)
+                    addGrowingToChild child =
                         case Tree.value child of
                             ch ->
                                 let
-                                    addWidth s =
-                                        if ch.def.sizing.width == Grow then
-                                            s { width  = (size.width - knownWidth) / Int.toNumber growChildrenCount }
-                                        else s
-                                    addHeight s =
-                                        if ch.def.sizing.height == Grow then
-                                            s { height = (size.height - knownHeight) / Int.toNumber growChildrenCount }
-                                        else s
+                                    addWidth  s = if ch.def.sizing.width  == Grow then s { width  = growWidth  } else s
+                                    addHeight s = if ch.def.sizing.height == Grow then s { height = growHeight } else s
                                 in
-                                    Tree.update (\v -> v { size = addHeight $ addWidth v.size }) child
-                in Tree.node { v, def, size }
-                        $ Tree.break doGrowSizing <$> addChildGrowing <$> children
-            else Tree.node { v, def, size } $ Tree.break doGrowSizing <$> children
+                                    Tree.update (\chv -> chv { size = addHeight $ addWidth chv.size }) child
+                in Tree.node { v, def, size } $ Tree.break doGrowSizing <$> addGrowingToChild <$> children
+            else
+                Tree.node { v, def, size } $ Tree.break doGrowSizing <$> children
 
         doPositioning :: Pos -> WithDefSize a -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
         doPositioning pos { v, def, size } xs =
