@@ -8,7 +8,8 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (foldl)
 import Data.Bifunctor (lmap)
 import Data.Array ((:))
-import Data.Array (concat) as Array
+import Data.Array (concat, length) as Array
+import Data.Int (toNumber) as Int
 
 import Yoga.Tree (Tree)
 import Yoga.Tree (mkTree) as Tree
@@ -69,44 +70,89 @@ type Size =
     }
 
 
+data Side_
+    = Width
+    | Height
+
+
+type WithDef a     = a /\ Maybe Def
+type WithDefSize a = a /\ Maybe Def /\ Size
+type WithRect a    = a /\ Rect
+
+
 layout :: forall a. Play a -> Array (a /\ Rect)
 layout =
     toTree
-        >>> Tree.break (Tuple.uncurry doSizing)
+        >>> Tree.break (Tuple.uncurry doFitSizing)
         >>> Tree.break (Tuple.uncurry $ doPosition { x : 0.0, y : 0.0 })
         >>> Tree.flatten
     where
+
         rect :: Pos -> Size -> Rect
         rect pos size = { pos, size }
-        doSizing :: a -> Maybe Def -> Array (Tree (a /\ Maybe Def)) -> Tree (a /\ Maybe Def /\ Size)
-        doSizing a mbDef xs =
+
+        doFitSizing :: a -> Maybe Def -> Array (Tree (WithDef a)) -> Tree (WithDefSize a)
+        doFitSizing a mbDef xs =
             let
-                childrenSizes = Tree.break (Tuple.uncurry doSizing) <$> xs
-                size = case mbDef of
-                    Just { sizing, direction } ->
-                        case sizing.width /\ sizing.height of
-                            Fixed w /\ Fixed h -> { width : w, height : h }
-                            _ -> { width : 0.0, height : 0.0 }
-                    Nothing -> { width : 0.0, height : 0.0 }
+                def = fromMaybe default mbDef :: Def
+
+                childrenSizes :: Array (Tree (WithDefSize a))
+                childrenSizes = Tree.break (Tuple.uncurry doFitSizing) <$> xs
+
+                childrenCount = Array.length xs :: Int
+
+                foldFMain :: (Size -> Number) -> Number -> Tree (WithDefSize a) -> Number
+                foldFMain extract n tree = n +   (tree # Tree.value # Tuple.snd # Tuple.snd # extract)
+
+                foldFSec  :: (Size -> Number) -> Number -> Tree (WithDefSize a) -> Number
+                foldFSec  extract n tree = max n (tree # Tree.value # Tuple.snd # Tuple.snd # extract)
+
+                calcSide :: Side_ -> Number
+                calcSide side =
+                    let
+                        sizing
+                            = case side of
+                                Width  -> def.sizing.width
+                                Height -> def.sizing.height
+                    in case sizing of
+                        Fixed n -> n
+                        Fit -> case side of
+                                Width ->
+                                    case def.direction of
+                                        LeftToRight -> foldl (foldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
+                                        TopToBottom -> foldl (foldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
+                                Height ->
+                                    case def.direction of
+                                        LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
+                                        TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
+                        _ -> 0.0
+
+                size =
+                    let
+                        calcWidth  = calcSide Width
+                        calcHeight = calcSide Height
+                    in { width : calcWidth, height : calcHeight }
             in
                 Tree.node
                     (a /\ mbDef /\ size)
                     $ childrenSizes
-        doPosition :: Pos -> a -> (Maybe Def /\ Size) -> Array (Tree (a /\ Maybe Def /\ Size)) -> Tree (a /\ Rect)
+
+        doPosition :: Pos -> a -> (Maybe Def /\ Size) -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
         doPosition pos a (mbDef /\ size) xs =
             Tree.node
                 (a /\ rect pos size)
                 $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
             where
-                withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
                 def = fromMaybe default mbDef :: Def
+                withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
+
                 foldF
-                    :: Offset /\ Array (Tree (a /\ Rect))
-                    -> Tree (a /\ Maybe Def /\ Size)
-                    -> Offset /\ Array (Tree (a /\ Rect))
+                    :: Offset /\ Array (Tree (WithRect a))
+                    -> Tree (WithDefSize a)
+                    -> Offset /\ Array (Tree (WithRect a))
                 foldF (offset /\ prev) tree =
                     let
-                        curVal = Tuple.fst $ Tree.value tree :: a
+                        curVal  = Tuple.fst $ Tree.value tree :: a
                         curSize = Tuple.snd $ Tuple.snd $ Tree.value tree :: Size
                         nextOffset =
                             case def.direction of
@@ -126,7 +172,7 @@ layout =
                         /\ (nextNode : prev)
 
 
-toTree :: forall a. Play a -> Tree (a /\ Maybe Def)
+toTree :: forall a. Play a -> Tree (WithDef a)
 toTree (Play mbDef a ps) = Tree.mkTree (a /\ mbDef) $ toTree <$> ps
 
 

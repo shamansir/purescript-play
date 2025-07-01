@@ -33,7 +33,7 @@ data Item
     = Item (Maybe HA.Color) String
 
 
-data Example = Example String (Play Item)
+data Example = Example Play.Size String (Play Item)
 
 
 type State = Array Example
@@ -53,13 +53,13 @@ red    = ic (HA.Named "red")    "Red"    :: Item
 yellow = ic (HA.Named "yellow") "Yellow" :: Item
 
 
-ex :: String -> Play Item -> Example
-ex = Example
+ex :: String -> Number -> Number -> Play Item -> Example
+ex label w h = Example { width : w, height : h } label
 
 
 theExamples :: State
 theExamples =
-    [ ex "Fixed, no padding, no child gap"
+    [ ex "Fixed, no padding, no child gap" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 960.0)
         # (Play.height   $ Play.Fixed 540.0)
@@ -75,7 +75,7 @@ theExamples =
             # (Play.height   $ Play.Fixed 250.0)
             ]
 
-    , ex "Fixed, no padding, with child gap 32.0"
+    , ex "Fixed, no padding, with child gap 32.0" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 960.0)
         # (Play.height   $ Play.Fixed 540.0)
@@ -92,7 +92,7 @@ theExamples =
             # (Play.height   $ Play.Fixed 250.0)
             ]
 
-    , ex "Fixed, with padding 32.0, with child gap 10.0"
+    , ex "Fixed, with padding 32.0, with child gap 10.0" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 960.0)
         # (Play.height   $ Play.Fixed 540.0)
@@ -110,7 +110,7 @@ theExamples =
             # (Play.height   $ Play.Fixed 250.0)
             ]
 
-    , ex "Fixed, top-to-bottom with padding 32.0, with child gap 10.0"
+    , ex "Fixed, top-to-bottom with padding 32.0, with child gap 10.0" 600.0 1100.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 540.0)
         # (Play.height   $ Play.Fixed 1000.0)
@@ -128,7 +128,76 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-
+    , ex "Fit" 900.0 500.0
+        $ Play.i blue
+        # (Play.width    $ Play.Fit)
+        # (Play.height   $ Play.Fit)
+        -- # (Play.padding  $ Play.all 32.0)
+        -- # (Play.childGap 10.0)
+        -- # (Play.direction Play.TopToBottom)
+        # Play.with
+            [ Play.i pink
+            # (Play.width    $ Play.Fixed 300.0)
+            # (Play.height   $ Play.Fixed 300.0)
+            , Play.i yellow
+            # (Play.width    $ Play.Fixed 200.0)
+            # (Play.height   $ Play.Fixed 200.0)
+            , Play.i red
+            # (Play.width    $ Play.Fixed 10.0)
+            # (Play.height   $ Play.Fixed 250.0)
+            ]
+    , ex "Fit w/padding and gap" 1000.0 600.0
+        $ Play.i blue
+        # (Play.width    $ Play.Fit)
+        # (Play.height   $ Play.Fit)
+        # (Play.padding  $ Play.all 32.0)
+        # (Play.childGap 10.0)
+        -- # (Play.direction Play.TopToBottom)
+        # Play.with
+            [ Play.i pink
+            # (Play.width    $ Play.Fixed 300.0)
+            # (Play.height   $ Play.Fixed 300.0)
+            , Play.i yellow
+            # (Play.width    $ Play.Fixed 200.0)
+            # (Play.height   $ Play.Fixed 200.0)
+            , Play.i red
+            # (Play.width    $ Play.Fixed 10.0)
+            # (Play.height   $ Play.Fixed 250.0)
+            ]
+    , ex "Fit, top to bottom" 600.0 1000.0
+        $ Play.i blue
+        # (Play.width    $ Play.Fit)
+        # (Play.height   $ Play.Fit)
+        # (Play.direction Play.TopToBottom)
+        # Play.with
+            [ Play.i pink
+            # (Play.width    $ Play.Fixed 300.0)
+            # (Play.height   $ Play.Fixed 300.0)
+            , Play.i yellow
+            # (Play.width    $ Play.Fixed 200.0)
+            # (Play.height   $ Play.Fixed 200.0)
+            , Play.i red
+            # (Play.width    $ Play.Fixed 10.0)
+            # (Play.height   $ Play.Fixed 250.0)
+            ]
+    , ex "Fit w/padding and gap, top to bottom" 600.0 1000.0
+        $ Play.i blue
+        # (Play.width    $ Play.Fit)
+        # (Play.height   $ Play.Fit)
+        # (Play.padding  $ Play.all 32.0)
+        # (Play.childGap 10.0)
+        # (Play.direction Play.TopToBottom)
+        # Play.with
+            [ Play.i pink
+            # (Play.width    $ Play.Fixed 300.0)
+            # (Play.height   $ Play.Fixed 300.0)
+            , Play.i yellow
+            # (Play.width    $ Play.Fixed 200.0)
+            # (Play.height   $ Play.Fixed 200.0)
+            , Play.i red
+            # (Play.width    $ Play.Fixed 10.0)
+            # (Play.height   $ Play.Fixed 250.0)
+            ]
     ]
 
 
@@ -155,16 +224,16 @@ component =
                 ]
 
 
-        layoutExample :: Example -> String /\ Array (Item /\ Play.Rect)
-        layoutExample (Example label play) = label /\ Play.layout play
+        layoutExample :: Example -> String /\ Play.Size /\ Array (Item /\ Play.Rect)
+        layoutExample (Example size label play) = label /\ size /\ Play.layout play
 
-        renderOne :: String /\ Array (Item /\ Play.Rect) -> _
-        renderOne (label /\ items) =
+        renderOne :: String /\ Play.Size /\ Array (Item /\ Play.Rect) -> _
+        renderOne (label /\ size /\ items) =
             HH.div_
                 [ HH.div [] [ HH.text label ]
                 , HS.svg
-                    [ HA.width 1000.0
-                    , HA.height 600.0
+                    [ HA.width  size.width
+                    , HA.height size.height
                     ]
                     $ uncurry renderItem <$> items
                 ]
