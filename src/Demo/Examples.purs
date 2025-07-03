@@ -457,6 +457,7 @@ noodleHorzNodeUI =
     let
         titleWidth = 30.0
         channelsHeight = 20.0
+        bodyWidth = 700.0 -- try 300.0 to see how it fits
         bodyHeight = 120.0
         channelWidth = 70.0
         connectorWidth = 15.0
@@ -487,50 +488,47 @@ noodleHorzNodeUI =
                 ]
         outlets = outlet <$> Array.range 0 7
 
-    in ex 18 "Noodle Horizontal Node" 800.0 200.0
+    in ex 19 "Noodle Horizontal Node (var. 2)" 800.0 200.0
         $ Play.i (ic (HA.Named "blue") "background")
             # (Play.width    $ Play.Fit)
             # (Play.height   $ Play.Fit)
-            # (Play.direction Play.TopToBottom)
+            # (Play.direction Play.LeftToRight)
             # Play.with
-                [ Play.i (ic (HA.Named "purple") "top row")
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed channelsHeight)
-                # (Play.direction Play.LeftToRight)
-                # Play.with
-                    [ Play.i (ic (HA.Named "blue") "padding")
-                    # (Play.width    $ Play.Fixed titleWidth)
-                    # (Play.height   $ Play.Grow)
-                    , Play.i (ic (HA.Named "purple") "inlets")
-                    # (Play.width    $ Play.Grow)
-                    # (Play.height   $ Play.Grow)
-                    # Play.with inlets
-                    ]
-
-                , Play.i (ic (HA.Named "magenta") "title + body")
-                # (Play.width    $ Play.Fixed 700.0)
+                [ Play.i (ic (HA.Named "magenta") "title + paddings")
+                # (Play.width    $ Play.Fixed titleWidth)
                 # (Play.height   $ Play.Fit)
-                # (Play.direction Play.LeftToRight)
+                # (Play.direction Play.TopToBottom)
                 # Play.with
-                    [ Play.i (ic (HA.Named "black") "title")
-                    # (Play.width    $ Play.Fixed titleWidth)
-                    # (Play.height   $ Play.Grow)
-                    , Play.i (ic (HA.Named "darkgray") "body")
+                    [ Play.i (ic (HA.Named "blue") "padding top")
+                    # (Play.width    $ Play.Grow)
+                    # (Play.height   $ Play.Fixed channelsHeight)
+                    , Play.i (ic (HA.Named "black") "title")
                     # (Play.width    $ Play.Grow)
                     # (Play.height   $ Play.Fixed bodyHeight)
-                    ]
-
-                , Play.i (ic (HA.Named "blue") "bottom row")
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed channelsHeight)
-                # (Play.direction Play.LeftToRight)
-                # Play.with
-                    [ Play.i (ic (HA.Named "blue") "padding")
-                    # (Play.width    $ Play.Fixed titleWidth)
-                    # (Play.height   $ Play.Grow)
-                    , Play.i (ic (HA.Named "purple") "outlets")
+                    , Play.i (ic (HA.Named "blue") "padding bottom")
                     # (Play.width    $ Play.Grow)
-                    # (Play.height   $ Play.Grow)
+                    # (Play.height   $ Play.Fixed channelsHeight)
+                    ]
+                , Play.i (ic (HA.Named "purple") "")
+                # (Play.width    $ Play.Fit)
+                # (Play.height   $ Play.Fit)
+                # (Play.direction Play.TopToBottom)
+                # Play.with
+                    [ Play.i (ic (HA.Named "magenta") "inlets")
+                    # (Play.width    $ Play.Fit)
+                    # (Play.height   $ Play.Fixed channelsHeight)
+                    # Play.with inlets
+                    , Play.i (ic (HA.Named "lightgray") "body bg")
+                    # (Play.width    $ Play.FitGrow)
+                    # (Play.height   $ Play.Fixed bodyHeight)
+                    # Play.with
+                        [ Play.i (ic (HA.Named "darkgray") "body")
+                        # (Play.width    $ Play.Fixed bodyWidth)
+                        # (Play.height   $ Play.Fixed bodyHeight)
+                        ]
+                    , Play.i (ic (HA.Named "magenta") "outlets")
+                    # (Play.width    $ Play.Fit)
+                    # (Play.height   $ Play.Fixed channelsHeight)
                     # Play.with outlets
                     ]
                 ]

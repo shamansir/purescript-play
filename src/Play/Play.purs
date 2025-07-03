@@ -24,6 +24,7 @@ data Direction
 data Sizing
     = Fixed Number
     | Fit
+    | FitGrow
     -- | FixedPct Percentage
     -- | FitMin { min :: Number }
     -- | FitMax { max :: Number }
@@ -118,6 +119,17 @@ layout =
                 foldFSec  :: (Size -> Number) -> Number -> Tree (WithDefSize a) -> Number
                 foldFSec  extract n tree = max n (tree # Tree.value # _.size # extract)
 
+                fitAtSide :: Side_ -> Number
+                fitAtSide = case _ of
+                    Width ->
+                        case def.direction of
+                            LeftToRight -> foldl (foldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
+                            TopToBottom -> foldl (foldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
+                    Height ->
+                        case def.direction of
+                            LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
+                            TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
+
                 calcSide :: Side_ -> Number
                 calcSide side =
                     let
@@ -127,15 +139,8 @@ layout =
                                 Height -> def.sizing.height
                     in case sizing of
                         Fixed n -> n
-                        Fit -> case side of
-                                Width ->
-                                    case def.direction of
-                                        LeftToRight -> foldl (foldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
-                                        TopToBottom -> foldl (foldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
-                                Height ->
-                                    case def.direction of
-                                        LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
-                                        TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
+                        Fit -> fitAtSide side
+                        FitGrow -> fitAtSide side
                         Grow -> 0.0
                         None -> 0.0
 
@@ -155,9 +160,11 @@ layout =
                 hasGrowingSide :: Side_ -> Def -> Boolean
                 hasGrowingSide Width = _.sizing >>> case _ of
                     { width : Grow } -> true
+                    { width : FitGrow } -> true
                     _ -> false
                 hasGrowingSide Height = _.sizing >>> case _ of
                     { height : Grow } -> true
+                    { height : FitGrow } -> true
                     _ -> false
                 childrenCount = Array.length children
                 growChildrenCount side =
@@ -186,8 +193,14 @@ layout =
                         case Tree.value child of
                             ch ->
                                 let
-                                    addWidth  s = if ch.def.sizing.width  == Grow then s { width  = growWidth  } else s
-                                    addHeight s = if ch.def.sizing.height == Grow then s { height = growHeight } else s
+                                    addWidth  s =
+                                        if ch.def.sizing.width == Grow then s { width = growWidth }
+                                        else if ch.def.sizing.width == FitGrow then s { width = max s.width growWidth }
+                                        else s
+                                    addHeight s =
+                                        if ch.def.sizing.height == Grow then s { height = growHeight }
+                                        else if ch.def.sizing.height == FitGrow then s { height = max s.height growHeight }
+                                        else s
                                 in
                                     Tree.update (\chv -> chv { size = addHeight $ addWidth chv.size }) child
                 in Tree.node { v, def, size } $ Tree.break doGrowSizing <$> addGrowingToChild <$> children
