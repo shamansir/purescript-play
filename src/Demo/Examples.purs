@@ -4,6 +4,7 @@ import Prelude
 
 import Data.Maybe (Maybe(..))
 import Data.Array (range) as Array
+import Data.Int (toNumber) as Int
 
 import Halogen.Svg.Attributes (Color(..)) as HA
 
@@ -461,6 +462,8 @@ noodleHorzNodeUI =
         bodyHeight = 120.0
         channelWidth = 70.0
         connectorWidth = 15.0
+        inletsCount = 5
+        outletsCount = 7
         inlet n =
             Play.i (ic (HA.Named "transparent") "")
             # (Play.width  $ Play.Fixed channelWidth)
@@ -469,11 +472,11 @@ noodleHorzNodeUI =
                 [ Play.i (ic (HA.Named "green") "connector")
                     # (Play.width    $ Play.Fixed connectorWidth)
                     # (Play.height   $ Play.Grow)
-                , Play.i (ic (HA.Named "yellow") $ show n <> " inlet")
+                , Play.i (ic (HA.Named "brown") $ show n <> " inlet")
                     # (Play.width    $ Play.Grow)
                     # (Play.height   $ Play.Grow)
                 ]
-        inlets = inlet <$> Array.range 0 5
+        inlets = inlet <$> Array.range 0 inletsCount
         outlet n =
             Play.i (ic (HA.Named "transparent") "")
             # (Play.width  $ Play.Fixed channelWidth)
@@ -482,13 +485,13 @@ noodleHorzNodeUI =
                 [ Play.i (ic (HA.Named "green") "connector")
                     # (Play.width    $ Play.Fixed connectorWidth)
                     # (Play.height   $ Play.Grow)
-                , Play.i (ic (HA.Named "yellow") $ show n <> " outlet")
+                , Play.i (ic (HA.Named "brown") $ show n <> " outlet")
                     # (Play.width    $ Play.Grow)
                     # (Play.height   $ Play.Grow)
                 ]
-        outlets = outlet <$> Array.range 0 7
+        outlets = outlet <$> Array.range 0 outletsCount
 
-    in ex 19 "Noodle Horizontal Node (var. 2)" 800.0 200.0
+    in ex 18 "Noodle Horizontal Node" 800.0 200.0
         $ Play.i (ic (HA.Named "blue") "background")
             # (Play.width    $ Play.Fit)
             # (Play.height   $ Play.Fit)
@@ -509,7 +512,7 @@ noodleHorzNodeUI =
                     # (Play.width    $ Play.Grow)
                     # (Play.height   $ Play.Fixed channelsHeight)
                     ]
-                , Play.i (ic (HA.Named "purple") "")
+                , Play.i (ic (HA.Named "purple") "") -- inlets + body + outlets
                 # (Play.width    $ Play.Fit)
                 # (Play.height   $ Play.Fit)
                 # (Play.direction Play.TopToBottom)
@@ -534,6 +537,98 @@ noodleHorzNodeUI =
                 ]
 
 
+{- 19 -}
+noodleVertNodeUI :: Example
+noodleVertNodeUI =
+    let
+        titleHeight = 30.0
+        bodyWidth = 300.0
+        bodyHeight = 400.0 -- try values less that 100.0 to see how it fits
+        channelNameMinWidth = 100.0
+        paddingWidth = channelNameMinWidth + connectorWidth -- TODO: auto-fit
+        channelHeight = 20.0
+        connectorWidth = 15.0
+        inletsCount = 5
+        outletsCount = 7
+        inlet n =
+            Play.i (ic (HA.Named "transparent") "")
+            # (Play.width  $ Play.Fit)
+            # (Play.height $ Play.Fit)
+            # Play.with
+                [ Play.i (ic (HA.Named "brown") $ show n <> " inlet")
+                    # (Play.width    $ Play.Fixed channelNameMinWidth)
+                    # (Play.height   $ Play.Fixed channelHeight)
+                , Play.i (ic (HA.Named "green") "con")
+                    # (Play.width    $ Play.Fixed connectorWidth)
+                    # (Play.height   $ Play.Grow)
+                ]
+        inlets = inlet <$> Array.range 0 5
+        outlet n =
+            Play.i (ic (HA.Named "transparent") "")
+            # (Play.width  $ Play.Fit)
+            # (Play.height $ Play.Fit)
+            # Play.with
+                [ Play.i (ic (HA.Named "green") "con")
+                    # (Play.width    $ Play.Fixed connectorWidth)
+                    # (Play.height   $ Play.Grow)
+                , Play.i (ic (HA.Named "brown") $ show n <> " outlet")
+                    # (Play.width    $ Play.Fixed channelNameMinWidth)
+                    # (Play.height   $ Play.Fixed channelHeight)
+                ]
+        outlets = outlet <$> Array.range 0 7
+
+        exampleWidth  = bodyWidth + (2.0 * paddingWidth) + 50.0
+        exampleHeight = max (bodyHeight + 50.0) (max (Int.toNumber inletsCount * channelHeight) (Int.toNumber outletsCount * channelHeight) + titleHeight)
+
+    in ex 19 "Noodle Vertical Node" exampleWidth exampleHeight
+        $ Play.i (ic (HA.Named "blue") "background")
+            # (Play.width    $ Play.Fit)
+            # (Play.height   $ Play.Fit)
+            # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i (ic (HA.Named "magenta") "title + paddings")
+                # (Play.width    $ Play.Fit)
+                # (Play.height   $ Play.Fixed titleHeight)
+                # (Play.direction Play.LeftToRight)
+                # Play.with
+                    [ Play.i (ic (HA.Named "blue") "padding")
+                    # (Play.width    $ Play.Fixed paddingWidth)
+                    # (Play.height   $ Play.Grow)
+                    , Play.i (ic (HA.Named "black") "title")
+                    # (Play.width    $ Play.Fixed bodyWidth)
+                    # (Play.height   $ Play.Fixed titleHeight)
+                    , Play.i (ic (HA.Named "blue") "padding")
+                    # (Play.width    $ Play.Fixed paddingWidth)
+                    # (Play.height   $ Play.Grow)
+                    ]
+
+                , Play.i (ic (HA.Named "purple") "") -- inlets + body + outlets
+                # (Play.width    $ Play.Fit)
+                # (Play.height   $ Play.Fit)
+                # (Play.direction Play.LeftToRight)
+                # Play.with
+                    [ Play.i (ic (HA.Named "magenta") "inlets")
+                    # (Play.width    $ Play.Fit)
+                    # (Play.height   $ Play.Fit)
+                    # (Play.direction Play.TopToBottom)
+                    # Play.with inlets
+                    , Play.i (ic (HA.Named "lightgray") "body bg")
+                    # (Play.width    $ Play.Fixed bodyWidth)
+                    # (Play.height   $ Play.FitGrow)
+                    # Play.with
+                        [ Play.i (ic (HA.Named "darkgray") "body")
+                        # (Play.width    $ Play.Fixed bodyWidth)
+                        # (Play.height   $ Play.Fixed bodyHeight)
+                        ]
+                    , Play.i (ic (HA.Named "magenta") "outlets")
+                    # (Play.width    $ Play.Fit)
+                    # (Play.height   $ Play.Fit)
+                    # (Play.direction Play.TopToBottom)
+                    # Play.with outlets
+                    ]
+                ]
+
+
 -- TODO svgGraphUI
 
 
@@ -546,6 +641,7 @@ noodleHorzNodeUI =
 theExamples :: Array Example
 theExamples =
     [ noodleHorzNodeUI {- 18 -}
+    , noodleVertNodeUI {- 19 -}
     , exSingleMenuItem {- 00 -}
     , exCompleteMenu {- 01 -}
     , exFixedNoGaps {- 02 -}
