@@ -2,11 +2,11 @@ module Play where
 
 import Prelude
 
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.Tuple (uncurry, fst, snd) as Tuple
+import Debug as Debug
+
+import Data.Tuple ( snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (foldl)
-import Data.Bifunctor (lmap)
 import Data.Array ((:))
 import Data.Array (concat, length, filter) as Array
 import Data.Int (toNumber) as Int
@@ -197,7 +197,7 @@ layout =
         doPositioning pos { v, def, size } xs =
             Tree.node
                 { v, rect : rect pos size }
-                $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
+                $ Tuple.snd $ foldl foldF (withPadding pos /\ []) $ Debug.spy "fold on" xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
             where
                 withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
 
@@ -205,10 +205,12 @@ layout =
                     :: Offset /\ Array (Tree (WithRect a))
                     -> Tree (WithDefSize a)
                     -> Offset /\ Array (Tree (WithRect a))
-                foldF (offset /\ prev) tree =
+                foldF (offset /\ prev) chTree =
                     let
-                        curVal  = _.v    $ Tree.value tree :: a
-                        curSize = _.size $ Tree.value tree :: Size
+                        curVal  = Debug.spy "v" $ _.v    $ Tree.value chTree :: a
+                        curDef  = Debug.spy "def" $ _.def    $ Tree.value chTree :: Def
+                        curSize = Debug.spy "s" $ _.size $ Tree.value chTree :: Size
+                        childrenCount =  Debug.spy "cc" $ Array.length $ Tree.children chTree :: Int
                         nextOffset =
                             case def.direction of
                                 LeftToRight ->
@@ -221,10 +223,14 @@ layout =
                                     }
                             :: Offset
                         nextNode =
-                            Tree.node { v : curVal, rect : rect offset curSize }
-                            $ Tree.break (doPositioning offset) <$> Tree.children tree
+                            (Tree.node { v : curVal, def : curDef, size : curSize } $ Tree.children chTree)
+                                # Tree.break (doPositioning offset)
+                            -- rect : rect offset curSize } # doPositioning offset
+                            --
+                            -- $ Tree.break (doPositioning offset) <$> (Debug.spy "chidlren" $ Tree.children chTree)
                     in nextOffset
-                        /\ (nextNode : prev)
+                        /\ (prev <> [ nextNode ])
+                        -- /\ (nextNode : prev)
 
 
 toTree :: forall a. Play a -> Tree (WithDef a)

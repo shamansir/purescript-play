@@ -14,7 +14,7 @@ data Item
     = Item (Maybe HA.Color) String
 
 
-data Example = Example Play.Size String (Play Item)
+data Example = Example Int Play.Size String (Play Item)
 
 
 ic :: HA.Color -> String -> Item
@@ -33,38 +33,53 @@ green  = ic (HA.Named "green")  "Green"  :: Item
 purple = ic (HA.Named "purple") "Purple" :: Item
 
 
-ex :: String -> Number -> Number -> Play Item -> Example
-ex label w h = Example { width : w, height : h } label
+ex :: Int -> String -> Number -> Number -> Play Item -> Example
+ex id label w h = Example id { width : w, height : h } label
 
 
-theExamples :: Array Example
-theExamples =
-    [ ex "Menu example" 350.0 650.0
+menuItem :: String -> Play Item
+menuItem itemName =
+    Play.i (ic (HA.Named "lightblue") "")
+        # (Play.width  $ Play.Grow)
+        # (Play.height $ Play.Fixed 66.0) -- Grow works here only when parent container has fixed size
+        # (Play.direction Play.LeftToRight)
+        # (Play.padding $ Play.all 3.0)
+        # Play.with
+        [ Play.i (il itemName)
+            # (Play.width Play.Grow)
+            # (Play.height $ Play.Fixed 60.0)
+        , Play.i (ic (HA.Named "yellow") "icon")
+            # (Play.width  $ Play.Fixed 60.0)
+            # (Play.height $ Play.Fixed 60.0)
+        ]
+
+
+{- 00 -}
+exSingleMenuItem =
+    ex 0 "Menu item" 260.0 80.0 $
+        Play.i (il "")
+            # (Play.width  $ Play.Fixed 250.0)
+            # (Play.height $ Play.Fixed 66.0)
+            # Play.with (pure $ menuItem "Menu Item")
+    :: Example
+
+
+{- 01 -}
+exCompleteMenu =
+    ex 1 "Menu example" 350.0 550.0
         $ Play.i purple
         # (Play.width    $ Play.Fixed 250.0)
         # (Play.height   $ Play.Fit)
         # (Play.padding  $ Play.all 5.0)
         # (Play.direction Play.TopToBottom)
         # (Play.childGap 5.0)
-        # Play.with (
-            (\itemName ->
-                Play.i (ic (HA.Named "lightblue") "")
-                     # (Play.width Play.Grow)
-                     # (Play.height $ Play.Fixed 60.0)
-                     # (Play.direction Play.LeftToRight)
-                     # (Play.padding $ Play.all 3.0)
-                     # Play.with
-                        [ Play.i (il itemName)
-                            # (Play.width Play.Grow)
-                            # (Play.height $ Play.Fixed 60.0)
-                        , Play.i (ic (HA.Named "yellow") "icon")
-                            # (Play.width $ Play.Fixed 60.0)
-                            # (Play.height $ Play.Fixed 60.0)
-                        ]
-            )
-            <$> [ "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6" ])
+        # Play.with (menuItem <$> [ "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6" ])
+    :: Example
 
-    , ex "Fixed, no padding, no child gap" 1000.0 600.0
+
+{- 02 -}
+exFixedNoGaps =
+    ex 2 "Fixed, no padding, no child gap" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 960.0)
         # (Play.height   $ Play.Fixed 540.0)
@@ -79,8 +94,12 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
+    :: Example
 
-    , ex "Fixed, no padding, with child gap 32.0" 1000.0 600.0
+
+{- 03 -}
+exFixedChildGap =
+    ex 3 "Fixed, no padding, with child gap 32.0" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 960.0)
         # (Play.height   $ Play.Fixed 540.0)
@@ -96,8 +115,12 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
+    :: Example
 
-    , ex "Fixed, with padding 32.0, with child gap 10.0" 1000.0 600.0
+
+{- 04 -}
+exFixedPaddingChildGap =
+    ex 4 "Fixed, with padding 32.0, with child gap 10.0" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 960.0)
         # (Play.height   $ Play.Fixed 540.0)
@@ -114,8 +137,12 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
+    :: Example
 
-    , ex "Fixed, top-to-bottom with padding 32.0, with child gap 10.0" 600.0 1100.0
+
+{- 05 -}
+exFixedTopToBotPaddingChildGap =
+    ex 5 "Fixed, top-to-bottom with padding 32.0, with child gap 10.0" 600.0 1100.0
         $ Play.i blue
         # (Play.width    $ Play.Fixed 540.0)
         # (Play.height   $ Play.Fixed 1000.0)
@@ -133,7 +160,12 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-    , ex "Fit" 900.0 500.0
+    :: Example
+
+
+{- 06 -}
+exFit =
+    ex 6 "Fit" 900.0 500.0
         $ Play.i blue
         # (Play.width    $ Play.Fit)
         # (Play.height   $ Play.Fit)
@@ -151,7 +183,12 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-    , ex "Fit w/padding (32.0) and gap (10.0)" 1000.0 600.0
+    :: Example
+
+
+{- 07 -}
+exFitPaddingGap =
+    ex 7 "Fit w/padding (32.0) and gap (10.0)" 1000.0 600.0
         $ Play.i blue
         # (Play.width    $ Play.Fit)
         # (Play.height   $ Play.Fit)
@@ -169,7 +206,12 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-    , ex "Fit, top to bottom" 600.0 1000.0
+    :: Example
+
+
+{- 08 -}
+exFitTopBottom =
+    ex 8 "Fit, top to bottom" 600.0 1000.0
         $ Play.i blue
         # (Play.width    $ Play.Fit)
         # (Play.height   $ Play.Fit)
@@ -185,7 +227,12 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-    , ex "Fit w/padding (32.0) and gap (10.0), top to bottom" 600.0 1000.0
+    :: Example
+
+
+{- 09 -}
+exFitTopBottomPaddingGap =
+    ex 9 "Fit w/padding (32.0) and gap (10.0), top to bottom" 600.0 1000.0
         $ Play.i blue
         # (Play.width    $ Play.Fit)
         # (Play.height   $ Play.Fit)
@@ -203,82 +250,106 @@ theExamples =
             # (Play.width    $ Play.Fixed 10.0)
             # (Play.height   $ Play.Fixed 250.0)
             ]
-    , ex "Fit, grow red part" 1000.0 600.0
-        $ Play.i blue
-            # (Play.width    $ Play.Fixed 960.0)
-            # (Play.height   $ Play.Fit)
-            -- # (Play.direction Play.TopToBottom)
-            # Play.with
-                [ Play.i pink
-                # (Play.width    $ Play.Fixed 300.0)
-                # (Play.height   $ Play.Fixed 300.0)
-                , Play.i yellow
-                # (Play.width    $ Play.Fixed 200.0)
-                # (Play.height   $ Play.Fixed 200.0)
-                , Play.i red
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed 250.0)
-                ]
-    , ex "Fit, grow middle parts" 1000.0 600.0
-        $ Play.i blue
-            # (Play.width    $ Play.Fixed 960.0)
-            # (Play.height   $ Play.Fit)
-            -- # (Play.direction Play.TopToBottom)
-            # Play.with
-                [ Play.i pink
-                # (Play.width    $ Play.Fixed 300.0)
-                # (Play.height   $ Play.Fixed 300.0)
-                , Play.i red
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed 250.0)
-                , Play.i green
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed 250.0)
-                , Play.i yellow
-                # (Play.width    $ Play.Fixed 200.0)
-                # (Play.height   $ Play.Fixed 200.0)
-                ]
-    , ex "Fit left-to-right w/padding (32.0) and gap (10.0), grow red part" 1000.0 600.0
-        $ Play.i blue
-            # (Play.width    $ Play.Fixed 960.0)
-            # (Play.height   $ Play.Fit)
-            # (Play.padding  $ Play.all 32.0)
-            # (Play.childGap 10.0)
-            -- # (Play.direction Play.TopToBottom)
-            # Play.with
-                [ Play.i pink
-                # (Play.width    $ Play.Fixed 300.0)
-                # (Play.height   $ Play.Fixed 300.0)
-                , Play.i yellow
-                # (Play.width    $ Play.Fixed 200.0)
-                # (Play.height   $ Play.Fixed 200.0)
-                , Play.i red
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed 250.0)
-                ]
-    , ex "Fit left-to-right w/padding (32.0) and gap (10.0), grow middle parts" 1000.0 600.0
-        $ Play.i blue
-            # (Play.width    $ Play.Fixed 960.0)
-            # (Play.height   $ Play.Fit)
-            # (Play.padding  $ Play.all 32.0)
-            # (Play.childGap 10.0)
-            -- # (Play.direction Play.TopToBottom)
-            # Play.with
-                [ Play.i pink
-                # (Play.width    $ Play.Fixed 300.0)
-                # (Play.height   $ Play.Fixed 300.0)
-                , Play.i red
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed 250.0)
-                , Play.i green
-                # (Play.width    $ Play.Grow)
-                # (Play.height   $ Play.Fixed 250.0)
-                , Play.i yellow
-                # (Play.width    $ Play.Fixed 200.0)
-                # (Play.height   $ Play.Fixed 200.0)
-                ]
+    :: Example
 
-    , ex "Fit left-to-right w/padding (32.0) and gap (10.0), grow middle parts vertically as well" 1000.0 600.0
+
+{- 10 -}
+exFitGrowLast =
+    ex 10 "Fit, grow red part" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                ]
+    :: Example
+
+
+{- 11 -}
+exFitGrowMiddle =
+    ex 11 "Fit, grow middle parts" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i green
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                ]
+    :: Example
+
+
+{- 12 -}
+exFitGrowLastPaddingGap =
+    ex 12 "Fit left-to-right w/padding (32.0) and gap (10.0), grow red part" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
+            # (Play.padding  $ Play.all 32.0)
+            # (Play.childGap 10.0)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                ]
+    :: Example
+
+
+{- 13 -}
+exFitGrowMiddlePaddingGap =
+    ex 13 "Fit left-to-right w/padding (32.0) and gap (10.0), grow middle parts" 1000.0 600.0
+        $ Play.i blue
+            # (Play.width    $ Play.Fixed 960.0)
+            # (Play.height   $ Play.Fit)
+            # (Play.padding  $ Play.all 32.0)
+            # (Play.childGap 10.0)
+            -- # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i pink
+                # (Play.width    $ Play.Fixed 300.0)
+                # (Play.height   $ Play.Fixed 300.0)
+                , Play.i red
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i green
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed 250.0)
+                , Play.i yellow
+                # (Play.width    $ Play.Fixed 200.0)
+                # (Play.height   $ Play.Fixed 200.0)
+                ]
+    :: Example
+
+
+{- 14 -}
+exFitGrowMiddlePaddingGapVert =
+    ex 14 "Fit left-to-right w/padding (32.0) and gap (10.0), grow middle parts vertically as well" 1000.0 600.0
         $ Play.i blue
             # (Play.width    $ Play.Fixed 960.0)
             # (Play.height   $ Play.Fit)
@@ -299,8 +370,12 @@ theExamples =
                 # (Play.width    $ Play.Fixed 200.0)
                 # (Play.height   $ Play.Fixed 200.0)
                 ]
+    :: Example
 
-    , ex "Fit top-to-bottom w/padding (32.0) and gap (10.0), grow red part" 1000.0 1100.0
+
+{- 15 -}
+exFitGrowLastPaddingGapToToBottom =
+    ex 15 "Fit top-to-bottom w/padding (32.0) and gap (10.0), grow red part" 1000.0 1100.0
         $ Play.i blue
             # (Play.width    $ Play.Fit)
             # (Play.height   $ Play.Fixed 1000.0)
@@ -318,7 +393,12 @@ theExamples =
                 # (Play.width    $ Play.Fixed 10.0)
                 # (Play.height   $ Play.Grow)
                 ]
-    , ex "Fit lop-to-bottom w/padding (32.0) and gap (10.0), grow middle parts" 1000.0 1100.0
+    :: Example
+
+
+{- 16 -}
+exFitGrowMiddlePaddingGapTopToBottom =
+    ex 16 "Fit lop-to-bottom w/padding (32.0) and gap (10.0), grow middle parts" 1000.0 1100.0
         $ Play.i blue
             # (Play.width    $ Play.Fit)
             # (Play.height   $ Play.Fixed 1000.0)
@@ -339,8 +419,13 @@ theExamples =
                 # (Play.width    $ Play.Fixed 200.0)
                 # (Play.height   $ Play.Fixed 200.0)
                 ]
+    :: Example
 
-    , ex "Fit top-to-bottom w/padding (32.0) and gap (10.0), grow middle parts horizontally as well" 1000.0 1100.0
+
+
+{- 17 -}
+exFitGrowMiddlePaddingGapTopToBottomHorz =
+    ex 17 "Fit top-to-bottom w/padding (32.0) and gap (10.0), grow middle parts horizontally as well" 1000.0 1100.0
         $ Play.i blue
             # (Play.width    $ Play.Fit)
             # (Play.height   $ Play.Fixed 1000.0)
@@ -361,5 +446,27 @@ theExamples =
                 # (Play.width    $ Play.Fixed 200.0)
                 # (Play.height   $ Play.Fixed 200.0)
                 ]
+    :: Example
 
+
+theExamples :: Array Example
+theExamples =
+    [ exSingleMenuItem {- 00 -}
+    , exCompleteMenu {- 01 -}
+    , exFixedNoGaps {- 02 -}
+    , exFixedChildGap {- 03 -}
+    , exFixedPaddingChildGap {- 04 -}
+    , exFixedTopToBotPaddingChildGap {- 05 -}
+    , exFit {- 06 -}
+    , exFitPaddingGap {- 07 -}
+    , exFitTopBottom {- 08 -}
+    , exFitTopBottomPaddingGap {- 09 -}
+    , exFitGrowLast {- 10 -}
+    , exFitGrowMiddle {- 11 -}
+    , exFitGrowLastPaddingGap {- 12 -}
+    , exFitGrowMiddlePaddingGap {- 13 -}
+    , exFitGrowMiddlePaddingGapVert {- 14 -}
+    , exFitGrowLastPaddingGapToToBottom {- 15 -}
+    , exFitGrowMiddlePaddingGapTopToBottom {- 16 -}
+    , exFitGrowMiddlePaddingGapTopToBottomHorz {- 17 -}
     ]

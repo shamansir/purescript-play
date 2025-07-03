@@ -37,6 +37,7 @@ type State = Array Example
 
 type LayedOutExample =
     { label :: String
+    , id :: Int
     , size :: Play.Size
     , layout :: Array (Play.WithRect Item)
     }
@@ -65,12 +66,12 @@ component =
                 ]
 
         layoutExample :: Example -> LayedOutExample
-        layoutExample (Example size label play) = { label, size, layout : Play.layout play }
+        layoutExample (Example id size label play) = { id, label, size, layout : Play.layout play }
 
         renderOne :: LayedOutExample -> _
-        renderOne { label, size, layout } =
+        renderOne { id, label, size, layout } =
             HH.div_
-                [ HH.div [] [ HH.text label ]
+                [ HH.div [] [ HH.text $ show id <> ". " <> label ]
                 , HS.svg
                     [ HA.width  size.width
                     , HA.height size.height

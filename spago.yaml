@@ -2,6 +2,7 @@ package:
   name: play
   dependencies:
     - console
+    - debug
     - effect
     - halogen
     - halogen-svg-elems

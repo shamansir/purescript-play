@@ -2,6 +2,7 @@
 bower_components/
 node_modules/
 .pulp-cache/
+.parcel-cache/
 output/
 output-es/
 generated-docs/
