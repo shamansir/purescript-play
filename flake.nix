@@ -23,7 +23,7 @@
                        ps-overlay.overlays.default
                      ];
         };
-      
+
         myPackage =
             pkgs.mkSpagoDerivation {
               spagoYaml = ./spago.yaml;
@@ -34,17 +34,17 @@
               buildPhase = "spago build";
               installPhase = "mkdir $out; cp -r ./web $out";
               buildNodeModulesArgs = {
-                npmRoot = ./.;
+                  npmRoot = ./.;
                 nodejs = pkgs.nodejs;
               };
             };
 
-        myApp = { 
+        myApp = {
             type = "app";
             program = "sh ./serve.sh";
         };
 
-      in     
+      in
         {
           packages.default = myPackage;
 
