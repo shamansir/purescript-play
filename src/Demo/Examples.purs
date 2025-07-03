@@ -3,6 +3,7 @@ module Demo.Examples where
 import Prelude
 
 import Data.Maybe (Maybe(..))
+import Data.Array (range) as Array
 
 import Halogen.Svg.Attributes (Color(..)) as HA
 
@@ -41,7 +42,7 @@ menuItem :: String -> Play Item
 menuItem itemName =
     Play.i (ic (HA.Named "lightblue") "")
         # (Play.width  $ Play.Grow)
-        # (Play.height $ Play.Fixed 66.0) -- Grow works here only when parent container has fixed size
+        # (Play.height $ Play.Fit)
         # (Play.direction Play.LeftToRight)
         # (Play.padding $ Play.all 3.0)
         # Play.with
@@ -59,7 +60,7 @@ exSingleMenuItem =
     ex 0 "Menu item" 260.0 80.0 $
         Play.i (il "")
             # (Play.width  $ Play.Fixed 250.0)
-            # (Play.height $ Play.Fixed 66.0)
+            # (Play.height $ Play.Fit)
             # Play.with (pure $ menuItem "Menu Item")
     :: Example
 
@@ -73,7 +74,7 @@ exCompleteMenu =
         # (Play.padding  $ Play.all 5.0)
         # (Play.direction Play.TopToBottom)
         # (Play.childGap 5.0)
-        # Play.with (menuItem <$> [ "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6" ])
+        # Play.with (menuItem <$> [ "Copy", "Paste", "Delete", "Spell Check", "Dictionary", "Comment" ])
     :: Example
 
 
@@ -449,9 +450,105 @@ exFitGrowMiddlePaddingGapTopToBottomHorz =
     :: Example
 
 
+
+{- 18 -}
+noodleHorzNodeUI :: Example
+noodleHorzNodeUI =
+    let
+        titleWidth = 30.0
+        channelsHeight = 20.0
+        bodyHeight = 120.0
+        channelWidth = 70.0
+        connectorWidth = 15.0
+        inlet n =
+            Play.i (ic (HA.Named "transparent") "")
+            # (Play.width  $ Play.Fixed channelWidth)
+            # (Play.height $ Play.Grow)
+            # Play.with
+                [ Play.i (ic (HA.Named "green") "connector")
+                    # (Play.width    $ Play.Fixed connectorWidth)
+                    # (Play.height   $ Play.Grow)
+                , Play.i (ic (HA.Named "yellow") $ show n <> " inlet")
+                    # (Play.width    $ Play.Grow)
+                    # (Play.height   $ Play.Grow)
+                ]
+        inlets = inlet <$> Array.range 0 5
+        outlet n =
+            Play.i (ic (HA.Named "transparent") "")
+            # (Play.width  $ Play.Fixed channelWidth)
+            # (Play.height $ Play.Grow)
+            # Play.with
+                [ Play.i (ic (HA.Named "green") "connector")
+                    # (Play.width    $ Play.Fixed connectorWidth)
+                    # (Play.height   $ Play.Grow)
+                , Play.i (ic (HA.Named "yellow") $ show n <> " outlet")
+                    # (Play.width    $ Play.Grow)
+                    # (Play.height   $ Play.Grow)
+                ]
+        outlets = outlet <$> Array.range 0 7
+
+    in ex 18 "Noodle Horizontal Node" 800.0 200.0
+        $ Play.i (ic (HA.Named "blue") "background")
+            # (Play.width    $ Play.Fit)
+            # (Play.height   $ Play.Fit)
+            # (Play.direction Play.TopToBottom)
+            # Play.with
+                [ Play.i (ic (HA.Named "purple") "top row")
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed channelsHeight)
+                # (Play.direction Play.LeftToRight)
+                # Play.with
+                    [ Play.i (ic (HA.Named "blue") "padding")
+                    # (Play.width    $ Play.Fixed titleWidth)
+                    # (Play.height   $ Play.Grow)
+                    , Play.i (ic (HA.Named "purple") "inlets")
+                    # (Play.width    $ Play.Grow)
+                    # (Play.height   $ Play.Grow)
+                    # Play.with inlets
+                    ]
+
+                , Play.i (ic (HA.Named "magenta") "title + body")
+                # (Play.width    $ Play.Fixed 700.0)
+                # (Play.height   $ Play.Fit)
+                # (Play.direction Play.LeftToRight)
+                # Play.with
+                    [ Play.i (ic (HA.Named "black") "title")
+                    # (Play.width    $ Play.Fixed titleWidth)
+                    # (Play.height   $ Play.Grow)
+                    , Play.i (ic (HA.Named "darkgray") "body")
+                    # (Play.width    $ Play.Grow)
+                    # (Play.height   $ Play.Fixed bodyHeight)
+                    ]
+
+                , Play.i (ic (HA.Named "blue") "bottom row")
+                # (Play.width    $ Play.Grow)
+                # (Play.height   $ Play.Fixed channelsHeight)
+                # (Play.direction Play.LeftToRight)
+                # Play.with
+                    [ Play.i (ic (HA.Named "blue") "padding")
+                    # (Play.width    $ Play.Fixed titleWidth)
+                    # (Play.height   $ Play.Grow)
+                    , Play.i (ic (HA.Named "purple") "outlets")
+                    # (Play.width    $ Play.Grow)
+                    # (Play.height   $ Play.Grow)
+                    # Play.with outlets
+                    ]
+                ]
+
+
+-- TODO svgGraphUI
+
+
+-- TODO noodleUI
+
+
+-- TODO noodleNodeUI
+
+
 theExamples :: Array Example
 theExamples =
-    [ exSingleMenuItem {- 00 -}
+    [ noodleHorzNodeUI {- 18 -}
+    , exSingleMenuItem {- 00 -}
     , exCompleteMenu {- 01 -}
     , exFixedNoGaps {- 02 -}
     , exFixedChildGap {- 03 -}

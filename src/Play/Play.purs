@@ -24,6 +24,7 @@ data Direction
 data Sizing
     = Fixed Number
     | Fit
+    -- | FixedPct Percentage
     -- | FitMin { min :: Number }
     -- | FitMax { max :: Number }
     -- | FitMinMax { min :: Number, max :: Number }
