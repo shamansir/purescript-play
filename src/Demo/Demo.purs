@@ -39,7 +39,7 @@ type LayedOutExample =
     { label :: String
     , id :: Int
     , size :: Play.Size
-    , layout :: Array (Play.WithRect Item)
+    , layout :: Play.Layout Item
     }
 
 
@@ -76,7 +76,7 @@ component =
                     [ HA.width  size.width
                     , HA.height size.height
                     ]
-                    $ renderItem <$> layout
+                    $ renderItem <$> Play.flattenLayout layout
                 ]
 
         renderItem { v, rect } =

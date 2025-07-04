@@ -1,84 +1,44 @@
-module Play where
+module Play
+    ( Play
+    , Layout
+    , module PT
+    , direction, padding, childGap, width, height, with
+    , default, all, tb, lr, p, i
+    , toTree, fromTree
+    , layout, layoutToTree, flattenLayout, rollback
+    )  where
 
 import Prelude
 
-import Debug as Debug
-
 import Data.Tuple ( snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
-import Data.Foldable (foldl)
-import Data.Array ((:))
-import Data.Array (concat, length, filter) as Array
+import Data.Foldable (class Foldable, foldl)
+import Data.Traversable (class Traversable)
+import Data.Array (length, filter, snoc) as Array
 import Data.Int (toNumber) as Int
 
 import Yoga.Tree (Tree)
-import Yoga.Tree (mkTree) as Tree
 import Yoga.Tree.Extended (node, leaf, break, flatten, value, children, update) as Tree
 
-
-data Direction
-    = TopToBottom
-    | LeftToRight
-
-
-data Sizing
-    = Fixed Number
-    | Fit
-    | FitGrow
-    -- | FixedPct Percentage
-    -- | FitMin { min :: Number }
-    -- | FitMax { max :: Number }
-    -- | FitMinMax { min :: Number, max :: Number }
-    | Grow
-    | None
-
-
-derive instance Eq Sizing
-
-
-type Padding =
-    { top :: Number
-    , left :: Number
-    , bottom :: Number
-    , right :: Number
-    }
-
-
-type Def =
-    { direction :: Direction
-    , padding :: Padding
-    , childGap :: Number
-    , sizing ::
-        { width :: Sizing
-        , height :: Sizing
-        }
-    }
+import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefSize, WithRect, WithDefRect)  as PT
 
 
 newtype Play a =
-    Play (Tree (WithDef a))
-    -- Play Def a (Array (Play a)) -- technically a tree
+    Play (Tree (PT.WithDef a))
 
 
-type Rect =
-    { pos :: Pos
-    , size :: Size
-    }
+derive instance Functor Play
+derive instance Foldable Play
+derive instance Traversable Play
 
 
-type Pos =
-    { x  :: Number
-    , y :: Number
-    }
+newtype Layout a =
+    Layout (Tree (PT.WithDefRect a))
 
 
-type Offset = Pos
-
-
-type Size =
-    { width  :: Number
-    , height :: Number
-    }
+derive instance Functor Layout
+derive instance Foldable Layout
+derive instance Traversable Layout
 
 
 data Side_
@@ -89,47 +49,42 @@ data Side_
 derive instance Eq Side_
 
 
-type WithDef a     = { v :: a, def :: Def }
-type WithDefSize a = { v :: a, def :: Def, size :: Size }
-type WithRect a    = { v :: a, rect :: Rect }
-
-
-layout :: forall a. Play a -> Array (WithRect a)
+layout :: forall a. Play a -> Layout a
 layout =
     toTree
         >>> Tree.break doFitSizing
         >>> Tree.break doGrowSizing
         >>> Tree.break (doPositioning { x : 0.0, y : 0.0 })
-        >>> Tree.flatten
+        >>> Layout
     where
 
-        rect :: Pos -> Size -> Rect
+        rect :: PT.Pos -> PT.Size -> PT.Rect
         rect pos size = { pos, size }
 
-        doFitSizing :: WithDef a -> Array (Tree (WithDef a)) -> Tree (WithDefSize a)
+        doFitSizing :: PT.WithDef a -> Array (Tree (PT.WithDef a)) -> Tree (PT.WithDefSize a)
         doFitSizing { v, def } xs =
             let
-                childrenSizes :: Array (Tree (WithDefSize a))
+                childrenSizes :: Array (Tree (PT.WithDefSize a))
                 childrenSizes = Tree.break doFitSizing <$> xs
 
                 childrenCount = Array.length xs :: Int
 
-                foldFMain :: (Size -> Number) -> Number -> Tree (WithDefSize a) -> Number
+                foldFMain :: (PT.Size -> Number) -> Number -> Tree (PT.WithDefSize a) -> Number
                 foldFMain extract n tree = n +   (tree # Tree.value # _.size # extract)
 
-                foldFSec  :: (Size -> Number) -> Number -> Tree (WithDefSize a) -> Number
+                foldFSec  :: (PT.Size -> Number) -> Number -> Tree (PT.WithDefSize a) -> Number
                 foldFSec  extract n tree = max n (tree # Tree.value # _.size # extract)
 
                 fitAtSide :: Side_ -> Number
                 fitAtSide = case _ of
                     Width ->
                         case def.direction of
-                            LeftToRight -> foldl (foldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
-                            TopToBottom -> foldl (foldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
+                            PT.LeftToRight -> foldl (foldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
+                            PT.TopToBottom -> foldl (foldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
                     Height ->
                         case def.direction of
-                            LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
-                            TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
+                            PT.LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
+                            PT.TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
 
                 calcSide :: Side_ -> Number
                 calcSide side =
@@ -139,11 +94,11 @@ layout =
                                 Width  -> def.sizing.width
                                 Height -> def.sizing.height
                     in case sizing of
-                        Fixed n -> n
-                        Fit -> fitAtSide side
-                        FitGrow -> fitAtSide side
-                        Grow -> 0.0
-                        None -> 0.0
+                        PT.Fixed n -> n
+                        PT.Fit -> fitAtSide side
+                        PT.FitGrow -> fitAtSide side
+                        PT.Grow -> 0.0
+                        PT.None -> 0.0
 
                 size =
                     let
@@ -155,17 +110,17 @@ layout =
                     { v, def, size }
                     $ childrenSizes
 
-        doGrowSizing :: WithDefSize a -> Array (Tree (WithDefSize a)) -> Tree (WithDefSize a)
+        doGrowSizing :: PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefSize a)
         doGrowSizing { v, def, size } children =
             let
-                hasGrowingSide :: Side_ -> Def -> Boolean
+                hasGrowingSide :: Side_ -> PT.Def -> Boolean
                 hasGrowingSide Width = _.sizing >>> case _ of
-                    { width : Grow } -> true
-                    { width : FitGrow } -> true
+                    { width : PT.Grow } -> true
+                    { width : PT.FitGrow } -> true
                     _ -> false
                 hasGrowingSide Height = _.sizing >>> case _ of
-                    { height : Grow } -> true
-                    { height : FitGrow } -> true
+                    { height : PT.Grow } -> true
+                    { height : PT.FitGrow } -> true
                     _ -> false
                 childrenCount = Array.length children
                 growChildrenCount side =
@@ -178,29 +133,29 @@ layout =
             in if growChildrenByW > 0 || growChildrenByH > 0 then
                 let
                     growWidth = case def.direction of
-                        LeftToRight ->
+                        PT.LeftToRight ->
                             let knownWidth = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.width ) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
                             in (size.width - knownWidth)  / Int.toNumber growChildrenByW
-                        TopToBottom ->
+                        PT.TopToBottom ->
                             size.width - def.padding.right - def.padding.left
                     growHeight = case def.direction of
-                        LeftToRight ->
+                        PT.LeftToRight ->
                             size.height - def.padding.top - def.padding.bottom
-                        TopToBottom ->
+                        PT.TopToBottom ->
                             let knownHeight = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
                             in (size.height - knownHeight) / Int.toNumber growChildrenByH
-                    addGrowingToChild :: Tree (WithDefSize a) -> Tree (WithDefSize a)
+                    addGrowingToChild :: Tree (PT.WithDefSize a) -> Tree (PT.WithDefSize a)
                     addGrowingToChild child =
                         case Tree.value child of
                             ch ->
                                 let
                                     addWidth  s =
-                                        if ch.def.sizing.width == Grow then s { width = growWidth }
-                                        else if ch.def.sizing.width == FitGrow then s { width = max s.width growWidth }
+                                        if ch.def.sizing.width == PT.Grow then s { width = growWidth }
+                                        else if ch.def.sizing.width == PT.FitGrow then s { width = max s.width growWidth }
                                         else s
                                     addHeight s =
-                                        if ch.def.sizing.height == Grow then s { height = growHeight }
-                                        else if ch.def.sizing.height == FitGrow then s { height = max s.height growHeight }
+                                        if ch.def.sizing.height == PT.Grow then s { height = growHeight }
+                                        else if ch.def.sizing.height == PT.FitGrow then s { height = max s.height growHeight }
                                         else s
                                 in
                                     Tree.update (\chv -> chv { size = addHeight $ addWidth chv.size }) child
@@ -208,56 +163,57 @@ layout =
             else
                 Tree.node { v, def, size } $ Tree.break doGrowSizing <$> children
 
-        doPositioning :: Pos -> WithDefSize a -> Array (Tree (WithDefSize a)) -> Tree (WithRect a)
+        doPositioning :: PT.Pos -> PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefRect a) -- could be `WithRect` easily, but we keep `def` to be able to roll back `Layout` to original `Play`
         doPositioning pos { v, def, size } xs =
             Tree.node
-                { v, rect : rect pos size }
-                $ Tuple.snd $ foldl foldF (withPadding pos /\ []) $ Debug.spy "fold on" xs -- Tree.break (Tuple.uncurry $ doPosition) <$> ?wh <$> xs
+                { v, def, rect : rect pos size }
+                $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs
             where
                 withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
 
                 foldF
-                    :: Offset /\ Array (Tree (WithRect a))
-                    -> Tree (WithDefSize a)
-                    -> Offset /\ Array (Tree (WithRect a))
+                    :: PT.Offset /\ Array (Tree (PT.WithDefRect a))
+                    -> Tree (PT.WithDefSize a)
+                    -> PT.Offset /\ Array (Tree (PT.WithDefRect a))
                 foldF (offset /\ prev) chTree =
                     let
-                        curVal  = Debug.spy "v" $ _.v    $ Tree.value chTree :: a
-                        curDef  = Debug.spy "def" $ _.def    $ Tree.value chTree :: Def
-                        curSize = Debug.spy "s" $ _.size $ Tree.value chTree :: Size
-                        childrenCount =  Debug.spy "cc" $ Array.length $ Tree.children chTree :: Int
+                        curVal  = _.v    $ Tree.value chTree :: a
+                        curDef  = _.def  $ Tree.value chTree :: PT.Def
+                        curSize = _.size $ Tree.value chTree :: PT.Size
+                        -- childrenCount = Array.length $ Tree.children chTree :: Int
                         nextOffset =
                             case def.direction of
-                                LeftToRight ->
+                                PT.LeftToRight ->
                                     { x : offset.x + curSize.width + def.childGap
                                     , y : offset.y
                                     }
-                                TopToBottom ->
+                                PT.TopToBottom ->
                                     { x : offset.x
                                     , y : offset.y + curSize.height + def.childGap
                                     }
-                            :: Offset
+                            :: PT.Offset
+                        nextNode :: Tree (PT.WithDefRect a)
                         nextNode =
                             (Tree.node { v : curVal, def : curDef, size : curSize } $ Tree.children chTree)
                                 # Tree.break (doPositioning offset)
-                            -- rect : rect offset curSize } # doPositioning offset
-                            --
-                            -- $ Tree.break (doPositioning offset) <$> (Debug.spy "chidlren" $ Tree.children chTree)
                     in nextOffset
-                        /\ (prev <> [ nextNode ])
-                        -- /\ (nextNode : prev)
+                        /\ Array.snoc prev nextNode
 
 
-toTree :: forall a. Play a -> Tree (WithDef a)
+toTree :: forall a. Play a -> Tree (PT.WithDef a)
 toTree (Play tree) = tree
 
 
-default :: Def
+fromTree :: forall a. Tree (PT.WithDef a) -> Play a
+fromTree = Play
+
+
+default :: PT.Def
 default =
-    { direction : LeftToRight
+    { direction : PT.LeftToRight
     , padding : all 0.0
     , childGap : 0.0
-    , sizing : { width : None, height : None }
+    , sizing : { width : PT.None, height : PT.None }
     }
 
 
@@ -269,39 +225,47 @@ i :: forall a. a -> Play a
 i a = p a []
 
 
-_dir :: Direction -> Def -> Def
+_dir :: PT.Direction -> PT.Def -> PT.Def
 _dir upd = _ { direction = upd }
 
 
-_padding :: Padding -> Def -> Def
+_padding :: PT.Padding -> PT.Def -> PT.Def
 _padding upd = _ { padding = upd }
 
 
-_childGap :: Number -> Def -> Def
+_childGap :: Number -> PT.Def -> PT.Def
 _childGap upd = _ { childGap = upd }
 
 
-_width :: Sizing -> Def -> Def
+_width :: PT.Sizing -> PT.Def -> PT.Def
 _width upd x = x { sizing = { width : upd, height : x.sizing.height } }
 
 
-_height :: Sizing -> Def -> Def
+_height :: PT.Sizing -> PT.Def -> PT.Def
 _height upd x = x { sizing = { width : x.sizing.width, height : upd } }
 
 
-_def :: forall a x. (x -> Def -> Def) -> x -> WithDef a -> WithDef a
+_def :: forall a x. (x -> PT.Def -> PT.Def) -> x -> PT.WithDef a -> PT.WithDef a
 _def fn x r = r { def = fn x r.def }
 
 
-_prop :: forall a x. (x -> Def -> Def) -> x -> Play a -> Play a
+_undef :: forall a. PT.WithDefRect a -> PT.WithRect a
+_undef = \{ rect, v } -> { rect, v }
+
+
+_unrect :: forall a. PT.WithDefRect a -> PT.WithDef a
+_unrect = \{ def, v } -> { def, v }
+
+
+_prop :: forall a x. (x -> PT.Def -> PT.Def) -> x -> Play a -> Play a
 _prop fn x (Play tree) = Play $ Tree.update (_def fn x) tree
 
 
-direction :: forall a. Direction -> Play a -> Play a
+direction :: forall a. PT.Direction -> Play a -> Play a
 direction = _prop _dir
 
 
-padding :: forall a. Padding -> Play a -> Play a
+padding :: forall a. PT.Padding -> Play a -> Play a
 padding = _prop _padding
 
 
@@ -309,25 +273,37 @@ childGap :: forall a. Number -> Play a -> Play a
 childGap = _prop _childGap
 
 
-width :: forall a. Sizing -> Play a -> Play a
+width :: forall a. PT.Sizing -> Play a -> Play a
 width = _prop _width
 
 
-height :: forall a. Sizing -> Play a -> Play a
-height =  _prop _height
+height :: forall a. PT.Sizing -> Play a -> Play a
+height = _prop _height
 
 
 with :: forall a. Array (Play a) -> Play a -> Play a
 with children (Play tree) = Play $ Tree.node (Tree.value tree) $ Tree.children tree <> (toTree <$> children)
 
 
-all :: Number -> Padding
+all :: Number -> PT.Padding
 all n = { top : n, bottom : n, left : n, right : n }
 
 
-tb :: Number -> Padding
+tb :: Number -> PT.Padding
 tb n = { top : n, bottom : n, left : 0.0, right : 0.0 }
 
 
-lr :: Number -> Padding
+lr :: Number -> PT.Padding
 lr n = { top : 0.0, bottom : 0.0, left : n, right : n }
+
+
+rollback :: forall a. Layout a -> Play a
+rollback (Layout ltree) = fromTree $ _unrect <$> ltree
+
+
+layoutToTree :: forall a. Layout a -> Tree (PT.WithRect a)
+layoutToTree (Layout ltree) = ltree <#> _undef
+
+
+flattenLayout :: forall a. Layout a -> Array (PT.WithRect a)
+flattenLayout = layoutToTree >>> Tree.flatten
