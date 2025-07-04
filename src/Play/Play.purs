@@ -55,8 +55,9 @@ type Def =
     }
 
 
-data Play a =
-    Play Def a (Array (Play a)) -- technically a tree
+newtype Play a =
+    Play (Tree (WithDef a))
+    -- Play Def a (Array (Play a)) -- technically a tree
 
 
 type Rect =
@@ -248,7 +249,7 @@ layout =
 
 
 toTree :: forall a. Play a -> Tree (WithDef a)
-toTree (Play def a ps) = Tree.mkTree { v : a, def } $ toTree <$> ps
+toTree (Play tree) = tree
 
 
 default :: Def
@@ -261,7 +262,7 @@ default =
 
 
 p :: forall a. a -> Array (Play a) -> Play a
-p = Play default
+p a = Play <<< Tree.node { v : a, def : default } <<< map toTree
 
 
 i :: forall a. a -> Play a
@@ -288,28 +289,36 @@ _height :: Sizing -> Def -> Def
 _height upd x = x { sizing = { width : x.sizing.width, height : upd } }
 
 
+_def :: forall a x. (x -> Def -> Def) -> x -> WithDef a -> WithDef a
+_def fn x r = r { def = fn x r.def }
+
+
+_prop :: forall a x. (x -> Def -> Def) -> x -> Play a -> Play a
+_prop fn x (Play tree) = Play $ Tree.update (_def fn x) tree
+
+
 direction :: forall a. Direction -> Play a -> Play a
-direction upd (Play mbDef a ps) = Play (_dir upd mbDef) a ps
+direction = _prop _dir
 
 
 padding :: forall a. Padding -> Play a -> Play a
-padding   upd (Play mbDef a ps) = Play (_padding upd mbDef) a ps
+padding = _prop _padding
 
 
 childGap :: forall a. Number -> Play a -> Play a
-childGap  upd (Play mbDef a ps) = Play (_childGap upd mbDef) a ps
+childGap = _prop _childGap
 
 
 width :: forall a. Sizing -> Play a -> Play a
-width     upd (Play mbDef a ps) = Play ( _width upd mbDef) a ps
+width = _prop _width
 
 
 height :: forall a. Sizing -> Play a -> Play a
-height    upd (Play mbDef a ps) = Play (_height upd mbDef) a ps
+height =  _prop _height
 
 
 with :: forall a. Array (Play a) -> Play a -> Play a
-with children (Play mdDef a cur) = Play mdDef a $ cur <> children
+with children (Play tree) = Play $ Tree.node (Tree.value tree) $ Tree.children tree <> (toTree <$> children)
 
 
 all :: Number -> Padding
