@@ -2,6 +2,6 @@
 
 UI layout system, as simple and minimal as possible, inspired by Clay (C Layout) from Nic Baker: [YouTube Video](https://www.youtube.com/watch?v=by9lQvpvMIc).
 
-## TODO
+No text measurement and so auto-fit support yet.
 
-* Separate Demo so that we won't use `halogen` dependency;
+Quick overview with `test/Demo` module running: [as YT shorts](https://youtube.com/shorts/cRGQw67-7FQ).

@@ -4,8 +4,6 @@ package:
     - console
     - debug
     - effect
-    - halogen
-    - halogen-svg-elems
     - prelude
     - yoga-tree
     - yoga-tree-utils
@@ -13,7 +11,9 @@ package:
     module: Demo
   test:
     main: Test.Main
-    dependencies: []
+    dependencies:
+    - halogen
+    - halogen-svg-elems
 workspace:
   packageSet:
     registry: 65.1.0

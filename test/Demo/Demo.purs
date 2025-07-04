@@ -1,4 +1,4 @@
-module Demo where
+module Test.Demo where
 
 import Prelude
 
@@ -19,7 +19,7 @@ import Halogen.VDom.Driver (runUI)
 import Play (Play)
 import Play as Play
 
-import Demo.Examples (Item(..), Example(..), theExamples)
+import Test.Demo.Examples (Item(..), Example(..), theExamples)
 
 
 main :: Effect Unit
