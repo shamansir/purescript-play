@@ -629,18 +629,97 @@ noodleVertNodeUI =
                 ]
 
 
+noodleUI :: Example
+noodleUI =
+    let
+        topBarHeight = 20.0
+        statusBarHeight = 30.0
+        sidePanelButtonSize = 20.0
+        libraryWidth = 150.0
+        sidePanelWidth = 150.0
+        sidePanelButton n =
+          Play.i (ic (HA.Named "green") $ show n <> "SP button")
+            # (Play.width  $ Play.Fixed sidePanelButtonSize)
+            # (Play.height $ Play.Fixed sidePanelButtonSize)
+        spButtons = sidePanelButton <$> Array.range 0 5
+        statusBarSection n =
+          Play.i (ic (HA.Named "yellow") $ show n <> "SB section")
+            # (Play.width  $ Play.Fixed $ Int.toNumber n * 15.0)
+            # (Play.height $ Play.Grow)
+        sbSections = statusBarSection <$> Array.range 0 3
+        sidePanel n =
+          Play.i (ic (HA.Named "silver") $ show n <> "Side Panel")
+            # (Play.width  $ Play.Grow)
+            # (Play.height $ Play.Grow)
+        sidePanels = sidePanel <$> Array.range 0 3
+    in ex 20 "Noodle UI" 1050.0 1050.0
+    $ Play.i (il "background")
+        # (Play.width  $ Play.Fixed 1000.0)
+        # (Play.height $ Play.Fixed 1000.0)
+        # (Play.direction Play.TopToBottom)
+        # Play.with
+            [ Play.i (ic (HA.Named "blue") "top bar")
+            # (Play.width Play.Grow)
+            # (Play.height $ Play.Fixed topBarHeight)
+            # Play.with
+                [ Play.i (ic (HA.Named "brown") "patches bar")
+                # (Play.width  Play.Grow)
+                # (Play.height Play.Grow)
+                , Play.i (ic (HA.Named "magenta") "side panels switches")
+                # (Play.width $ Play.Fit)
+                # (Play.height Play.Grow)
+                # (Play.childGap 4.0)
+                # Play.with spButtons
+                ]
+            , Play.i (ic (HA.Named "darkgray") "middle")
+                # (Play.width  Play.Grow)
+                # (Play.height Play.Grow)
+                # Play.with
+                [ Play.i (ic (HA.Named "aqua") "Library")
+                # (Play.width  $ Play.Fixed libraryWidth)
+                # (Play.height Play.Grow)
+                , Play.i (ic (HA.Named "transparent") "Nodes")
+                # (Play.width  Play.Grow)
+                # (Play.height Play.Grow)
+                , Play.i (ic (HA.Named "orange") "Side Panels")
+                # (Play.width  $ Play.Fixed sidePanelWidth)
+                # (Play.height $ Play.Grow)
+                # (Play.direction Play.TopToBottom)
+                # Play.with sidePanels
+                ]
+            , Play.i (ic (HA.Named "black") "status bar")
+                # (Play.width $ Play.Grow)
+                # (Play.height $ Play.Fixed statusBarHeight)
+                # Play.with
+                [ Play.i (ic (HA.Named "gray") "documentation + info")
+                    # (Play.width  Play.Grow)
+                    # (Play.height Play.Grow)
+                , Play.i (ic (HA.Named "skyblue") "side panels switches")
+                    # (Play.width $ Play.Fit)
+                    # (Play.height Play.Grow)
+                    # (Play.childGap 4.0)
+                    # Play.with sbSections
+                ]
+            -- library
+            -- patch selection
+            -- side panels buttons
+            -- back canvas
+            -- nodes
+            -- side panels themselves
+            -- status bar
+            ]
+
+
 -- TODO svgGraphUI
 
 
 -- TODO noodleUI
 
 
--- TODO noodleNodeUI
-
-
 theExamples :: Array Example
 theExamples =
-    [ noodleHorzNodeUI {- 18 -}
+    [ noodleUI {- 20 -}
+    , noodleHorzNodeUI {- 18 -}
     , noodleVertNodeUI {- 19 -}
     , exSingleMenuItem {- 00 -}
     , exCompleteMenu {- 01 -}
