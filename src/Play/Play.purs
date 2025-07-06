@@ -2,13 +2,14 @@ module Play
     ( Play
     , Layout
     , module PT
-    , direction, padding, childGap, width, height, with
+    , direction, padding, childGap, w, h, with
     , default, all, tb, lr, p, i
     , toTree, fromTree
     , layout, layoutToTree, flattenLayout, rollback
-    , widthFit, widthGrow, widthFitGrow, widthEx
-    , heightFit, heightGrow, heightFitGrow, heightEx
+    , widthFit, widthGrow, widthFitGrow, width
+    , heightFit, heightGrow, heightFitGrow, height
     , topToBottom, leftToRight
+    , (~*), playProp
     )  where
 
 import Prelude
@@ -44,10 +45,11 @@ derive instance Foldable Layout
 derive instance Traversable Layout
 
 
--- infixr 1 playApp as ~%
+infixl 1 playProp as ~*
 
 
--- playApp = (#)
+playProp :: forall x a. x -> (x -> Play a) -> Play a
+playProp = (#)
 
 
 data Side_
@@ -282,12 +284,12 @@ childGap :: forall a. Number -> Play a -> Play a
 childGap = _prop _childGap
 
 
-width :: forall a. PT.Sizing -> Play a -> Play a
-width = _prop _width
+w :: forall a. PT.Sizing -> Play a -> Play a
+w = _prop _width
 
 
-height :: forall a. PT.Sizing -> Play a -> Play a
-height = _prop _height
+h :: forall a. PT.Sizing -> Play a -> Play a
+h = _prop _height
 
 
 with :: forall a. Array (Play a) -> Play a -> Play a
@@ -324,17 +326,17 @@ flattenLayout = layoutToTree >>> Tree.flatten
 type PropF a = Play a -> Play a
 
 
-widthFit     = width PT.Fit       :: forall a. PropF a
-widthGrow    = width PT.Grow      :: forall a. PropF a
-widthFitGrow = width PT.FitGrow   :: forall a. PropF a
-widthEx                 :: forall a. Number -> PropF a
-widthEx    n = width $ PT.Fixed n ::           PropF a
+widthFit     = w PT.Fit       :: forall a. PropF a
+widthGrow    = w PT.Grow      :: forall a. PropF a
+widthFitGrow = w PT.FitGrow   :: forall a. PropF a
+width               :: forall a. Number -> PropF a
+width      n = w $ PT.Fixed n ::           PropF a
 
-heightFit     = height PT.Fit       :: forall a. PropF a
-heightGrow    = height PT.Grow      :: forall a. PropF a
-heightFitGrow = height PT.FitGrow   :: forall a. PropF a
-heightEx                  :: forall a. Number -> PropF a
-heightEx    n = height $ PT.Fixed n ::           PropF a
+heightFit     = h PT.Fit       :: forall a. PropF a
+heightGrow    = h PT.Grow      :: forall a. PropF a
+heightFitGrow = h PT.FitGrow   :: forall a. PropF a
+height               :: forall a. Number -> PropF a
+height      n = h $ PT.Fixed n ::           PropF a
 
 topToBottom = direction PT.TopToBottom :: forall a. PropF a
 leftToRight = direction PT.LeftToRight :: forall a. PropF a
