@@ -2,7 +2,6 @@ package:
   name: play
   dependencies:
     - console
-    - debug
     - effect
     - prelude
     - yoga-tree
@@ -12,8 +11,8 @@ package:
   test:
     main: Test.Main
     dependencies:
-    - halogen
-    - halogen-svg-elems
+      - halogen
+      - halogen-svg-elems
 workspace:
   packageSet:
     registry: 65.1.0
