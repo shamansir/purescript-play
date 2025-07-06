@@ -6,6 +6,9 @@ module Play
     , default, all, tb, lr, p, i
     , toTree, fromTree
     , layout, layoutToTree, flattenLayout, rollback
+    , widthFit, widthGrow, widthFitGrow, widthEx
+    , heightFit, heightGrow, heightFitGrow, heightEx
+    , topToBottom, leftToRight
     )  where
 
 import Prelude
@@ -39,6 +42,12 @@ newtype Layout a =
 derive instance Functor Layout
 derive instance Foldable Layout
 derive instance Traversable Layout
+
+
+-- infixr 1 playApp as ~%
+
+
+-- playApp = (#)
 
 
 data Side_
@@ -307,3 +316,25 @@ layoutToTree (Layout ltree) = ltree <#> _undef
 
 flattenLayout :: forall a. Layout a -> Array (PT.WithRect a)
 flattenLayout = layoutToTree >>> Tree.flatten
+
+
+{- Helpers -}
+
+
+type PropF a = Play a -> Play a
+
+
+widthFit     = width PT.Fit       :: forall a. PropF a
+widthGrow    = width PT.Grow      :: forall a. PropF a
+widthFitGrow = width PT.FitGrow   :: forall a. PropF a
+widthEx                 :: forall a. Number -> PropF a
+widthEx    n = width $ PT.Fixed n ::           PropF a
+
+heightFit     = height PT.Fit       :: forall a. PropF a
+heightGrow    = height PT.Grow      :: forall a. PropF a
+heightFitGrow = height PT.FitGrow   :: forall a. PropF a
+heightEx                  :: forall a. Number -> PropF a
+heightEx    n = height $ PT.Fixed n ::           PropF a
+
+topToBottom = direction PT.TopToBottom :: forall a. PropF a
+leftToRight = direction PT.LeftToRight :: forall a. PropF a
