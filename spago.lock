@@ -5,13 +5,21 @@
         "path": "./",
         "core": {
           "dependencies": [
-            "arrays",
-            "foldable-traversable",
-            "integers",
+            {
+              "arrays": ">=7.3.0 <8.0.0"
+            },
+            {
+              "foldable-traversable": ">=6.0.0 <7.0.0"
+            },
+            {
+              "integers": ">=6.0.0 <7.0.0"
+            },
             {
               "prelude": ">=6.0.2 <7.0.0"
             },
-            "tuples",
+            {
+              "tuples": ">=7.0.0 <8.0.0"
+            },
             {
               "yoga-tree": ">=1.0.0 <2.0.0"
             },
