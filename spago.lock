@@ -5,27 +5,24 @@
         "path": "./",
         "core": {
           "dependencies": [
-            {
-              "console": ">=6.1.0 <7.0.0"
-            },
-            {
-              "effect": ">=4.0.0 <5.0.0"
-            },
+            "arrays",
+            "foldable-traversable",
+            "integers",
             {
               "prelude": ">=6.0.2 <7.0.0"
             },
+            "tuples",
             {
               "yoga-tree": ">=1.0.0 <2.0.0"
             },
             {
-              "yoga-tree-utils": "*"
+              "yoga-tree-utils": ">=0.1.0 <1.0.0"
             }
           ],
           "build_plan": [
             "arrays",
             "bifunctors",
             "catenable-lists",
-            "console",
             "const",
             "contravariant",
             "control",
@@ -705,10 +702,7 @@
       }
     },
     "extra_packages": {
-      "yoga-tree-utils": {
-        "git": "https://github.com/shamansir/purescript-yoga-tree-utils.git",
-        "ref": "v0.1.0"
-      }
+      "yoga-tree-utils": "0.1.0"
     }
   },
   "packages": {
@@ -1703,9 +1697,9 @@
       ]
     },
     "yoga-tree-utils": {
-      "type": "git",
-      "url": "https://github.com/shamansir/purescript-yoga-tree-utils.git",
-      "rev": "71190453342d2ed33af843392b5f1e953c51aa32",
+      "type": "registry",
+      "version": "0.1.0",
+      "integrity": "sha256-kYBOd0IXEQxa+wlYRKb03tY5X1/VPo5tAWgaNVwmP9U=",
       "dependencies": [
         "arrays",
         "bifunctors",

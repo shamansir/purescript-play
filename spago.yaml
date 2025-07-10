@@ -1,8 +1,10 @@
 package:
   name: play
   dependencies:
-    - console: ">=6.1.0 <7.0.0"
-    - effect: ">=4.0.0 <5.0.0"
+    - arrays
+    - foldable-traversable
+    - integers
+    - tuples
     - prelude: ">=6.0.2 <7.0.0"
     - yoga-tree: ">=1.0.0 <2.0.0"
     - yoga-tree-utils: ">=0.1.0 <1.0.0"
