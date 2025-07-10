@@ -1,11 +1,11 @@
 package:
   name: play
   dependencies:
-    - console
-    - effect
-    - prelude
-    - yoga-tree
-    - yoga-tree-utils
+    - console: ">=6.1.0 <7.0.0"
+    - effect: ">=4.0.0 <5.0.0"
+    - prelude: ">=6.0.2 <7.0.0"
+    - yoga-tree: ">=1.0.0 <2.0.0"
+    - yoga-tree-utils: ">=0.1.0 <1.0.0"
   bundle:
     module: Demo
   test:
@@ -13,10 +13,16 @@ package:
     dependencies:
       - halogen
       - halogen-svg-elems
+  publish:
+    version: 0.1.0
+    license: BSD-3-Clause
+    exclude:
+      - "test/**/*"
+    location:
+      githubOwner: shamansir
+      githubRepo: purescript-play
 workspace:
   packageSet:
     registry: 65.1.0
   extraPackages:
-    yoga-tree-utils:
-      git: https://github.com/shamansir/purescript-yoga-tree-utils.git
-      ref: e4f72ec0ee62ae63912b346560047947a68f0053
+    yoga-tree-utils: 0.1.0

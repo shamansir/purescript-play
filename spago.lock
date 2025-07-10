@@ -5,11 +5,21 @@
         "path": "./",
         "core": {
           "dependencies": [
-            "console",
-            "effect",
-            "prelude",
-            "yoga-tree",
-            "yoga-tree-utils"
+            {
+              "console": ">=6.1.0 <7.0.0"
+            },
+            {
+              "effect": ">=4.0.0 <5.0.0"
+            },
+            {
+              "prelude": ">=6.0.2 <7.0.0"
+            },
+            {
+              "yoga-tree": ">=1.0.0 <2.0.0"
+            },
+            {
+              "yoga-tree-utils": "*"
+            }
           ],
           "build_plan": [
             "arrays",
@@ -697,7 +707,7 @@
     "extra_packages": {
       "yoga-tree-utils": {
         "git": "https://github.com/shamansir/purescript-yoga-tree-utils.git",
-        "ref": "e4f72ec0ee62ae63912b346560047947a68f0053"
+        "ref": "v0.1.0"
       }
     }
   },
@@ -1695,15 +1705,22 @@
     "yoga-tree-utils": {
       "type": "git",
       "url": "https://github.com/shamansir/purescript-yoga-tree-utils.git",
-      "rev": "e4f72ec0ee62ae63912b346560047947a68f0053",
+      "rev": "71190453342d2ed33af843392b5f1e953c51aa32",
       "dependencies": [
         "arrays",
+        "bifunctors",
+        "either",
         "foldable-traversable",
+        "foreign",
         "free",
         "graphs",
+        "lists",
         "maybe",
+        "newtype",
+        "ordered-collections",
         "prelude",
         "strings",
+        "tailrec",
         "tuples",
         "unicode",
         "yoga-json",
