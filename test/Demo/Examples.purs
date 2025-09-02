@@ -27,12 +27,13 @@ il :: String -> Item
 il = Item Nothing
 
 
-blue   = ic (HA.Named "blue")   "Blue"   :: Item
+blue   = ic (HA.RGB 32 94 166)  "Blue"   :: Item
 pink   = ic (HA.Named "pink")   "Pink"   :: Item
-red    = ic (HA.Named "red")    "Red"    :: Item
-yellow = ic (HA.Named "yellow") "Yellow" :: Item
-green  = ic (HA.Named "green")  "Green"  :: Item
-purple = ic (HA.Named "purple") "Purple" :: Item
+red    = ic (HA.RGB 209 77 65)    "Red"    :: Item
+-- red    = ic (HA.RGB 175 48 41)    "Red"    :: Item
+yellow = ic (HA.RGB 208 162 21) "Yellow" :: Item
+green  = ic (HA.RGB 102 128 11)  "Green"  :: Item
+purple = ic (HA.RGB 94 64 157) "Purple" :: Item
 
 
 ex :: Int -> String -> Number -> Number -> Play Item -> Example
@@ -77,7 +78,7 @@ menuItem itemName =
         [ Play.i (il itemName)
             ~* Play.widthGrow
             ~* Play.height 60.0
-        , Play.i (ic (HA.Named "yellow") "icon")
+        , Play.i (ic (HA.RGB 94 64 157) "icon")
             ~* Play.width 60.0
             ~* Play.height 60.0
         ]
@@ -484,7 +485,7 @@ noodleHorzNodeUI :: Example
 noodleHorzNodeUI =
     let
         titleWidth = 30.0
-        channelsHeight = 20.0
+        channelsHeight = 25.0
         bodyWidth = 700.0 -- try 300.0 to see how it fits
         bodyHeight = 120.0
         channelWidth = 70.0
@@ -497,10 +498,10 @@ noodleHorzNodeUI =
             ~* Play.width channelWidth
             ~* Play.heightGrow
             ~* Play.with
-                [ Play.i (ic (HA.Named "green") "connector")
+                [ Play.i (ic (HA.RGB 83 105 7) "connector")
                     ~* Play.width connectorWidth
                     ~* Play.heightGrow
-                , Play.i (ic (HA.Named "brown") $ show n <> " inlet")
+                , Play.i (ic (HA.RGB 175 48 41) $ show n <> " inlet")
                     ~* Play.widthGrow
                     ~* Play.heightGrow
                 ]
@@ -511,10 +512,10 @@ noodleHorzNodeUI =
             ~* Play.width channelWidth
             ~* Play.heightGrow
             ~* Play.with
-                [ Play.i (ic (HA.Named "green") "connector")
+                [ Play.i (ic (HA.RGB 83 105 7) "connector")
                     ~* Play.width connectorWidth
                     ~* Play.heightGrow
-                , Play.i (ic (HA.Named "brown") $ show n <> " outlet")
+                , Play.i (ic (HA.RGB 175 48 41) $ show n <> " outlet")
                     ~* Play.widthGrow
                     ~* Play.heightGrow
                 ]
@@ -531,22 +532,22 @@ noodleHorzNodeUI =
                 ~* Play.heightFit
                 ~* Play.topToBottom
             ~* Play.with
-                [ Play.i (ic (HA.Named "blue") "padding top")
+                [ Play.i (ic (HA.RGB 32 94 166) "padding top")
                     ~* Play.widthGrow
                     ~* Play.height channelsHeight
                 , Play.i (ic (HA.Named "black") "title")
                     ~* Play.widthGrow
                     ~* Play.height bodyHeight
-                , Play.i (ic (HA.Named "blue") "padding bottom")
+                , Play.i (ic (HA.RGB 32 94 166) "padding bottom")
                     ~* Play.widthGrow
                     ~* Play.height channelsHeight
                 ]
-            , Play.i (ic (HA.Named "purple") "") -- inlets + body + outlets
+            , Play.i (ic (HA.RGB 49 35 78) "") -- inlets + body + outlets
                 ~* Play.widthFit
                 ~* Play.heightFit
                 ~* Play.topToBottom
                 ~* Play.with
-                    [ Play.i (ic (HA.Named "magenta") "inlets")
+                    [ Play.i (ic (HA.RGB 79 27 57) "inlets")
                         ~* Play.widthFit
                         ~* Play.height channelsHeight
                         ~* Play.with inlets
@@ -554,11 +555,11 @@ noodleHorzNodeUI =
                         ~* Play.widthFitGrow
                         ~* Play.height bodyHeight
                         ~* Play.with
-                            [ Play.i (ic (HA.Named "darkgray") "body")
+                            [ Play.i (ic (HA.RGB 90 189 172) "body")
                                 ~* Play.width  bodyWidth
                                 ~* Play.height bodyHeight
                             ]
-                    , Play.i (ic (HA.Named "magenta") "outlets")
+                    , Play.i (ic (HA.RGB 79 27 57) "outlets")
                         ~* Play.widthFit
                         ~* Play.height channelsHeight
                         ~* Play.with outlets
@@ -585,10 +586,10 @@ noodleVertNodeUI =
             ~* Play.widthFit
             ~* Play.heightFit
             ~* Play.with
-                [ Play.i (ic (HA.Named "brown") $ show n <> " inlet")
+                [ Play.i (ic (HA.RGB 175 48 41) $ show n <> " inlet")
                     ~* Play.width  channelNameMinWidth
                     ~* Play.height channelHeight
-                , Play.i (ic (HA.Named "green") "con")
+                , Play.i (ic (HA.RGB 83 105 7) "con")
                     ~* Play.width connectorWidth
                     ~* Play.heightGrow
                 ]
@@ -599,10 +600,10 @@ noodleVertNodeUI =
             ~* Play.widthFit
             ~* Play.heightFit
             ~* Play.with
-                [ Play.i (ic (HA.Named "green") "con")
+                [ Play.i (ic (HA.RGB 83 105 7) "con")
                     ~* Play.width connectorWidth
                     ~* Play.heightGrow
-                , Play.i (ic (HA.Named "brown") $ show n <> " outlet")
+                , Play.i (ic (HA.RGB 175 48 41) $ show n <> " outlet")
                     ~* (Play.width  channelNameMinWidth)
                     ~* (Play.height channelHeight)
                 ]
@@ -617,28 +618,28 @@ noodleVertNodeUI =
         ~* Play.heightFit
         ~* Play.topToBottom
         ~* Play.with
-            [ Play.i (ic (HA.Named "magenta") "title + paddings")
+            [ Play.i (ic (HA.RGB 79 27 57) "title + paddings")
                 ~* Play.widthFit
                 ~* Play.height titleHeight
                 ~* Play.leftToRight
                 ~* Play.with
-                    [ Play.i (ic (HA.Named "blue") "padding")
+                    [ Play.i (ic (HA.RGB 32 94 166) "padding")
                         ~* Play.width paddingWidth
                         ~* Play.heightGrow
                     , Play.i (ic (HA.Named "black") "title")
                         ~* Play.width  bodyWidth
                         ~* Play.height titleHeight
-                    , Play.i (ic (HA.Named "blue") "padding")
+                    , Play.i (ic (HA.RGB 32 94 166) "padding")
                         ~* Play.width paddingWidth
                         ~* Play.heightGrow
                     ]
 
-            , Play.i (ic (HA.Named "purple") "") -- inlets + body + outlets
+            , Play.i (ic (HA.RGB 49 35 78) "") -- inlets + body + outlets
                 ~* Play.widthFit
                 ~* Play.heightFit
                 ~* Play.leftToRight
                 ~* Play.with
-                    [ Play.i (ic (HA.Named "magenta") "inlets")
+                    [ Play.i (ic (HA.RGB 79 27 57) "inlets")
                         ~* Play.widthFit
                         ~* Play.heightFit
                         ~* Play.topToBottom
@@ -647,7 +648,7 @@ noodleVertNodeUI =
                         ~* Play.width bodyWidth
                         ~* Play.heightFitGrow
                         ~* Play.with
-                            [ Play.i (ic (HA.Named "darkgray") "body")
+                            [ Play.i (ic (HA.RGB 90 189 172) "body")
                                 ~* Play.width  bodyWidth
                                 ~* Play.height bodyHeight
                             ]
@@ -663,7 +664,7 @@ noodleVertNodeUI =
 noodleUI :: Example
 noodleUI =
     let
-        topBarHeight = 20.0
+        topBarHeight = 30.0
         statusBarHeight = 30.0
         sidePanelButtonSize = 20.0
         libraryWidth = 150.0
@@ -676,13 +677,13 @@ noodleUI =
         spButtons = sidePanelButton <$> Array.range 0 5
 
         statusBarSection n =
-          Play.i (ic (HA.Named "yellow") $ show n <> "SB section")
+          Play.i (ic (HA.RGB 113 50 13) $ show n <> "SB section")
             ~* (Play.width $ Int.toNumber n * 15.0)
             ~* Play.heightGrow
         sbSections = statusBarSection <$> Array.range 0 3
 
         sidePanel n =
-          Play.i (ic (HA.Named "silver") $ show n <> "Side Panel")
+          Play.i (ic (HA.RGB 49 113 178) $ show n <> " :: Side Panel")
             ~* Play.widthGrow
             ~* Play.heightGrow
         sidePanels = sidePanel <$> Array.range 0 3
@@ -697,10 +698,10 @@ noodleUI =
                 ~* Play.widthGrow
                 ~* (Play.height topBarHeight)
                 ~* Play.with
-                    [ Play.i (ic (HA.Named "brown") "patches bar")
+                    [ Play.i (ic (HA.RGB 135 154 57) "Patches bar")
                         ~* Play.widthGrow
                         ~* Play.heightGrow
-                    , Play.i (ic (HA.Named "magenta") "side panels switches")
+                    , Play.i (ic (HA.RGB 236 139 73) "side panels switches")
                         ~* Play.widthFit
                         ~* Play.heightGrow
                         ~* Play.childGap 4.0
@@ -710,10 +711,10 @@ noodleUI =
                 ~* Play.widthGrow
                 ~* Play.heightGrow
                 ~* Play.with
-                    [ Play.i (ic (HA.Named "aqua") "Library")
+                    [ Play.i (ic (HA.RGB 22 79 74) "Library")
                         ~* Play.width libraryWidth
                         ~* Play.heightGrow
-                    , Play.i (ic (HA.Named "transparent") "Nodes")
+                    , Play.i (ic (HA.RGB 146 191 219) "Nodes")
                         ~* Play.widthGrow
                         ~* Play.heightGrow
                     , Play.i (ic (HA.Named "orange") "Side Panels")
@@ -729,7 +730,7 @@ noodleUI =
                 [ Play.i (ic (HA.Named "gray") "documentation + info")
                     ~* Play.widthGrow
                     ~* Play.heightGrow
-                , Play.i (ic (HA.Named "skyblue") "side panels switches")
+                , Play.i (ic (HA.Named "skyblue") "status bar sections")
                     ~* Play.widthFit
                     ~* Play.heightGrow
                     ~* Play.childGap 4.0
@@ -761,10 +762,10 @@ svgGraphUI =
                 ~* Play.heightFit
                 ~* Play.leftToRight
                 ~* Play.with
-                    [ Play.i (ic (HA.Named "blue") "location + selection")
+                    [ Play.i (ic (HA.RGB 18 47 44) "location + selection")
                         ~* Play.widthGrow
                         ~* Play.height locSelHeight
-                    , Play.i (ic (HA.Named "aqua") "zoom + size info")
+                    , Play.i (ic (HA.RGB 135 154 57) "zoom + size info")
                         ~* Play.width zoomInfoWidth
                         ~* Play.heightGrow
                     ]
@@ -773,7 +774,7 @@ svgGraphUI =
                 ~* Play.heightGrow
                 ~* Play.leftToRight
                 ~* Play.with
-                    [ Play.i (ic (HA.Named "gray") "graph")
+                    [ Play.i (ic (HA.RGB 139 126 200) "graph")
                         ~* Play.width graphWidth
                         ~* Play.heightGrow
                     , Play.i (il "fold + export")
@@ -784,7 +785,7 @@ svgGraphUI =
                             [ Play.i (ic (HA.Named "darkgray") "fold")
                                 ~* Play.widthGrow
                                 ~* Play.heightGrow
-                            , Play.i (ic (HA.Named "red") "export")
+                            , Play.i (ic (HA.RGB 22 79 74) "export")
                                 ~* Play.widthGrow
                                 ~* Play.height exportHeight
                             ]
@@ -793,7 +794,7 @@ svgGraphUI =
                         ~* Play.heightGrow
                         ~* Play.topToBottom
                         ~* Play.with
-                            [ Play.i (ic (HA.Named "magenta") "selection")
+                            [ Play.i (ic (HA.RGB 190 146 7) "selection")
                                 ~* Play.widthGrow
                                 ~* Play.height selectionHeight
                             , Play.i (ic (HA.Named "orange") "pinned")
@@ -802,7 +803,7 @@ svgGraphUI =
                             , Play.i (ic (HA.Named "brown") "history")
                                 ~* Play.widthGrow
                                 ~* Play.heightGrow
-                            , Play.i (ic (HA.Named "magenta") "hints")
+                            , Play.i (ic (HA.RGB 94 64 157) "hints")
                                 ~* Play.widthGrow
                                 ~* Play.height hintsHeight
                             ]

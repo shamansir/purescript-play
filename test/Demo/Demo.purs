@@ -57,7 +57,7 @@ component =
         render :: State -> _
         render examples =
             HH.div
-                [ HP.style "font-family: Monaco, Helvetica, sans-serif; font-weight: 600;" ]
+                [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600;" ]
                 [ HH.div
                     [  ]
                      $  renderOne
@@ -70,8 +70,12 @@ component =
 
         renderOne :: LayedOutExample -> _
         renderOne { id, label, size, layout } =
-            HH.div_
-                [ HH.div [] [ HH.text $ show id <> ". " <> label ]
+            HH.div
+                [ HP.style "margin: 5px 10px;" ]
+                [ HH.div
+                    [ HP.style "margin-bottom: 5px;"
+                    ]
+                    [ HH.text $ show id <> ". " <> label ]
                 , HS.svg
                     [ HA.width  size.width
                     , HA.height size.height
@@ -99,13 +103,14 @@ component =
                                 Nothing -> HA.Named "black"
                             ]
                         , HS.text
-                            [ HA.x $ rect.pos.x + 3.0
-                            , HA.y $ rect.pos.y + 12.0
-                            -- , HA.fontSize $ HA.Px ?wh
+                            [ HA.x $ rect.pos.x + 5.0
+                            , HA.y $ rect.pos.y + 7.0
+                            , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
                             -- , HA.fontWeight $ HA.Px ?wh
                             , HA.fill $ HA.Named "white"
                             -- , HA.stroke $ HA.Named "black"
                             , HA.strokeWidth 0.5
+                            , HA.dominantBaseline HA.Hanging
                             ]
                             [ HH.text label ]
                         ]
