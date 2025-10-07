@@ -3,6 +3,7 @@ module Play
     , Layout
     , module PT
     , direction, padding, childGap, w, h, with
+    , paddingTop, paddingLeft, paddingBottom, paddingRight
     , default, all, tb, lr, p, i
     , toTree, fromTree
     , layout, layoutToTree, flattenLayout, rollback
@@ -22,7 +23,7 @@ import Data.Array (length, filter, snoc) as Array
 import Data.Int (toNumber) as Int
 
 import Yoga.Tree (Tree)
-import Yoga.Tree.Extended (node, leaf, break, flatten, value, children, update) as Tree
+import Yoga.Tree.Extended (node, break, flatten, value, children, update) as Tree
 
 import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefSize, WithRect, WithDefRect)  as PT
 
@@ -180,7 +181,7 @@ layout =
                 { v, def, rect : rect pos size }
                 $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs
             where
-                withPadding p = { x : p.x + def.padding.left, y : p.y + def.padding.top }
+                withPadding padPos = { x : padPos.x + def.padding.left, y : padPos.y + def.padding.top }
 
                 foldF
                     :: PT.Offset /\ Array (Tree (PT.WithDefRect a))
@@ -278,6 +279,22 @@ direction = _prop _dir
 
 padding :: forall a. PT.Padding -> Play a -> Play a
 padding = _prop _padding
+
+
+paddingTop :: forall a. Number -> Play a -> Play a
+paddingTop = _prop \n -> \def -> def { padding = def.padding { top = n } }
+
+
+paddingLeft :: forall a. Number -> Play a -> Play a
+paddingLeft = _prop \n -> \def -> def { padding = def.padding { left = n } }
+
+
+paddingBottom :: forall a. Number -> Play a -> Play a
+paddingBottom = _prop \n -> \def -> def { padding = def.padding { bottom = n } }
+
+
+paddingRight :: forall a. Number -> Play a -> Play a
+paddingRight = _prop \n -> \def -> def { padding = def.padding { right = n } }
 
 
 childGap :: forall a. Number -> Play a -> Play a
