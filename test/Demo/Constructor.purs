@@ -23,7 +23,7 @@ import Play.Types (Padding, Sizing(..), Direction(..), Def, WithDef)  as PT
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, flatten, value, children, update) as Tree
 
-import Test.Demo.Examples (Example, layoutExample, noodleUI)
+import Test.Demo.Examples (Example, layoutExample, playOf, itemName, noodleUI)
 import Test.Demo (renderOne) as Demo
 
 
@@ -51,11 +51,16 @@ component =
         initialState _ =
             noodleUI
 
+
         render :: State -> _
         render currentExample =
             HH.div
                 [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600;" ]
-                [ HH.div
+                [ HH.textarea [ HP.value $ toCode (itemName >>> show) $ playOf currentExample
+                              , HP.style "width: 100%; height: 200px; font-family: 'Courier New', Courier, monospace; font-size: 14px; background: #f0f0f0; border: 1px solid #ccc; padding: 10px; box-sizing: border-box;"
+                              , HP.readOnly true
+                              ]
+                , HH.div
                     [  ]
                     $ pure
                     $ Demo.renderOne
@@ -67,10 +72,10 @@ component =
 
 
 toCode :: forall a. (a -> String) -> Play a -> String
-toCode vToString = Play.toTree >>> renderTree
+toCode vToString = Play.toTree >>> renderTreeWithIndent ""
     where
-    renderTree :: Tree (PT.WithDef a) -> String
-    renderTree t =
+    renderTreeWithIndent :: String -> Tree (PT.WithDef a) -> String
+    renderTreeWithIndent indent t =
         let
             wd = Tree.value t :: PT.WithDef a
             def = wd.def :: PT.Def
@@ -98,7 +103,10 @@ toCode vToString = Play.toTree >>> renderTree
             else if pad.top == pad.left && pad.left == pad.bottom && pad.bottom == pad.right then
                 Just $ "(Play.padding $ Play.all " <> show pad.top <> ")"
             else
-                Just $ "(Play.padding $ Play.all " <> show pad.top <> ")" -- FIXME:
+                Just $ "Play.padding { top : " <> show pad.top <> ", "
+                                    <> "left : " <> show pad.left <> ", "
+                                    <> "bottom : " <> show pad.bottom <> ", "
+                                    <> "right : " <> show pad.right <> " }"
 
             renderDirection :: PT.Direction -> Maybe String
             renderDirection = case _ of
@@ -118,11 +126,11 @@ toCode vToString = Play.toTree >>> renderTree
 
             renderChildren :: Array (Tree (PT.WithDef a)) -> Maybe String
             renderChildren arr =
-                if Array.length arr == 0 then Nothing
+                if Array.null arr then Nothing
                 else
                     let
-                        joined = String.joinWith ", " $ renderTree <$> arr
-                    in Just $ "Play.with [ " <> joined <> " ]"
+                        joined = String.joinWith ("\n" <> indent <> ", ") $ renderTreeWithIndent (indent <> "    ") <$> arr
+                    in Just $ "Play.with\n" <> indent <> "[ " <> joined <> "\n" <> indent <> "]"
 
-            joinedMods = String.joinWith "\n    ~* " modifiersList
-        in if joinedMods == "" then start else start <> " \n    " <> joinedMods
+            joinedMods = String.joinWith ("\n" <> indent <> "~* ") modifiersList
+        in if Array.null modifiersList then start else start <> " \n" <> indent <> "~* " <> joinedMods

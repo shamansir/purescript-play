@@ -52,6 +52,14 @@ layoutExample :: Example -> LayedOutExample
 layoutExample (Example id size label play) = { id, label, size, layout : Play.layout play }
 
 
+playOf :: Example -> Play Item
+playOf (Example _ _ _ play) = play
+
+
+itemName :: Item -> String
+itemName (Item _ name) = name
+
+
 theExamples :: Array Example
 theExamples =
     [ noodleUI {- 20 -}
