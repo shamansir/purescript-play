@@ -7,6 +7,7 @@ output/
 output-es/
 generated-docs/
 dist/
+result/
 .psc-package/
 .psc*
 .purs*

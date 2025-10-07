@@ -3,8 +3,6 @@ module Test.Demo where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Tuple (uncurry)
-import Data.Tuple.Nested ((/\), type (/\))
 
 import Effect (Effect)
 
@@ -16,10 +14,11 @@ import Halogen.Svg.Attributes as HA
 import Halogen.Svg.Elements as HS
 import Halogen.VDom.Driver (runUI)
 
-import Play (Play)
 import Play as Play
 
-import Test.Demo.Examples (Item(..), Example(..), theExamples)
+import Play.Types (WithRect)  as PT
+
+import Test.Demo.Examples (Item(..), Example, theExamples, LayedOutExample, layoutExample)
 
 
 main :: Effect Unit
@@ -33,14 +32,6 @@ type Action
 
 
 type State = Array Example
-
-
-type LayedOutExample =
-    { label :: String
-    , id :: Int
-    , size :: Play.Size
-    , layout :: Play.Layout Item
-    }
 
 
 component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
@@ -65,27 +56,29 @@ component =
                     <$> examples
                 ]
 
-        layoutExample :: Example -> LayedOutExample
-        layoutExample (Example id size label play) = { id, label, size, layout : Play.layout play }
+        handleAction = const $ pure unit
 
-        renderOne :: LayedOutExample -> _
-        renderOne { id, label, size, layout } =
-            HH.div
-                [ HP.style "margin: 5px 10px;" ]
-                [ HH.div
-                    [ HP.style "margin-bottom: 5px;"
-                    ]
-                    [ HH.text $ show id <> ". " <> label ]
-                , HS.svg
-                    [ HA.width  size.width
-                    , HA.height size.height
-                    ]
-                    $ renderItem <$> Play.flattenLayout layout
-                ]
 
+renderOne :: forall i o. LayedOutExample -> HH.HTML i o
+renderOne { id, label, size, layout } =
+    HH.div
+        [ HP.style "margin: 5px 10px;" ]
+        [ HH.div
+            [ HP.style "margin-bottom: 5px;"
+            ]
+            [ HH.text $ show id <> ". " <> label ]
+        , HS.svg
+            [ HA.width  size.width
+            , HA.height size.height
+            ]
+            $ renderItem <$> Play.flattenLayout layout
+        ]
+
+    where
+        renderItem :: PT.WithRect Item -> HH.HTML i o
         renderItem { v, rect } =
             case v of
-                Item mbCol label ->
+                Item mbCol itemLabel ->
                     HS.g
                         []
                         [ HS.rect
@@ -112,7 +105,5 @@ component =
                             , HA.strokeWidth 0.5
                             , HA.dominantBaseline HA.Hanging
                             ]
-                            [ HH.text label ]
+                            [ HH.text itemLabel ]
                         ]
-
-        handleAction = const $ pure unit

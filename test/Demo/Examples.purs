@@ -19,6 +19,14 @@ data Item
 data Example = Example Int Play.Size String (Play Item)
 
 
+type LayedOutExample =
+    { label :: String
+    , id :: Int
+    , size :: Play.Size
+    , layout :: Play.Layout Item
+    }
+
+
 ic :: HA.Color -> String -> Item
 ic col = Item (Just col)
 
@@ -38,6 +46,10 @@ purple = ic (HA.RGB 94 64 157) "Purple" :: Item
 
 ex :: Int -> String -> Number -> Number -> Play Item -> Example
 ex id label w h = Example id { width : w, height : h } label
+
+
+layoutExample :: Example -> LayedOutExample
+layoutExample (Example id size label play) = { id, label, size, layout : Play.layout play }
 
 
 theExamples :: Array Example
