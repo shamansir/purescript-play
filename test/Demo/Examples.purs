@@ -56,6 +56,10 @@ playOf :: Example -> Play Item
 playOf (Example _ _ _ play) = play
 
 
+nameOf :: Example -> String
+nameOf (Example _ _ name _) = name
+
+
 itemName :: Item -> String
 itemName (Item _ name) = name
 

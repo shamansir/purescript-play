@@ -13,6 +13,7 @@ import Play.Types (Def, WithDef, Sizing(..), Padding, Direction(..)) as PT
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (value, children) as Tree
 
+
 toCode :: forall a. (a -> String) -> Play a -> String
 toCode vToString = Play.toTree >>> renderTreeWithIndent ""
     where

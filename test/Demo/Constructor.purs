@@ -7,7 +7,7 @@ import Effect (Effect)
 
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.Maybe (Maybe(..), fromMaybe, maybe, isJust)
+import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.Number as Number
 import Data.Tuple.Nested ((/\), type (/\))
 
@@ -27,8 +27,8 @@ import Play (Play, (~*))
 import Play as Play
 import Play.Types (Def, Direction(..), Sizing(..), WithRect) as PT
 
-import Test.Demo (renderOne) as Demo
-import Test.Demo.Examples (Example, layoutExample, playOf, itemName, noodleUI, Item(..), il, ic)
+-- import Test.Demo (renderOne) as Demo
+import Test.Demo.Examples (Item(..), ic, itemName, nameOf, noodleUI, playOf, theExamples)
 
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode)
@@ -62,6 +62,7 @@ data Action
     | AddChild Int String
     | RemoveChild Int
     | UpdateChildName String
+    | SelectExample Int
 
 
 type EditingState =
@@ -78,6 +79,7 @@ type EditingState =
 
 type State =
     { playTree :: Play Item
+    , exampleName :: Maybe String
     , selectedPath :: ItemPath
     , editing :: EditingState
     }
@@ -139,6 +141,7 @@ component =
                 { playTree: tree
                 , selectedPath: []
                 , editing: loadEditState [] tree
+                , exampleName : Just $ nameOf noodleUI
                 }
 
         render :: State -> _
@@ -146,6 +149,11 @@ component =
             HH.div
                 [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600; display: flex; gap: 20px;" ]
                 [ HH.div
+                    [ HP.style "flex: 1; padding: 10px;" ]
+                    [ renderExampleSelector state
+                    , renderInteractivePreview state
+                    ]
+                , HH.div
                     [ HP.style "flex: 1;" ]
                     [ renderPropertyEditor state
                     , HH.textarea
@@ -154,9 +162,6 @@ component =
                         , HP.readOnly true
                         ]
                     ]
-                , HH.div
-                    [ HP.style "flex: 1;" ]
-                    [ renderInteractivePreview state ]
                 ]
 
         handleAction = case _ of
@@ -228,6 +233,18 @@ component =
             UpdateChildName newName ->
                 H.modify_ \s -> s { editing = s.editing { childName = newName } }
 
+            SelectExample exampleIndex -> do
+                case Array.index theExamples exampleIndex of
+                    Just example -> do
+                        let tree = playOf example
+                        H.modify_ _
+                            { playTree = tree
+                            , selectedPath = []
+                            , editing = loadEditState [] tree
+                            , exampleName = Just $ nameOf example
+                            }
+                    Nothing -> pure unit
+
 
 -- Set item name
 setItemName :: String -> Item -> Item
@@ -251,6 +268,10 @@ renderPropertyEditor state =
         mbCurrentTree = getSubtreeAtPath state.selectedPath state.playTree
         children = fromMaybe [] $ Tree.children <$> Play.toTree <$> mbCurrentTree
         childrenCount = Array.length children
+        childName idx =
+            let mbName = itemName <$> getItemAtPath (Array.snoc state.selectedPath idx) state.playTree
+                mbNonEmptyName = mbName >>= \n -> if n == "" then Nothing else Just n
+            in show idx <> ". " <> (fromMaybe "<?>" mbNonEmptyName)
         nextChildName =
             if state.editing.childName /= ""
                 then state.editing.childName
@@ -352,7 +373,7 @@ renderPropertyEditor state =
                 $ Array.mapWithIndex (\i child ->
                     HH.div
                         [ HP.style "display: flex; align-items: center; gap: 10px; margin: 5px 0;" ]
-                        [ HH.span_ [ HH.text $ show i <> ". " <> fromMaybe "?" (itemName <$> getItemAtPath (Array.snoc state.selectedPath i) state.playTree) ]
+                        [ HH.span_ [ HH.text $ childName i ]
                         , HH.button
                             [ HE.onClick \_ -> SelectItem $ Array.snoc state.selectedPath i
                             , HP.style "padding: 2px 8px; background: #35ac45; color: white; border: none; border-radius: 3px; cursor: pointer;"
@@ -454,6 +475,25 @@ renderColorSelect currentColor =
         , HP.style "width: 100%; padding: 5px; margin-top: 5px; font-family: monospace;"
         ]
 
+renderExampleSelector :: forall i. State -> HH.HTML i Action
+renderExampleSelector state =
+    let
+        currentExampleName = fromMaybe "Noodle UI" state.exampleName
+    in
+    HH.div
+        [ HP.style "margin-bottom: 15px;" ]
+        [ HH.label_ [ HH.text "Select Example:" ]
+        , HH.select
+            [ HE.onSelectedIndexChange SelectExample
+            , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
+            ]
+            $ Array.mapWithIndex (\_ example ->
+                HH.option
+                    [ HP.selected (nameOf example == currentExampleName) ]
+                    [ HH.text $ nameOf example ]
+            ) theExamples
+        ]
+
 -- Render interactive preview
 renderInteractivePreview :: forall i. State -> HH.HTML i Action
 renderInteractivePreview state =
@@ -463,7 +503,7 @@ renderInteractivePreview state =
         size = Play.layoutSize layout
     in
     HH.div_
-        [ HH.h3_ [ HH.text "Interactive Preview" ]
+        [ HH.h3_ [ HH.text $ fromMaybe "Interactive Preview" state.exampleName ]
         , HS.svg
             [ HA.width size.width
             , HA.height size.height
