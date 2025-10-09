@@ -5,6 +5,7 @@ import Prelude
 import Effect (Effect)
 
 
+import Data.Array ((:))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
@@ -63,6 +64,7 @@ data Action
     | RemoveChild Int
     | UpdateChildName String
     | SelectExample Int
+    | ToggleCodePanel
 
 
 type EditingState =
@@ -82,6 +84,7 @@ type State =
     , exampleName :: Maybe String
     , selectedPath :: ItemPath
     , editing :: EditingState
+    , codePanelExpanded :: Boolean
     }
 
 
@@ -142,6 +145,7 @@ component =
                 , selectedPath: []
                 , editing: loadEditState [] tree
                 , exampleName : Just $ nameOf noodleUI
+                , codePanelExpanded: false
                 }
 
         render :: State -> _
@@ -154,13 +158,9 @@ component =
                     , renderInteractivePreview state
                     ]
                 , HH.div
-                    [ HP.style "flex: 1;" ]
+                    [ HP.style "flex: 1; position: relative;" ]
                     [ renderPropertyEditor state
-                    , HH.textarea
-                        [ HP.value $ fromMaybe "-" $ toCode (itemName >>> show) <$> getSubtreeAtPath state.selectedPath state.playTree
-                        , HP.style "width: 100%; height: 150px; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; margin-top: 10px;"
-                        , HP.readOnly true
-                        ]
+                    , renderCodePanel state
                     ]
                 ]
 
@@ -244,6 +244,9 @@ component =
                             , exampleName = Just $ nameOf example
                             }
                     Nothing -> pure unit
+
+            ToggleCodePanel ->
+                H.modify_ \s -> s { codePanelExpanded = not s.codePanelExpanded }
 
 
 -- Set item name
@@ -474,6 +477,41 @@ renderColorSelect currentColor =
         , HP.placeholder "Named color or #hex (e.g., red, #ff0000)"
         , HP.style "width: 100%; padding: 5px; margin-top: 5px; font-family: monospace;"
         ]
+
+renderCodePanel :: forall i. State -> HH.HTML i Action
+renderCodePanel state =
+    let
+        codeContent = fromMaybe "-" $ toCode (itemName >>> show) <$> getSubtreeAtPath state.selectedPath state.playTree
+        arrowSymbol = if state.codePanelExpanded then "▼" else "▶"
+
+        collapsedStyle = "position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #f0f0f0; border-top: 2px solid #ccc; cursor: pointer;"
+        expandedPanelStyle = "position: fixed; bottom: 0; left: 20%; right: 60%; height: 40vh; z-index: 1000; background: #f0f0f0; border: 2px solid #ccc; border-radius: 8px 8px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);"
+
+        titleStyle = "padding: 8px 15px; font-weight: bold; border-bottom: 1px solid #ccc; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;"
+
+        contentStyle = "height: calc(100% - 40px); overflow: auto;"
+        isExpanded = state.codePanelExpanded
+    in
+        HH.div
+            [ HP.style $ if isExpanded then expandedPanelStyle else collapsedStyle ]
+            $ HH.div
+                [ HP.style titleStyle
+                , HE.onClick \_ -> ToggleCodePanel
+                ]
+                [ HH.span_ [ HH.text arrowSymbol ]
+                , HH.text "Generated Code"
+                ]
+            : if isExpanded then
+                pure $ HH.div
+                    [ HP.style contentStyle ]
+                    [ HH.textarea
+                        [ HP.value codeContent
+                        , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
+                        , HP.readOnly true
+                        ]
+                    ]
+                else []
+
 
 renderExampleSelector :: forall i. State -> HH.HTML i Action
 renderExampleSelector state =
