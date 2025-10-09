@@ -2,11 +2,12 @@ module Demo.Constructor where
 
 import Prelude
 
-import Control.Monad.State (state)
+import Control.Alt ((<|>))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Int as Int
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Map (update)
+import Data.Maybe (Maybe(..), fromMaybe, maybe, isJust)
 import Data.Number as Number
 import Data.String as String
 import Data.Tuple.Nested ((/\), type (/\))
@@ -24,11 +25,11 @@ import Play as Play
 import Play.Types (Padding, Sizing(..), Direction(..), Def, WithDef, WithRect) as PT
 import Test.Demo (renderOne) as Demo
 import Test.Demo.Examples (Example, layoutExample, playOf, itemName, noodleUI, Item(..), il, ic)
+import Web.DOM.Text (wholeText)
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, flatten, value, children, update) as Tree
 import Yoga.Tree.Extended.Path (Path(..)) as Tree
 import Yoga.Tree.Extended.Path as Tree.Path
-
 
 main :: Effect Unit
 main = HA.runHalogenAff do
@@ -57,14 +58,27 @@ data Action
     | UpdateName String
     | UpdateColor HA.Color
     | UpdateField Field
+    | ResetFixedWidth
+    | ResetFixedHeight
     | AddChild String
     | RemoveChild Int
+
+
+type EditingState =
+    { name :: String
+    , def :: PT.Def
+    , color :: Maybe HA.Color
+    , fixed ::
+        { width :: Maybe Number
+        , height :: Maybe Number
+        }
+    }
 
 
 type State =
     { playTree :: Play Item
     , selectedPath :: ItemPath
-    , editing :: { name :: String, def :: PT.Def, color :: Maybe HA.Color }
+    , editing :: EditingState
     }
 
 
@@ -163,6 +177,13 @@ removeChildInTree path childIndex tree = case Array.uncons path of
         in Tree.node (Tree.value tree) (fromMaybe children updatedchildren)
     Nothing -> tree
 
+
+isFixedSizing :: PT.Sizing -> Maybe Number
+isFixedSizing = case _ of
+    PT.Fixed n -> Just n
+    _ -> Nothing
+
+
 -- Render property editor
 renderPropertyEditor :: forall i. State -> HH.HTML i Action
 renderPropertyEditor state =
@@ -243,12 +264,20 @@ renderPropertyEditor state =
         , HH.div
             [ HP.style "margin-bottom: 15px;" ]
             [ HH.label_ [ HH.text "Width Sizing:" ]
-            , renderSizingSelect state.editing.def.sizing.width $ UpdateField <<< WidthSizing
+            , renderSizingSelect
+                state.editing
+                (_.fixed >>> _.width)
+                state.editing.def.sizing.width
+                $ UpdateField <<< WidthSizing
             ]
         , HH.div
             [ HP.style "margin-bottom: 15px;" ]
             [ HH.label_ [ HH.text "Height Sizing:" ]
-            , renderSizingSelect state.editing.def.sizing.height $ UpdateField <<< HeightSizing
+            , renderSizingSelect
+                state.editing
+                (_.fixed >>> _.height)
+                state.editing.def.sizing.height
+                $ UpdateField <<< HeightSizing
             ]
         , HH.div
             [ HP.style "margin-bottom: 15px;" ]
@@ -289,27 +318,62 @@ renderPropertyEditor state =
             ]
         ]
 
-renderSizingSelect :: forall i. PT.Sizing -> (PT.Sizing -> Action) -> HH.HTML i Action
-renderSizingSelect currentSizing updateAction =
-    HH.select
-        [ HE.onSelectedIndexChange \idx -> case idx of
-            0 -> updateAction PT.None
-            1 -> updateAction PT.Fit
-            2 -> updateAction PT.Grow
-            3 -> updateAction PT.FitGrow
-            4 -> updateAction (PT.Fixed 100.0) -- TODO: allow editing the fixed value
-            _ -> updateAction PT.None
-        , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
+renderSizingSelect :: forall i. EditingState -> (EditingState -> Maybe Number) -> PT.Sizing -> (PT.Sizing -> Action) -> HH.HTML i Action
+renderSizingSelect editingState fromEditingState currentSizing updateAction =
+    let
+        mbEditingValue = fromEditingState editingState
+        defaultValue = 100.0
+        isInputEnabled = isJust $ isFixedSizing currentSizing
+        isInputDisabled = not isInputEnabled
+        isSelectBoxEnabled = not isInputEnabled
+        isSelectBoxDisabled = not isSelectBoxEnabled
+    in
+    HH.div_
+        [ HH.div
+            [ HP.style "display: flex; align-items: center; gap: 10px; margin-top: 5px;" ]
+            [ HH.input
+                [ HP.type_ HP.InputCheckbox
+                , HP.checked isInputEnabled
+                , HE.onChecked \checked ->
+                    if checked
+                    then updateAction $ PT.Fixed $ fromMaybe defaultValue mbEditingValue
+                    else updateAction $ PT.None
+                , HP.id "fixed-checkbox"
+                ]
+            , HH.label
+                [ HP.for "fixed-checkbox"
+                , HP.style "margin: 0;"
+                ]
+                [ HH.text "Fixed size:" ]
+            , HH.input
+                [ HP.type_ HP.InputNumber
+                , HP.value $ show $ fromMaybe defaultValue mbEditingValue
+                , HE.onValueInput \str -> case Number.fromString str of
+                    Just n -> updateAction $ PT.Fixed n
+                    Nothing -> Skip
+                , HP.disabled isInputDisabled
+                , HP.style $ "padding: 5px; width: 80px;" <>
+                    if isInputDisabled then " opacity: 0.5;" else ""
+                , HP.placeholder "---"
+                ]
+            ]
+        , HH.select
+            [ HE.onSelectedIndexChange \idx -> case idx of
+                0 -> updateAction PT.None
+                1 -> updateAction PT.Fit
+                2 -> updateAction PT.Grow
+                3 -> updateAction PT.FitGrow
+                _ -> updateAction PT.None
+            , HP.disabled isSelectBoxDisabled
+            , HP.style $ "width: 100%; padding: 5px; margin-top: 5px;" <>
+                if isSelectBoxDisabled then " opacity: 0.5;" else ""
+            ]
+            [ HH.option [ HP.selected (currentSizing == PT.None) ] [ HH.text "None" ]
+            , HH.option [ HP.selected (currentSizing == PT.Fit) ] [ HH.text "Fit" ]
+            , HH.option [ HP.selected (currentSizing == PT.Grow) ] [ HH.text "Grow" ]
+            , HH.option [ HP.selected (currentSizing == PT.FitGrow) ] [ HH.text "FitGrow" ]
+            ]
         ]
-        [ HH.option [ HP.selected (currentSizing == PT.None) ] [ HH.text "None" ]
-        , HH.option [ HP.selected (currentSizing == PT.Fit) ] [ HH.text "Fit" ]
-        , HH.option [ HP.selected (currentSizing == PT.Grow) ] [ HH.text "Grow" ]
-        , HH.option [ HP.selected (currentSizing == PT.FitGrow) ] [ HH.text "FitGrow" ]
-        , HH.option [ HP.selected (isFixed currentSizing) ] [ HH.text "Fixed" ]
-        ]
-  where
-    isFixed (PT.Fixed _) = true
-    isFixed _ = false
 
 renderColorSelect :: forall i. Maybe HA.Color -> HH.HTML i Action
 renderColorSelect currentColor =
@@ -421,21 +485,31 @@ component =
             let updatedTree = updateDefAtPath state.selectedPath modifyDef state.playTree
             H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { def = modifyDef s.editing.def } }
 
+        updateFixed fn =
+            \s -> s { editing = s.editing { fixed = fn s.editing.fixed } }
+
+        loadEditState path tree =
+            let
+                mbItem = getItemAtPath path tree
+                mbDef = getDefAtPath path tree
+                mbColor = mbItem >>= \(Item mbCol _) -> mbCol
+            in
+                { name : fromMaybe "?" (itemName <$> mbItem)
+                , def : fromMaybe Play.default mbDef
+                , color : mbColor
+                , fixed :
+                    { width  : isFixedSizing =<< _.width  <$> _.sizing <$> mbDef
+                    , height : isFixedSizing =<< _.height <$> _.sizing <$> mbDef
+                    }
+                }
+
         initialState _ =
             let
                 tree = playOf noodleUI
-                mbRootItem = getItemAtPath [] tree
-                mbRootDef = getDefAtPath [] tree
             in
                 { playTree: tree
                 , selectedPath: []
-                , editing:
-                    { name : fromMaybe "?" (itemName <$> mbRootItem)
-                    , def : fromMaybe Play.default mbRootDef
-                    , color : case mbRootItem of
-                        Just (Item mbCol _) -> mbCol
-                        Nothing -> Nothing
-                    }
+                , editing: loadEditState [] tree
                 }
 
         render :: State -> _
@@ -473,17 +547,9 @@ component =
 
             SelectItem path -> do
                 state <- H.get
-                let
-                    mbSelectedItem = getItemAtPath path state.playTree
-                    mbSelectedDef = getDefAtPath path state.playTree
-                    mbSelectedColor = mbSelectedItem >>= \(Item mbCol _) -> mbCol
                 H.modify_ _
                     { selectedPath = path
-                    , editing =
-                        { name : fromMaybe "?" (itemName <$> mbSelectedItem)
-                        , def : fromMaybe Play.default mbSelectedDef
-                        , color : mbSelectedColor
-                        }
+                    , editing = loadEditState path state.playTree
                     }
 
             GoToRoot -> H.modify_ _ { selectedPath = [] }
@@ -514,9 +580,19 @@ component =
 
             UpdateField (Direction dir) -> updateSelectedDef $ _ { direction = dir }
 
-            UpdateField (WidthSizing sizing) -> updateSelectedDef \def -> def { sizing = def.sizing { width = sizing } }
+            UpdateField (WidthSizing sizing) -> do
+                updateSelectedDef \def -> def { sizing = def.sizing { width = sizing } }
+                case sizing of
+                    PT.Fixed n ->
+                        H.modify_ $ updateFixed $ _ { width = Just n }
+                    _ -> pure unit
 
-            UpdateField (HeightSizing sizing) -> updateSelectedDef \def -> def { sizing = def.sizing { height = sizing } }
+            UpdateField (HeightSizing sizing) -> do
+                updateSelectedDef \def -> def { sizing = def.sizing { height = sizing } }
+                case sizing of
+                    PT.Fixed n ->
+                        H.modify_ $ updateFixed $ _ { height = Just n }
+                    _ -> pure unit
 
             AddChild childName -> do
                 state <- H.get
@@ -528,6 +604,12 @@ component =
                 state <- H.get
                 let updatedTree = removeChildAtPath state.selectedPath childIndex state.playTree
                 H.modify_ _ { playTree = updatedTree }
+
+            ResetFixedWidth -> do
+                H.modify_ $ updateFixed $ _ { width = Nothing }
+
+            ResetFixedHeight -> do
+                H.modify_ $ updateFixed $ _ { height = Nothing }
 
 
 toCode :: forall a. (a -> String) -> Play a -> String
