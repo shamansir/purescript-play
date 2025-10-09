@@ -6,7 +6,7 @@ module Play
     , paddingTop, paddingLeft, paddingBottom, paddingRight
     , default, all, tb, lr, p, i
     , toTree, fromTree
-    , layout, layoutToTree, flattenLayout, rollback
+    , layout, layoutToTree, flattenLayout, rollback, layoutSize
     , widthFit, widthGrow, widthFitGrow, width
     , heightFit, heightGrow, heightFitGrow, height
     , topToBottom, leftToRight
@@ -340,6 +340,10 @@ layoutToTree (Layout ltree) = ltree <#> _undef
 
 flattenLayout :: forall a. Layout a -> Array (PT.WithRect a)
 flattenLayout = layoutToTree >>> Tree.flatten
+
+
+layoutSize :: forall a. Layout a -> PT.Size
+layoutSize = _.size <<< _.rect <<< Tree.value <<< layoutToTree
 
 
 {- Helpers -}

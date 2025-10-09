@@ -37,11 +37,11 @@ il = Item Nothing
 
 blue   = ic (HA.RGB 32 94 166)  "Blue"   :: Item
 pink   = ic (HA.Named "pink")   "Pink"   :: Item
-red    = ic (HA.RGB 209 77 65)    "Red"    :: Item
+red    = ic (HA.RGB 209 77 65)  "Red"    :: Item
 -- red    = ic (HA.RGB 175 48 41)    "Red"    :: Item
 yellow = ic (HA.RGB 208 162 21) "Yellow" :: Item
-green  = ic (HA.RGB 102 128 11)  "Green"  :: Item
-purple = ic (HA.RGB 94 64 157) "Purple" :: Item
+green  = ic (HA.RGB 102 128 11) "Green" :: Item
+purple = ic (HA.RGB 94 64 157)  "Purple" :: Item
 
 
 ex :: Int -> String -> Number -> Number -> Play Item -> Example

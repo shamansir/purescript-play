@@ -3,11 +3,12 @@ module Demo.Constructor where
 import Prelude
 
 import Data.Array as Array
-import Data.Functor.Variant (default)
+import Data.Bifunctor (lmap)
 import Data.Int as Int
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Number as Number
 import Data.String as String
+import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
 import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody) as HA
@@ -49,9 +50,11 @@ data Field
 
 
 data Action
-    = SelectItem ItemPath
+    = Skip
+    | SelectItem ItemPath
     | GoToRoot
     | UpdateName String
+    | UpdateColor HA.Color
     | UpdateField Field
     | AddChild String
     | RemoveChild Int
@@ -60,7 +63,7 @@ data Action
 type State =
     { playTree :: Play Item
     , selectedPath :: ItemPath
-    , editing :: { name :: String, def :: PT.Def }
+    , editing :: { name :: String, def :: PT.Def, color :: Maybe HA.Color }
     }
 
 
@@ -122,6 +125,10 @@ updateWithDefAtPath path updateFn playTree =
 setItemName :: String -> Item -> Item
 setItemName newName (Item mbCol _) = Item mbCol newName
 
+-- Set item color
+setItemColor :: HA.Color -> Item -> Item
+setItemColor newColor (Item _ name) = Item (Just newColor) name
+
 -- Add child at path
 addChildAtPath :: ItemPath -> Play Item -> Play Item -> Play Item
 addChildAtPath path newChild playTree =
@@ -129,13 +136,13 @@ addChildAtPath path newChild playTree =
 
 addChildInTree :: ItemPath -> Tree (PT.WithDef Item) -> Tree (PT.WithDef Item) -> Tree (PT.WithDef Item)
 addChildInTree [] newChild tree =
-    let childs = Tree.children tree
-    in Tree.node (Tree.value tree) (Array.snoc childs newChild)
+    let children = Tree.children tree
+    in Tree.node (Tree.value tree) (Array.snoc children newChild)
 addChildInTree path newChild tree = case Array.uncons path of
     Just { head: index, tail: rest } ->
-        let childs = Tree.children tree
-            updatedChilds = Array.modifyAt index (addChildInTree rest newChild) childs
-        in Tree.node (Tree.value tree) (fromMaybe childs updatedChilds)
+        let children = Tree.children tree
+            updatedchildren = Array.modifyAt index (addChildInTree rest newChild) children
+        in Tree.node (Tree.value tree) (fromMaybe children updatedchildren)
     Nothing -> tree
 
 -- Remove child at path
@@ -145,14 +152,14 @@ removeChildAtPath path childIndex playTree =
 
 removeChildInTree :: ItemPath -> Int -> Tree (PT.WithDef Item) -> Tree (PT.WithDef Item)
 removeChildInTree [] childIndex tree =
-    let childs = Tree.children tree
-        updatedChilds = fromMaybe childs (Array.deleteAt childIndex childs)
-    in Tree.node (Tree.value tree) updatedChilds
+    let children = Tree.children tree
+        updatedchildren = fromMaybe children (Array.deleteAt childIndex children)
+    in Tree.node (Tree.value tree) updatedchildren
 removeChildInTree path childIndex tree = case Array.uncons path of
     Just { head: index, tail: rest } ->
-        let childs = Tree.children tree
-            updatedChilds = Array.modifyAt index (removeChildInTree rest childIndex) childs
-        in Tree.node (Tree.value tree) (fromMaybe childs updatedChilds)
+        let children = Tree.children tree
+            updatedchildren = Array.modifyAt index (removeChildInTree rest childIndex) children
+        in Tree.node (Tree.value tree) (fromMaybe children updatedchildren)
     Nothing -> tree
 
 -- Render property editor
@@ -196,6 +203,11 @@ renderPropertyEditor state =
                 [ HH.text $ "Path: " <> show state.selectedPath ]
             ]
         , propertyFullWidthInput HP.InputText "Item Name" UpdateName state.editing.name
+        , HH.div
+            [ HP.style "margin-bottom: 15px;" ]
+            [ HH.label_ [ HH.text "Color:" ]
+            , renderColorSelect state.editing.color
+            ]
         , HH.div
             [ HP.style "margin-bottom: 15px;" ]
             [ HH.label_ [ HH.text "Padding:" ]
@@ -288,12 +300,38 @@ renderSizingSelect currentSizing updateAction =
     isFixed (PT.Fixed _) = true
     isFixed _ = false
 
+renderColorSelect :: forall i. Maybe HA.Color -> HH.HTML i Action
+renderColorSelect currentColor =
+    HH.select
+        [ HE.onSelectedIndexChange \idx -> case idx of
+            0 -> Skip
+            1 -> UpdateColor $ HA.RGB 255 0 0
+            2 -> UpdateColor $ HA.RGB 0 255 0
+            3 -> UpdateColor $ HA.RGB 0 0 255
+            4 -> UpdateColor $ HA.Named "pink"
+            5 -> UpdateColor $ HA.Named "yellow"
+            6 -> UpdateColor $ HA.Named "lightblue"
+            7 -> UpdateColor $ HA.RGB 128 128 128
+            _ -> Skip
+        , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
+        ]
+        [ HH.option [ HP.selected (currentColor == Nothing) ] [ HH.text "Transparent" ]
+        , HH.option [ HP.selected (currentColor == Just (HA.RGB 255 0 0)) ] [ HH.text "Red" ]
+        , HH.option [ HP.selected (currentColor == Just (HA.RGB 0 255 0)) ] [ HH.text "Green" ]
+        , HH.option [ HP.selected (currentColor == Just (HA.RGB 0 0 255)) ] [ HH.text "Blue" ]
+        , HH.option [ HP.selected (currentColor == Just (HA.Named "pink")) ] [ HH.text "Pink" ]
+        , HH.option [ HP.selected (currentColor == Just (HA.Named "yellow")) ] [ HH.text "Yellow" ]
+        , HH.option [ HP.selected (currentColor == Just (HA.Named "lightblue")) ] [ HH.text "Light Blue" ]
+        , HH.option [ HP.selected (currentColor == Just (HA.RGB 128 128 128)) ] [ HH.text "Gray" ]
+        ]
+
 -- Render interactive preview
 renderInteractivePreview :: forall i. State -> HH.HTML i Action
 renderInteractivePreview state =
     let
         layout = Play.layout state.playTree
-        size = { width: 400.0, height: 300.0 } -- TODO: get from example
+        layoutTree = Play.layoutToTree layout
+        size = Play.layoutSize layout
     in
     HH.div_
         [ HH.h3_ [ HH.text "Interactive Preview" ]
@@ -302,16 +340,23 @@ renderInteractivePreview state =
             , HA.height size.height
             , HP.style "border: 1px solid #ccc;"
             ]
-            $ renderInteractiveItem state [] <$> Play.flattenLayout layout
+            $ renderInteractiveItem state <$>
+                (Tree.flatten
+                    $ map (lmap Tree.Path.toArray)
+                    $ Tree.Path.fill
+                    $ layoutTree
+                )
         ]
 
-renderInteractiveItem :: forall i. State -> ItemPath -> PT.WithRect Item -> HH.HTML i Action
-renderInteractiveItem state path { v, rect } =
+renderInteractiveItem :: forall i. State -> (ItemPath /\ PT.WithRect Item) -> HH.HTML i Action
+renderInteractiveItem state (path /\ { v, rect }) =
     case v of
         Item mbCol itemLabel ->
             let isSelected = state.selectedPath == path
             in HS.g
-                [ HE.onClick \_ -> SelectItem path ]
+                [ HE.onClick \_ -> SelectItem path
+                , HP.style "pointer-events: all; cursor: pointer;"
+                ]
                 [ HS.rect
                     [ HA.x rect.pos.x
                     , HA.y rect.pos.y
@@ -327,6 +372,7 @@ renderInteractiveItem state path { v, rect } =
                         Nothing -> HA.Named "black"
                     , HA.strokeWidth $ if isSelected then 2.0 else 0.5
                     , HP.style "cursor: pointer;"
+                    , HE.onClick \_ -> SelectItem path
                     ]
                 , HS.text
                     [ HA.x $ rect.pos.x + 5.0
@@ -336,6 +382,7 @@ renderInteractiveItem state path { v, rect } =
                     , HA.strokeWidth 0.5
                     , HA.dominantBaseline HA.Hanging
                     , HP.style "pointer-events: none;"
+                    , HE.onClick \_ -> SelectItem path
                     ]
                     [ HH.text itemLabel ]
                 ]
@@ -353,6 +400,11 @@ component =
             let updatedTree = updateItemAtPath state.selectedPath (setItemName newName) state.playTree
             H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { name = newName } }
 
+        updateSelectedColor color = do
+            state <- H.get
+            let updatedTree = updateItemAtPath state.selectedPath (setItemColor color) state.playTree
+            H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { color = Just color } }
+
         updateSelectedDef modifyDef = do
             state <- H.get
             let updatedTree = updateDefAtPath state.selectedPath modifyDef state.playTree
@@ -369,6 +421,9 @@ component =
                 , editing:
                     { name : fromMaybe "?" (itemName <$> mbRootItem)
                     , def : fromMaybe Play.default mbRootDef
+                    , color : case mbRootItem of
+                        Just (Item mbCol _) -> mbCol
+                        Nothing -> Nothing
                     }
                 }
 
@@ -387,7 +442,7 @@ component =
                                 ]
                     -}
                     , HH.textarea
-                        [ HP.value $ fromMaybe "-" $ toCode itemToString <$> getSubtreeAtPath state.selectedPath state.playTree
+                        [ HP.value $ fromMaybe "-" $ toCode (itemName >>> show) <$> getSubtreeAtPath state.selectedPath state.playTree
                         , HP.style "width: 100%; height: 150px; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; margin-top: 10px;"
                         , HP.readOnly true
                         ]
@@ -403,22 +458,28 @@ component =
                 ]
 
         handleAction = case _ of
+            Skip -> pure unit
+
             SelectItem path -> do
                 state <- H.get
                 let
                     mbSelectedItem = getItemAtPath path state.playTree
                     mbSelectedDef = getDefAtPath path state.playTree
+                    mbSelectedColor = mbSelectedItem >>= \(Item mbCol _) -> mbCol
                 H.modify_ _
                     { selectedPath = path
                     , editing =
                         { name : fromMaybe "?" (itemName <$> mbSelectedItem)
                         , def : fromMaybe Play.default mbSelectedDef
+                        , color : mbSelectedColor
                         }
                     }
 
             GoToRoot -> H.modify_ _ { selectedPath = [] }
 
             UpdateName newName -> updateSelectedName newName
+
+            UpdateColor color -> updateSelectedColor color
 
             UpdateField (PaddingTop str) -> case Number.fromString str of
                 Just n -> updateSelectedDef \def -> def { padding = def.padding { top = n } }
