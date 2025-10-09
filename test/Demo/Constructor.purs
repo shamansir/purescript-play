@@ -21,12 +21,14 @@ import Halogen.Svg.Attributes as HA
 import Halogen.Svg.Elements as HS
 import Halogen.VDom.Driver (runUI)
 
-import Yoga.Tree.Extended (children, flatten) as Tree
+import Yoga.Tree (Tree)
+import Yoga.Tree.Extended (children, flatten, value) as Tree
 import Yoga.Tree.Extended.Path as Tree.Path
+import Data.String as String
 
 import Play (Play, (~*))
 import Play as Play
-import Play.Types (Def, Direction(..), Sizing(..), WithRect) as PT
+import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect) as PT
 
 -- import Test.Demo (renderOne) as Demo
 import Test.Demo.Examples (Item(..), ic, itemName, nameOf, noodleUI, playOf, theExamples)
@@ -65,6 +67,8 @@ data Action
     | UpdateChildName String
     | SelectExample Int
     | ToggleCodePanel
+    | SelectCodeTab Int
+    | ToggleNodeCollapsed ItemPath
 
 
 type EditingState =
@@ -79,12 +83,19 @@ type EditingState =
     }
 
 
+type CodePanelState =
+    { expanded :: Boolean
+    , tabIndex :: Int
+    , collapsedNodes :: Array ItemPath
+    }
+
+
 type State =
     { playTree :: Play Item
     , exampleName :: Maybe String
     , selectedPath :: ItemPath
     , editing :: EditingState
-    , codePanelExpanded :: Boolean
+    , codePanel :: CodePanelState
     }
 
 
@@ -145,7 +156,10 @@ component =
                 , selectedPath: []
                 , editing: loadEditState [] tree
                 , exampleName : Just $ nameOf noodleUI
-                , codePanelExpanded: false
+                , codePanel: { expanded: false
+                             , tabIndex: 0
+                             , collapsedNodes: []
+                             }
                 }
 
         render :: State -> _
@@ -155,7 +169,7 @@ component =
                 [ HH.div
                     [ HP.style "flex: 1; padding: 10px;" ]
                     [ renderExampleSelector state
-                    , renderInteractivePreview state
+                    , renderClickablePreview state
                     ]
                 , HH.div
                     [ HP.style "flex: 1; position: relative;" ]
@@ -251,7 +265,19 @@ component =
                     Nothing -> pure unit
 
             ToggleCodePanel ->
-                H.modify_ \s -> s { codePanelExpanded = not s.codePanelExpanded }
+                H.modify_ \s -> s { codePanel = s.codePanel { expanded = not s.codePanel.expanded } }
+
+            SelectCodeTab tabIndex ->
+                H.modify_ \s -> s { codePanel = s.codePanel { tabIndex = tabIndex } }
+
+            ToggleNodeCollapsed path -> do
+                state <- H.get
+                let
+                    isCollapsed = Array.elem path state.codePanel.collapsedNodes
+                    updatedCollapsed = if isCollapsed
+                        then Array.filter (_ /= path) state.codePanel.collapsedNodes
+                        else Array.snoc state.codePanel.collapsedNodes path
+                H.modify_ \s -> s { codePanel = s.codePanel { collapsedNodes = updatedCollapsed } }
 
 
 -- Set item name
@@ -491,19 +517,23 @@ renderColorSelect currentColor =
         , HP.style "width: 100%; padding: 5px; margin-top: 5px; font-family: monospace;"
         ]
 
+
 renderCodePanel :: forall i. State -> HH.HTML i Action
 renderCodePanel state =
     let
         codeContent = fromMaybe "-" $ toCode (itemName >>> show) <$> getSubtreeAtPath state.selectedPath state.playTree
-        arrowSymbol = if state.codePanelExpanded then "▼" else "▶"
+        -- treeContent = renderTreeVisualization state.selectedPath state.collapsedNodes state.playTree
+        arrowSymbol = if state.codePanel.expanded then "▼" else "▶"
 
         collapsedStyle = "position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #f0f0f0; border-top: 2px solid #ccc; cursor: pointer;"
         expandedPanelStyle = "position: fixed; bottom: 0; left: 20%; right: 60%; height: 40vh; z-index: 1000; background: #f0f0f0; border: 2px solid #ccc; border-radius: 8px 8px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);"
 
         titleStyle = "padding: 8px 15px; font-weight: bold; border-bottom: 1px solid #ccc; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;"
 
-        contentStyle = "height: calc(100% - 40px); overflow: auto;"
-        isExpanded = state.codePanelExpanded
+        tabStyle isActive = "padding: 8px 16px; cursor: pointer; border-bottom: " <> (if isActive then "2px solid #007bff" else "1px solid #ccc") <> "; background: " <> (if isActive then "#fff" else "#f8f8f8") <> ";"
+
+        contentStyle = "height: calc(100% - 80px); overflow: auto;"
+        isExpanded = state.codePanel.expanded
     in
         HH.div
             [ HP.style $ if isExpanded then expandedPanelStyle else collapsedStyle ]
@@ -512,17 +542,34 @@ renderCodePanel state =
                 , HE.onClick \_ -> ToggleCodePanel
                 ]
                 [ HH.span_ [ HH.text arrowSymbol ]
-                , HH.text "Generated Code"
+                , HH.text "Code & Tree Viewer"
                 ]
             : if isExpanded then
-                pure $ HH.div
-                    [ HP.style contentStyle ]
-                    [ HH.textarea
-                        [ HP.value codeContent
-                        , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
-                        , HP.readOnly true
+                [ HH.div
+                    [ HP.style "display: flex; border-bottom: 1px solid #ccc;" ]
+                    [ HH.div
+                        [ HP.style $ tabStyle (state.codePanel.tabIndex == 0)
+                        , HE.onClick \_ -> SelectCodeTab 0
                         ]
+                        [ HH.text "Code" ]
+                    , HH.div
+                        [ HP.style $ tabStyle (state.codePanel.tabIndex == 1)
+                        , HE.onClick \_ -> SelectCodeTab 1
+                        ]
+                        [ HH.text "Tree" ]
                     ]
+                , HH.div
+                    [ HP.style contentStyle ]
+                    [ if state.codePanel.tabIndex == 0 then
+                        HH.textarea
+                            [ HP.value codeContent
+                            , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
+                            , HP.readOnly true
+                            ]
+                      else
+                        renderTextualTree state.selectedPath state.codePanel.collapsedNodes state.playTree
+                    ]
+                ]
                 else []
 
 
@@ -546,8 +593,8 @@ renderExampleSelector state =
         ]
 
 -- Render interactive preview
-renderInteractivePreview :: forall i. State -> HH.HTML i Action
-renderInteractivePreview state =
+renderClickablePreview :: forall i. State -> HH.HTML i Action
+renderClickablePreview state =
     let
         layout = Play.layout state.playTree
         layoutTree = Play.layoutToTree layout
@@ -560,7 +607,7 @@ renderInteractivePreview state =
             , HA.height size.height
             , HP.style "border: 1px solid #ccc;"
             ]
-            $ renderInteractiveItem state <$>
+            $ renderClickableItem state <$>
                 (Tree.flatten
                     $ map (lmap Tree.Path.toArray)
                     $ Tree.Path.fill
@@ -568,8 +615,8 @@ renderInteractivePreview state =
                 )
         ]
 
-renderInteractiveItem :: forall i. State -> (ItemPath /\ PT.WithRect Item) -> HH.HTML i Action
-renderInteractiveItem state (path /\ { v, rect }) =
+renderClickableItem :: forall i. State -> (ItemPath /\ PT.WithRect Item) -> HH.HTML i Action
+renderClickableItem state (path /\ { v, rect }) =
     case v of
         Item mbCol itemLabel ->
             let isSelected = state.selectedPath == path
@@ -606,4 +653,59 @@ renderInteractiveItem state (path /\ { v, rect }) =
                     ]
                     [ HH.text itemLabel ]
                 ]
+
+renderTextualTree :: forall i. ItemPath -> Array ItemPath -> Play Item -> HH.HTML i Action
+renderTextualTree selectedPath collapsedNodes playTree =
+  let
+    tree = Play.toTree playTree
+  in
+    HH.div
+      [ HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; margin: 0; overflow: auto;"
+      ]
+      [ renderTextualTreeNode [] selectedPath collapsedNodes tree ]
+
+
+renderTextualTreeNode :: forall i. ItemPath -> ItemPath -> Array ItemPath -> Tree (PT.WithDef Item) -> HH.HTML i Action
+renderTextualTreeNode currentPath selectedPath collapsedNodes tree =
+  let
+    isSelected = currentPath == selectedPath
+    isCollapsed = Array.elem currentPath collapsedNodes
+    hasChildren = not $ Array.null $ Tree.children tree
+    item = Tree.value tree
+    itemLabel = if itemName item.v == "" then "<?>" else itemName item.v
+    depth = Array.length currentPath
+    indent = String.fromCodePointArray (Array.replicate (depth * 4) (String.codePointFromChar ' '))
+
+    expandSymbol = if hasChildren
+      then (if isCollapsed then "[+]" else "[-]")
+      else " - "
+
+    highlighted = if isSelected
+      then "[" <> itemLabel <> "]"
+      else itemLabel
+
+    childrenNodes = if hasChildren && not isCollapsed
+      then
+        Array.mapWithIndex (\i ->
+            renderTextualTreeNode (Array.snoc currentPath i) selectedPath collapsedNodes
+        ) $ Tree.children tree
+      else []
+  in
+    HH.div_ $
+        [ HH.div
+          [ HP.style $ "padding: 2px 0; " <> (if isSelected then "background-color: #e0e0e0;" else "")
+          ]
+          [ HH.span [ HP.style "white-space: pre;" ] [ HH.text indent ]
+          , HH.span
+              [ HP.style "white-space: pre; user-select: none; cursor: pointer; display: inline-block; width: 20px; margin-right: 5px;"
+              , HE.onClick \_ -> if hasChildren then ToggleNodeCollapsed currentPath else SelectItem currentPath
+              ]
+              [ HH.text expandSymbol ]
+          , HH.span
+              [ HP.style $ "user-select: none; cursor: pointer;"
+              , HE.onClick \_ -> SelectItem currentPath
+              ]
+              [ HH.text $ highlighted ]
+          ]
+      ] <> childrenNodes
 
