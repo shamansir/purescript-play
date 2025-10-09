@@ -2,43 +2,343 @@ module Demo.Constructor where
 
 import Prelude
 
-import Effect (Effect)
-
-import Data.Maybe (Maybe(..))
 import Data.Array as Array
+import Data.Functor.Variant (default)
+import Data.Int as Int
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Number as Number
 import Data.String as String
-
+import Effect (Effect)
 import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody) as HA
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Svg.Attributes as HA
 import Halogen.Svg.Elements as HS
 import Halogen.VDom.Driver (runUI)
-
-import Play (Play)
+import Play (Play, with)
 import Play as Play
-import Play.Types (Padding, Sizing(..), Direction(..), Def, WithDef)  as PT
-
+import Play.Types (Padding, Sizing(..), Direction(..), Def, WithDef, WithRect) as PT
+import Test.Demo (renderOne) as Demo
+import Test.Demo.Examples (Example, layoutExample, playOf, itemName, noodleUI, Item(..), il, ic)
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, flatten, value, children, update) as Tree
-
-import Test.Demo.Examples (Example, layoutExample, playOf, itemName, noodleUI)
-import Test.Demo (renderOne) as Demo
+import Yoga.Tree.Extended.Path (Path(..)) as Tree
+import Yoga.Tree.Extended.Path as Tree.Path
 
 
 main :: Effect Unit
 main = HA.runHalogenAff do
-  body <- HA.awaitBody
-  runUI component unit body
+    body <- HA.awaitBody
+    runUI component unit body
+
+-- Path to an item in the tree (array of child indices)
+type ItemPath = Array Int
 
 
-type Action
-    = Void
+data Field
+    = PaddingTop String
+    | PaddingLeft String
+    | PaddingBottom String
+    | PaddingRight String
+    | ChildGap String
+    | Direction PT.Direction
+    | WidthSizing PT.Sizing
+    | HeightSizing PT.Sizing
 
 
-type State = Example
+data Action
+    = SelectItem ItemPath
+    | GoToRoot
+    | UpdateName String
+    | UpdateField Field
+    | AddChild String
+    | RemoveChild Int
 
+
+type State =
+    { playTree :: Play Item
+    , selectedPath :: ItemPath
+    , editing :: { name :: String, def :: PT.Def }
+    }
+
+
+-- Helper functions for default values
+defaultColor :: HA.Color
+defaultColor = HA.RGB 128 128 128
+
+
+itemToString :: Item -> String
+itemToString (Item mbCol name) = case mbCol of
+    Just (HA.RGB r g b) -> "(ic (HA.RGB " <> show r <> " " <> show g <> " " <> show b <> ") " <> show name <> ")"
+    Just (HA.RGBA r g b a) -> "(ic (HA.RGBA " <> show r <> " " <> show g <> " " <> show b <> " " <> show a <> ") " <> show name <> ")"
+    Just (HA.Named n) -> "(ic (HA.Named " <> show n <> ") " <> show name <> ")"
+    Just HA.NoColor -> "(ic HA.NoColor " <> show name <> ")"
+    Nothing -> "(il " <> show name <> ")"
+
+
+-- Get item at a specific path in the tree
+getItemAtPath :: ItemPath -> Play Item -> Maybe Item
+getItemAtPath path =
+    Play.toTree
+    >>> Tree.Path.find (Tree.Path path)
+    >>> map (Tree.value >>> _.v)
+
+
+-- Get definition at a specific path in the tree
+getDefAtPath :: ItemPath -> Play Item -> Maybe PT.Def
+getDefAtPath path =
+    Play.toTree
+    >>> Tree.Path.find (Tree.Path path)
+    >>> map (Tree.value >>> _.def)
+
+
+-- Get subtree at path
+getSubtreeAtPath :: ItemPath -> Play Item -> Maybe (Play Item)
+getSubtreeAtPath path =
+    Play.toTree
+    >>> Tree.Path.find (Tree.Path path)
+    >>> map Play.fromTree
+
+
+-- Update item at path
+updateItemAtPath :: ItemPath -> (Item -> Item) -> Play Item -> Play Item
+updateItemAtPath path updateFn =
+    updateWithDefAtPath path \wd -> wd { v = updateFn wd.v }
+
+
+-- Update definition at path
+updateDefAtPath :: ItemPath -> (PT.Def -> PT.Def) -> Play Item -> Play Item
+updateDefAtPath path updateFn =
+    updateWithDefAtPath path \wd -> wd { def = updateFn wd.def }
+
+
+updateWithDefAtPath :: ItemPath -> (PT.WithDef Item -> PT.WithDef Item) -> Play Item -> Play Item
+updateWithDefAtPath path updateFn playTree =
+    Play.fromTree $ Tree.Path.with (Tree.Path path) (Tree.update updateFn) $ Play.toTree playTree
+
+-- Set item name
+setItemName :: String -> Item -> Item
+setItemName newName (Item mbCol _) = Item mbCol newName
+
+-- Add child at path
+addChildAtPath :: ItemPath -> Play Item -> Play Item -> Play Item
+addChildAtPath path newChild playTree =
+    Play.fromTree $ addChildInTree path (Play.toTree newChild) (Play.toTree playTree)
+
+addChildInTree :: ItemPath -> Tree (PT.WithDef Item) -> Tree (PT.WithDef Item) -> Tree (PT.WithDef Item)
+addChildInTree [] newChild tree =
+    let childs = Tree.children tree
+    in Tree.node (Tree.value tree) (Array.snoc childs newChild)
+addChildInTree path newChild tree = case Array.uncons path of
+    Just { head: index, tail: rest } ->
+        let childs = Tree.children tree
+            updatedChilds = Array.modifyAt index (addChildInTree rest newChild) childs
+        in Tree.node (Tree.value tree) (fromMaybe childs updatedChilds)
+    Nothing -> tree
+
+-- Remove child at path
+removeChildAtPath :: ItemPath -> Int -> Play Item -> Play Item
+removeChildAtPath path childIndex playTree =
+    Play.fromTree $ removeChildInTree path childIndex (Play.toTree playTree)
+
+removeChildInTree :: ItemPath -> Int -> Tree (PT.WithDef Item) -> Tree (PT.WithDef Item)
+removeChildInTree [] childIndex tree =
+    let childs = Tree.children tree
+        updatedChilds = fromMaybe childs (Array.deleteAt childIndex childs)
+    in Tree.node (Tree.value tree) updatedChilds
+removeChildInTree path childIndex tree = case Array.uncons path of
+    Just { head: index, tail: rest } ->
+        let childs = Tree.children tree
+            updatedChilds = Array.modifyAt index (removeChildInTree rest childIndex) childs
+        in Tree.node (Tree.value tree) (fromMaybe childs updatedChilds)
+    Nothing -> tree
+
+-- Render property editor
+renderPropertyEditor :: forall i. State -> HH.HTML i Action
+renderPropertyEditor state =
+    let
+        childrenCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> getSubtreeAtPath state.selectedPath state.playTree
+        propertySmallInput ptype name action curValue =
+            HH.input
+                [ HP.type_ ptype
+                , HP.value curValue
+                , HE.onValueInput action
+                , HP.placeholder name
+                , HP.style  "padding: 5px;"
+                ]
+        propertyFullWidthInput ptype name action curValue =
+            HH.div
+                [ HP.style "margin-bottom: 15px;" ]
+                [ HH.label_ [ HH.text name ]
+                , HH.input
+                    [ HP.type_ ptype
+                    , HP.value curValue
+                    , HE.onValueInput action
+                    , HP.placeholder name
+                    , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
+                    ]
+                ]
+    in
+    HH.div
+        [ HP.style "padding: 15px; border: 1px solid #ccc; background: #f9f9f9;" ]
+        [ HH.h3_ [ HH.text "Property Editor" ]
+        , HH.div
+            [ HP.style "margin-bottom: 10px;" ]
+            [ HH.button
+                [ HE.onClick \_ -> GoToRoot
+                , HP.style "padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                ]
+                [ HH.text "← Root" ]
+            , HH.span
+                [ HP.style "margin-left: 10px; color: #666;" ]
+                [ HH.text $ "Path: " <> show state.selectedPath ]
+            ]
+        , propertyFullWidthInput HP.InputText "Item Name" UpdateName state.editing.name
+        , HH.div
+            [ HP.style "margin-bottom: 15px;" ]
+            [ HH.label_ [ HH.text "Padding:" ]
+            , HH.div
+                [ HP.style "display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;" ]
+                [ propertySmallInput HP.InputNumber "Top" (UpdateField <<< PaddingTop) (show state.editing.def.padding.top)
+                , propertySmallInput HP.InputNumber "Right" (UpdateField <<< PaddingRight) (show state.editing.def.padding.right)
+                , propertySmallInput HP.InputNumber "Bottom" (UpdateField <<< PaddingBottom) (show state.editing.def.padding.bottom)
+                , propertySmallInput HP.InputNumber "Left" (UpdateField <<< PaddingLeft) (show state.editing.def.padding.left)
+                ]
+            ]
+        , propertyFullWidthInput HP.InputNumber "Child Gap" (UpdateField <<< ChildGap) $ show state.editing.def.childGap
+        , HH.div
+            [ HP.style "margin-bottom: 15px;" ]
+            [ HH.label_ [ HH.text "Direction:" ]
+            , HH.select
+                [ HE.onSelectedIndexChange \idx -> case idx of
+                    0 -> UpdateField $ Direction PT.LeftToRight
+                    1 -> UpdateField $ Direction PT.TopToBottom
+                    _ -> UpdateField $ Direction PT.LeftToRight
+                , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
+                ]
+                [ HH.option [ HP.selected (state.editing.def.direction == PT.LeftToRight) ] [ HH.text "Left to Right" ]
+                , HH.option [ HP.selected (state.editing.def.direction == PT.TopToBottom) ] [ HH.text "Top to Bottom" ]
+                ]
+            ]
+        , HH.div
+            [ HP.style "margin-bottom: 15px;" ]
+            [ HH.label_ [ HH.text "Width Sizing:" ]
+            , renderSizingSelect state.editing.def.sizing.width $ UpdateField <<< WidthSizing
+            ]
+        , HH.div
+            [ HP.style "margin-bottom: 15px;" ]
+            [ HH.label_ [ HH.text "Height Sizing:" ]
+            , renderSizingSelect state.editing.def.sizing.height $ UpdateField <<< HeightSizing
+            ]
+        , HH.div
+            [ HP.style "margin-bottom: 15px;" ]
+            [ HH.h4_ [ HH.text $ "Children (" <> show childrenCount <> "):" ]
+            , HH.div_
+                (Array.mapWithIndex (\i child ->
+                    HH.div
+                        [ HP.style "display: flex; align-items: center; gap: 10px; margin: 5px 0;" ]
+                        [ HH.span_ [ HH.text $ show i <> ". " <> fromMaybe "?" (itemName <$> getItemAtPath (Array.snoc state.selectedPath i) state.playTree) ]
+                        , HH.button
+                            [ HE.onClick \_ -> RemoveChild i
+                            , HP.style "padding: 2px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                            ]
+                            [ HH.text "Remove" ]
+                        ]
+                ) $ Array.range 0 (childrenCount - 1))
+            , HH.div
+                [ HP.style "margin-top: 10px;" ]
+                [ HH.input
+                    [ HP.type_ HP.InputText
+                    , HP.placeholder "New child name"
+                    , HP.id "new-child-name"
+                    , HP.style "padding: 5px; margin-right: 10px;"
+                    ]
+                , HH.button
+                    [ HE.onClick \_ -> do
+                        let newName = "New Child" -- TODO: get from input
+                        AddChild newName
+                    , HP.style "padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                    ]
+                    [ HH.text "Add Child" ]
+                ]
+            ]
+        ]
+
+renderSizingSelect :: forall i. PT.Sizing -> (PT.Sizing -> Action) -> HH.HTML i Action
+renderSizingSelect currentSizing updateAction =
+    HH.select
+        [ HE.onSelectedIndexChange \idx -> case idx of
+            0 -> updateAction PT.None
+            1 -> updateAction PT.Fit
+            2 -> updateAction PT.Grow
+            3 -> updateAction PT.FitGrow
+            4 -> updateAction (PT.Fixed 100.0) -- TODO: allow editing the fixed value
+            _ -> updateAction PT.None
+        , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
+        ]
+        [ HH.option [ HP.selected (currentSizing == PT.None) ] [ HH.text "None" ]
+        , HH.option [ HP.selected (currentSizing == PT.Fit) ] [ HH.text "Fit" ]
+        , HH.option [ HP.selected (currentSizing == PT.Grow) ] [ HH.text "Grow" ]
+        , HH.option [ HP.selected (currentSizing == PT.FitGrow) ] [ HH.text "FitGrow" ]
+        , HH.option [ HP.selected (isFixed currentSizing) ] [ HH.text "Fixed" ]
+        ]
+  where
+    isFixed (PT.Fixed _) = true
+    isFixed _ = false
+
+-- Render interactive preview
+renderInteractivePreview :: forall i. State -> HH.HTML i Action
+renderInteractivePreview state =
+    let
+        layout = Play.layout state.playTree
+        size = { width: 400.0, height: 300.0 } -- TODO: get from example
+    in
+    HH.div_
+        [ HH.h3_ [ HH.text "Interactive Preview" ]
+        , HS.svg
+            [ HA.width size.width
+            , HA.height size.height
+            , HP.style "border: 1px solid #ccc;"
+            ]
+            $ renderInteractiveItem state [] <$> Play.flattenLayout layout
+        ]
+
+renderInteractiveItem :: forall i. State -> ItemPath -> PT.WithRect Item -> HH.HTML i Action
+renderInteractiveItem state path { v, rect } =
+    case v of
+        Item mbCol itemLabel ->
+            let isSelected = state.selectedPath == path
+            in HS.g
+                [ HE.onClick \_ -> SelectItem path ]
+                [ HS.rect
+                    [ HA.x rect.pos.x
+                    , HA.y rect.pos.y
+                    , HA.rx 3.0
+                    , HA.ry 3.0
+                    , HA.width rect.size.width
+                    , HA.height rect.size.height
+                    , HA.fill $ case mbCol of
+                        Just col -> col
+                        Nothing -> HA.Named "transparent"
+                    , HA.stroke $ if isSelected then HA.RGB 255 0 0 else case mbCol of
+                        Just _ -> HA.Named "transparent"
+                        Nothing -> HA.Named "black"
+                    , HA.strokeWidth $ if isSelected then 2.0 else 0.5
+                    , HP.style "cursor: pointer;"
+                    ]
+                , HS.text
+                    [ HA.x $ rect.pos.x + 5.0
+                    , HA.y $ rect.pos.y + 7.0
+                    , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
+                    , HA.fill $ HA.Named "white"
+                    , HA.strokeWidth 0.5
+                    , HA.dominantBaseline HA.Hanging
+                    , HP.style "pointer-events: none;"
+                    ]
+                    [ HH.text itemLabel ]
+                ]
 
 component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
 component =
@@ -48,27 +348,114 @@ component =
         , eval: H.mkEval $ H.defaultEval { handleAction = handleAction }
         }
     where
-        initialState _ =
-            noodleUI
+        updateSelectedName newName = do
+            state <- H.get
+            let updatedTree = updateItemAtPath state.selectedPath (setItemName newName) state.playTree
+            H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { name = newName } }
 
+        updateSelectedDef modifyDef = do
+            state <- H.get
+            let updatedTree = updateDefAtPath state.selectedPath modifyDef state.playTree
+            H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { def = modifyDef s.editing.def } }
+
+        initialState _ =
+            let
+                tree = playOf noodleUI
+                mbRootItem = getItemAtPath [] tree
+                mbRootDef = getDefAtPath [] tree
+            in
+                { playTree: tree
+                , selectedPath: []
+                , editing:
+                    { name : fromMaybe "?" (itemName <$> mbRootItem)
+                    , def : fromMaybe Play.default mbRootDef
+                    }
+                }
 
         render :: State -> _
-        render currentExample =
+        render state =
             HH.div
-                [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600;" ]
-                [ HH.textarea [ HP.value $ toCode (itemName >>> show) $ playOf currentExample
-                              , HP.style "width: 100%; height: 200px; font-family: 'Courier New', Courier, monospace; font-size: 14px; background: #f0f0f0; border: 1px solid #ccc; padding: 10px; box-sizing: border-box;"
-                              , HP.readOnly true
-                              ]
+                [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600; display: flex; gap: 20px;" ]
+                [ HH.div
+                    [ HP.style "flex: 1;" ]
+                    [ renderPropertyEditor state
+                    {-
+                    [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600;" ]
+                    [ HH.textarea [ HP.value $ toCode (itemName >>> show) $ playOf currentExample
+                                , HP.style "width: 100%; height: 200px; font-family: 'Courier New', Courier, monospace; font-size: 14px; background: #f0f0f0; border: 1px solid #ccc; padding: 10px; box-sizing: border-box;"
+                                , HP.readOnly true
+                                ]
+                    -}
+                    , HH.textarea
+                        [ HP.value $ fromMaybe "-" $ toCode itemToString <$> getSubtreeAtPath state.selectedPath state.playTree
+                        , HP.style "width: 100%; height: 150px; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; margin-top: 10px;"
+                        , HP.readOnly true
+                        ]
+                    ]
                 , HH.div
-                    [  ]
-                    $ pure
-                    $ Demo.renderOne
-                    $ layoutExample
-                    $ currentExample
+                    [ HP.style "flex: 1;" ]
+                    [ renderInteractivePreview state ]
+                    -- [  ]
+                    -- $ pure
+                    -- $ Demo.renderOne
+                    -- $ layoutExample
+                    -- $ currentExample
                 ]
 
-        handleAction = const $ pure unit
+        handleAction = case _ of
+            SelectItem path -> do
+                state <- H.get
+                let
+                    mbSelectedItem = getItemAtPath path state.playTree
+                    mbSelectedDef = getDefAtPath path state.playTree
+                H.modify_ _
+                    { selectedPath = path
+                    , editing =
+                        { name : fromMaybe "?" (itemName <$> mbSelectedItem)
+                        , def : fromMaybe Play.default mbSelectedDef
+                        }
+                    }
+
+            GoToRoot -> H.modify_ _ { selectedPath = [] }
+
+            UpdateName newName -> updateSelectedName newName
+
+            UpdateField (PaddingTop str) -> case Number.fromString str of
+                Just n -> updateSelectedDef \def -> def { padding = def.padding { top = n } }
+                Nothing -> pure unit
+
+            UpdateField (PaddingLeft str) -> case Number.fromString str of
+                Just n -> updateSelectedDef \def -> def { padding = def.padding { left = n } }
+                Nothing -> pure unit
+
+            UpdateField (PaddingBottom str) -> case Number.fromString str of
+                Just n -> updateSelectedDef \def -> def { padding = def.padding { bottom = n } }
+                Nothing -> pure unit
+
+            UpdateField (PaddingRight str) -> case Number.fromString str of
+                Just n -> updateSelectedDef \def -> def { padding = def.padding { right = n } }
+                Nothing -> pure unit
+
+            UpdateField (ChildGap str) -> case Number.fromString str of
+                Just n -> updateSelectedDef $ _ { childGap = n }
+                Nothing -> pure unit
+
+            UpdateField (Direction dir) -> updateSelectedDef $ _ { direction = dir }
+
+            UpdateField (WidthSizing sizing) -> updateSelectedDef \def -> def { sizing = def.sizing { width = sizing } }
+
+            UpdateField (HeightSizing sizing) -> updateSelectedDef \def -> def { sizing = def.sizing { height = sizing } }
+
+            AddChild childName -> do
+                state <- H.get
+                let newChild = Play.i (il childName)
+                    updatedTree = addChildAtPath state.selectedPath newChild state.playTree
+                H.modify_ _ { playTree = updatedTree }
+
+            RemoveChild childIndex -> do
+                state <- H.get
+                let updatedTree = removeChildAtPath state.selectedPath childIndex state.playTree
+                H.modify_ _ { playTree = updatedTree }
 
 
 toCode :: forall a. (a -> String) -> Play a -> String

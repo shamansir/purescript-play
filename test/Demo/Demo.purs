@@ -10,6 +10,7 @@ import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody) as HA
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
+import Halogen.HTML.Events as HE
 import Halogen.Svg.Attributes as HA
 import Halogen.Svg.Elements as HS
 import Halogen.VDom.Driver (runUI)
@@ -28,7 +29,7 @@ main = HA.runHalogenAff do
 
 
 type Action
-    = Void
+    = Unit
 
 
 type State = Array Example
@@ -51,7 +52,7 @@ component =
                 [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600;" ]
                 [ HH.div
                     [  ]
-                     $  renderOne
+                     $  renderOne unit
                     <$> layoutExample
                     <$> examples
                 ]
@@ -59,8 +60,8 @@ component =
         handleAction = const $ pure unit
 
 
-renderOne :: forall i o. LayedOutExample -> HH.HTML i o
-renderOne { id, label, size, layout } =
+renderOne :: forall i o. o -> LayedOutExample -> HH.HTML i o
+renderOne clickAction { id, label, size, layout } =
     HH.div
         [ HP.style "margin: 5px 10px;" ]
         [ HH.div
@@ -80,7 +81,7 @@ renderOne { id, label, size, layout } =
             case v of
                 Item mbCol itemLabel ->
                     HS.g
-                        []
+                        [ HE.onClick \_ -> clickAction ]
                         [ HS.rect
                             [ HA.x rect.pos.x
                             , HA.y rect.pos.y

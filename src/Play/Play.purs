@@ -23,6 +23,7 @@ import Data.Array (length, filter, snoc) as Array
 import Data.Int (toNumber) as Int
 
 import Yoga.Tree (Tree)
+import Yoga.Tree as Tree
 import Yoga.Tree.Extended (node, break, flatten, value, children, update) as Tree
 
 import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefSize, WithRect, WithDefRect)  as PT
@@ -218,6 +219,10 @@ toTree (Play tree) = tree
 
 fromTree :: forall a. Tree (PT.WithDef a) -> Play a
 fromTree = Play
+
+
+-- findBy :: forall a. (a -> Boolean) -> Play a -> Maybe (Play a)
+-- findBy pred = toTree >>> Tree.find pred
 
 
 default :: PT.Def

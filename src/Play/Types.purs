@@ -4,9 +4,13 @@ module Play.Types
 
 import Prelude
 
+
 data Direction
     = TopToBottom
     | LeftToRight
+
+
+derive instance Eq Direction
 
 
 data Sizing
