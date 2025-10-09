@@ -174,7 +174,12 @@ component =
                     , editing = loadEditState path state.playTree
                     }
 
-            GoToRoot -> H.modify_ _ { selectedPath = [] }
+            GoToRoot ->
+                H.modify_ \s ->
+                    s
+                        { selectedPath = []
+                        , editing = loadEditState [] s.playTree
+                        }
 
             UpdateName newName -> updateSelectedName newName
 
@@ -299,6 +304,14 @@ renderPropertyEditor state =
                     , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
                     ]
                 ]
+        rootButtonStyle = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if state.selectedPath == [] then
+            "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
+        else
+            "background: #007bff; cursor: pointer;"
+        parentButtonStyle = "margin-left: 10px; padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if state.selectedPath == [] then
+            "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
+        else
+            "background: #c9ae4bff; cursor: pointer;"
     in
     HH.div
         [ HP.style "padding: 15px; border: 1px solid #ccc; background: #f9f9f9;" ]
@@ -307,12 +320,12 @@ renderPropertyEditor state =
             [ HP.style "margin-bottom: 10px;" ]
             [ HH.button
                 [ HE.onClick \_ -> GoToRoot
-                , HP.style "padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                , HP.style rootButtonStyle
                 ]
                 [ HH.text "← Root" ]
             , HH.button
                 [ HE.onClick \_ -> SelectItem $ Array.dropEnd 1 state.selectedPath
-                , HP.style "margin-left: 10px; padding: 5px 10px; background: #c9ae4bff; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                , HP.style parentButtonStyle
                 ]
                 [ HH.text "← Parent" ]
             , HH.span
