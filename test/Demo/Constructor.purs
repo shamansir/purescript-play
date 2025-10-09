@@ -2,6 +2,7 @@ module Demo.Constructor where
 
 import Prelude
 
+import Control.Monad.State (state)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Int as Int
@@ -198,6 +199,11 @@ renderPropertyEditor state =
                 , HP.style "padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;"
                 ]
                 [ HH.text "← Root" ]
+            , HH.button
+                [ HE.onClick \_ -> SelectItem $ Array.dropEnd 1 state.selectedPath
+                , HP.style "margin-left: 10px; padding: 5px 10px; background: #c9ae4bff; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                ]
+                [ HH.text "← Parent" ]
             , HH.span
                 [ HP.style "margin-left: 10px; color: #666;" ]
                 [ HH.text $ "Path: " <> show state.selectedPath ]
@@ -252,6 +258,11 @@ renderPropertyEditor state =
                     HH.div
                         [ HP.style "display: flex; align-items: center; gap: 10px; margin: 5px 0;" ]
                         [ HH.span_ [ HH.text $ show i <> ". " <> fromMaybe "?" (itemName <$> getItemAtPath (Array.snoc state.selectedPath i) state.playTree) ]
+                        , HH.button
+                            [ HE.onClick \_ -> SelectItem $ Array.snoc state.selectedPath i
+                            , HP.style "padding: 2px 8px; background: #35ac45; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                            ]
+                            [ HH.text "Go" ]
                         , HH.button
                             [ HE.onClick \_ -> RemoveChild i
                             , HP.style "padding: 2px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"
