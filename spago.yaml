@@ -9,7 +9,7 @@ package:
     - yoga-tree: ">=1.0.0 <2.0.0"
     - yoga-tree-utils: ">=0.1.0 <1.0.0"
   bundle:
-    module: Demo
+    module: Demo.Constructor
   test:
     main: Test.Main
     dependencies:

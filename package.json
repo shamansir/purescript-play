@@ -1,4 +1,21 @@
 {
+  "name": "purescript-play",
+  "version": "0.2.0",
+  "description": "Play UI Layout Package for PureScript",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "spago build",
+    "bundle": "spago bundle",
+    "test": "spago text"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shamansir/purescript-play.git"
+  },
+  "author": "shamansir",
+  "license": "ISC",
   "dependencies": {
     "parcel": "^2.15.4"
   }
