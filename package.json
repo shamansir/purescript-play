@@ -18,5 +18,10 @@
   "license": "ISC",
   "dependencies": {
     "parcel": "^2.15.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.8",
+    "parcel": "^2.15.4"
   }
+
 }
