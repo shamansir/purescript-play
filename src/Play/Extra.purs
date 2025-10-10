@@ -1,9 +1,16 @@
-module Test.Demo.Constructor.Play.Extra where
+module Play.Extra
+    ( ItemPath
+    , itemAt, playAt, defAt
+    , updateAt, updateDefAt
+    , addChildAt, removeChildAt
+    , overTree, treeAt
+    )
+    where
 
 import Prelude
 
-import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Array (snoc, modifyAt, deleteAt, uncons) as Array
+import Data.Maybe (Maybe(..), fromMaybe)
 
 import Play (Play)
 import Play (toTree, fromTree) as Play
@@ -18,51 +25,51 @@ import Yoga.Tree.Extended.Path (find, with) as Tree.Path
 type ItemPath = Array Int
 
 
+overTree :: forall a b. (Tree (PT.WithDef a) -> Tree (PT.WithDef b)) -> Play a -> Play b
+overTree f = Play.fromTree <<< f <<< Play.toTree
+
+
+treeAt :: forall a. ItemPath -> Play a -> Maybe (Tree (PT.WithDef a))
+treeAt path = Play.toTree >>> Tree.Path.find (Tree.Path path)
+
+
+playAt :: forall a. ItemPath -> Play a -> Maybe (Play a)
+playAt path = treeAt path >>> map Play.fromTree
+
+
 -- Get item at a specific path in the tree
-getItemAtPath :: forall a. ItemPath -> Play a -> Maybe a
-getItemAtPath path =
+itemAt :: forall a. ItemPath -> Play a -> Maybe a
+itemAt path =
     Play.toTree
     >>> Tree.Path.find (Tree.Path path)
     >>> map (Tree.value >>> _.v)
 
 
 -- Get definition at a specific path in the tree
-getDefAtPath :: forall a. ItemPath -> Play a -> Maybe PT.Def
-getDefAtPath path =
-    Play.toTree
-    >>> Tree.Path.find (Tree.Path path)
-    >>> map (Tree.value >>> _.def)
-
-
--- Get subtree at path
-getSubtreeAtPath :: forall a. ItemPath -> Play a -> Maybe (Play a)
-getSubtreeAtPath path =
-    Play.toTree
-    >>> Tree.Path.find (Tree.Path path)
-    >>> map Play.fromTree
+defAt :: forall a. ItemPath -> Play a -> Maybe PT.Def
+defAt path = treeAt path >>> map (Tree.value >>> _.def)
 
 
 -- Update item at path
-updateItemAtPath :: forall a. ItemPath -> (a -> a) -> Play a -> Play a
-updateItemAtPath path updateFn =
-    updateWithDefAtPath path \wd -> wd { v = updateFn wd.v }
+updateAt :: forall a. ItemPath -> (a -> a) -> Play a -> Play a
+updateAt path updateFn =
+    updateWithDefAt path \wd -> wd { v = updateFn wd.v }
 
 
 -- Update definition at path
-updateDefAtPath :: forall a. ItemPath -> (PT.Def -> PT.Def) -> Play a -> Play a
-updateDefAtPath path updateFn =
-    updateWithDefAtPath path \wd -> wd { def = updateFn wd.def }
+updateDefAt :: forall a. ItemPath -> (PT.Def -> PT.Def) -> Play a -> Play a
+updateDefAt path updateFn =
+    updateWithDefAt path \wd -> wd { def = updateFn wd.def }
 
 
-updateWithDefAtPath :: forall a. ItemPath -> (PT.WithDef a -> PT.WithDef a) -> Play a -> Play a
-updateWithDefAtPath path updateFn playTree =
-    Play.fromTree $ Tree.Path.with (Tree.Path path) (Tree.update updateFn) $ Play.toTree playTree
+updateWithDefAt :: forall a. ItemPath -> (PT.WithDef a -> PT.WithDef a) -> Play a -> Play a
+updateWithDefAt path updateFn =
+    overTree $ Tree.Path.with (Tree.Path path) (Tree.update updateFn)
 
 
 -- Add child at path
-addChildAtPath :: forall a. ItemPath -> Play a -> Play a -> Play a
-addChildAtPath path newChild playTree =
-    Play.fromTree $ addChildInTree path (Play.toTree newChild) (Play.toTree playTree)
+addChildAt :: forall a. ItemPath -> Play a -> Play a -> Play a
+addChildAt path newChild = overTree $ addChildInTree path $ Play.toTree newChild
 
 
 addChildInTree :: forall a. ItemPath -> Tree (PT.WithDef a) -> Tree (PT.WithDef a) -> Tree (PT.WithDef a)
@@ -78,9 +85,8 @@ addChildInTree path newChild tree = case Array.uncons path of
 
 
 -- Remove child at path
-removeChildAtPath :: forall a. ItemPath -> Int -> Play a -> Play a
-removeChildAtPath path childIndex playTree =
-    Play.fromTree $ removeChildInTree path childIndex $ Play.toTree playTree
+removeChildAt :: forall a. ItemPath -> Int -> Play a -> Play a
+removeChildAt path = overTree <<< removeChildInTree path
 
 
 removeChildInTree :: forall a. ItemPath -> Int -> Tree (PT.WithDef a) -> Tree (PT.WithDef a)

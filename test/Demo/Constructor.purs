@@ -29,13 +29,14 @@ import Data.String as String
 import Play (Play, (~*))
 import Play as Play
 import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect) as PT
+import Play.Extra as Play
 
 -- import Test.Demo (renderOne) as Demo
 import Test.Demo.Examples (Item(..), ic, itemName, nameOf, noodleUI, playOf, theExamples)
 
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
-import Test.Demo.Constructor.ToCode (toCode)
-import Test.Demo.Constructor.Play.Extra
+import Test.Demo.Constructor.ToCode (toCode) as Play
+
 
 
 main :: Effect Unit
@@ -57,7 +58,7 @@ data Field
 
 data Action
     = Skip
-    | SelectItem ItemPath
+    | SelectItem Play.ItemPath
     | GoToRoot
     | UpdateName String
     | UpdateColor HA.Color
@@ -68,7 +69,7 @@ data Action
     | SelectExample Int
     | ToggleCodePanel
     | SelectCodeTab Int
-    | ToggleNodeCollapsed ItemPath
+    | ToggleNodeCollapsed Play.ItemPath
 
 
 type EditingState =
@@ -86,14 +87,14 @@ type EditingState =
 type CodePanelState =
     { expanded :: Boolean
     , tabIndex :: Int
-    , collapsedNodes :: Array ItemPath
+    , collapsedNodes :: Array Play.ItemPath
     }
 
 
 type State =
     { playTree :: Play Item
     , exampleName :: Maybe String
-    , selectedPath :: ItemPath
+    , selectedPath :: Play.ItemPath
     , editing :: EditingState
     , codePanel :: CodePanelState
     }
@@ -116,17 +117,17 @@ component =
     where
         updateSelectedName newName = do
             state <- H.get
-            let updatedTree = updateItemAtPath state.selectedPath (setItemName newName) state.playTree
+            let updatedTree = Play.updateAt state.selectedPath (setItemName newName) state.playTree
             H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { name = newName } }
 
         updateSelectedColor color = do
             state <- H.get
-            let updatedTree = updateItemAtPath state.selectedPath (setItemColor color) state.playTree
+            let updatedTree = Play.updateAt state.selectedPath (setItemColor color) state.playTree
             H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { color = Just color } }
 
         updateSelectedDef modifyDef = do
             state <- H.get
-            let updatedTree = updateDefAtPath state.selectedPath modifyDef state.playTree
+            let updatedTree = Play.updateDefAt state.selectedPath modifyDef state.playTree
             H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { def = modifyDef s.editing.def } }
 
         updateFixed fn =
@@ -134,8 +135,8 @@ component =
 
         loadEditState path tree =
             let
-                mbItem = getItemAtPath path tree
-                mbDef = getDefAtPath path tree
+                mbItem = Play.itemAt path tree
+                mbDef = Play.defAt path tree
                 mbColor = mbItem >>= \(Item mbCol _) -> mbCol
             in
                 { name : fromMaybe "?" (itemName <$> mbItem)
@@ -241,12 +242,12 @@ component =
                         Play.i (ic defaultColor childName)
                             ~* Play.width defaultSizeValue
                             ~* Play.height defaultSizeValue
-                    updatedTree = addChildAtPath state.selectedPath newChild state.playTree
+                    updatedTree = Play.addChildAt state.selectedPath newChild state.playTree
                 H.modify_ _ { playTree = updatedTree }
 
             RemoveChild childIndex -> do
                 state <- H.get
-                let updatedTree = removeChildAtPath state.selectedPath childIndex state.playTree
+                let updatedTree = Play.removeChildAt state.selectedPath childIndex state.playTree
                 H.modify_ _ { playTree = updatedTree }
 
             UpdateChildName newName ->
@@ -299,11 +300,11 @@ isFixedSizing = case _ of
 renderPropertyEditor :: forall i. State -> HH.HTML i Action
 renderPropertyEditor state =
     let
-        mbCurrentTree = getSubtreeAtPath state.selectedPath state.playTree
+        mbCurrentTree = Play.playAt state.selectedPath state.playTree
         children = fromMaybe [] $ Tree.children <$> Play.toTree <$> mbCurrentTree
         childrenCount = Array.length children
         childName idx =
-            let mbName = itemName <$> getItemAtPath (Array.snoc state.selectedPath idx) state.playTree
+            let mbName = itemName <$> Play.itemAt (Array.snoc state.selectedPath idx) state.playTree
                 mbNonEmptyName = mbName >>= \n -> if n == "" then Nothing else Just n
             in show idx <> ". " <> (fromMaybe "<?>" mbNonEmptyName)
         nextChildName =
@@ -521,7 +522,7 @@ renderColorSelect currentColor =
 renderCodePanel :: forall i. State -> HH.HTML i Action
 renderCodePanel state =
     let
-        codeContent = fromMaybe "-" $ toCode (itemName >>> show) <$> getSubtreeAtPath state.selectedPath state.playTree
+        codeContent = fromMaybe "-" $ Play.toCode (itemName >>> show) <$> Play.playAt state.selectedPath state.playTree
         -- treeContent = renderTreeVisualization state.selectedPath state.collapsedNodes state.playTree
         arrowSymbol = if state.codePanel.expanded then "▼" else "▶"
 
@@ -615,7 +616,7 @@ renderClickablePreview state =
                 )
         ]
 
-renderClickableItem :: forall i. State -> (ItemPath /\ PT.WithRect Item) -> HH.HTML i Action
+renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithRect Item) -> HH.HTML i Action
 renderClickableItem state (path /\ { v, rect }) =
     case v of
         Item mbCol itemLabel ->
@@ -654,7 +655,7 @@ renderClickableItem state (path /\ { v, rect }) =
                     [ HH.text itemLabel ]
                 ]
 
-renderTextualTree :: forall i. ItemPath -> Array ItemPath -> Play Item -> HH.HTML i Action
+renderTextualTree :: forall i. Play.ItemPath -> Array Play.ItemPath -> Play Item -> HH.HTML i Action
 renderTextualTree selectedPath collapsedNodes playTree =
   let
     tree = Play.toTree playTree
@@ -665,7 +666,13 @@ renderTextualTree selectedPath collapsedNodes playTree =
       [ renderTextualTreeNode [] selectedPath collapsedNodes tree ]
 
 
-renderTextualTreeNode :: forall i. ItemPath -> ItemPath -> Array ItemPath -> Tree (PT.WithDef Item) -> HH.HTML i Action
+renderTextualTreeNode
+    :: forall i
+     . Play.ItemPath
+    -> Play.ItemPath
+    -> Array Play.ItemPath
+    -> Tree (PT.WithDef Item)
+    -> HH.HTML i Action
 renderTextualTreeNode currentPath selectedPath collapsedNodes tree =
   let
     isSelected = currentPath == selectedPath
