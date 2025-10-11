@@ -1,1 +1,0 @@
-require("../output/Test.Demo/index.js").main();

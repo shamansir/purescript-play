@@ -1,1 +1,0 @@
-require("../output/Demo.Constructor/index.js").main();
