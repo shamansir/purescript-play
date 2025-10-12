@@ -172,11 +172,11 @@
     },
     "package_set": {
       "address": {
-        "registry": "65.1.0"
+        "registry": "66.8.0"
       },
       "compiler": ">=0.15.15 <0.16.0",
       "content": {
-        "abc-parser": "2.0.1",
+        "abc-parser": "2.1.0",
         "ace": "9.1.0",
         "address-rfc2821": "0.1.1",
         "aff": "8.0.0",
@@ -216,6 +216,7 @@
         "benchlib": "0.0.4",
         "bifunctors": "6.1.0",
         "bigints": "7.0.1",
+        "blessed": "1.0.0",
         "bolson": "0.3.9",
         "bookhound": "0.1.7",
         "bower-json": "3.0.0",
@@ -280,9 +281,10 @@
         "either": "6.1.0",
         "elmish": "0.13.0",
         "elmish-enzyme": "0.1.1",
-        "elmish-hooks": "0.10.3",
+        "elmish-hooks": "0.11.0",
         "elmish-html": "0.9.0",
         "elmish-testing-library": "0.3.2",
+        "elmish-time-machine": "0.4.1",
         "email-validate": "7.0.0",
         "encoding": "0.0.9",
         "enums": "6.0.1",
@@ -310,7 +312,7 @@
         "fix-functor": "0.1.0",
         "fixed-points": "7.0.0",
         "fixed-precision": "5.0.0",
-        "flame": "1.4.0",
+        "flame": "1.6.0",
         "float32": "2.0.0",
         "fmt": "0.2.1",
         "foldable-traversable": "6.0.0",
@@ -484,6 +486,7 @@
         "ocarina": "1.5.4",
         "oooooooooorrrrrrrmm-lib": "0.0.1",
         "open-colors-scales-and-schemes": "1.0.0",
+        "open-drawing": "6.0.4",
         "open-folds": "6.4.0",
         "open-foreign-generic": "11.0.3",
         "open-memoize": "6.2.0",
@@ -495,6 +498,7 @@
         "ordered-collections": "3.2.0",
         "ordered-set": "0.4.0",
         "orders": "6.0.0",
+        "org-doc": "0.1.0",
         "owoify": "1.2.0",
         "pairs": "9.0.1",
         "parallel": "7.0.0",
@@ -507,6 +511,7 @@
         "phylio": "1.1.2",
         "pipes": "8.0.0",
         "pirates-charm": "0.0.1",
+        "play": "0.1.0",
         "pmock": "0.9.0",
         "point-free": "1.0.0",
         "pointed-list": "0.5.1",
@@ -619,6 +624,7 @@
         "tecton": "0.2.1",
         "tecton-halogen": "0.2.0",
         "test-unit": "17.0.0",
+        "text-formatting": "0.1.0",
         "thermite": "6.3.1",
         "thermite-dom": "0.3.1",
         "these": "6.0.0",
@@ -708,6 +714,8 @@
         "yoga-react-dom": "1.0.1",
         "yoga-subtlecrypto": "0.1.0",
         "yoga-tree": "1.0.0",
+        "yoga-tree-svg": "0.1.0",
+        "yoga-tree-utils": "1.0.0",
         "z3": "0.0.2",
         "zipperarray": "2.0.0"
       }
