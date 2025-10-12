@@ -70,6 +70,7 @@ theExamples =
     , noodleHorzNodeUI {- 18 -}
     , noodleVertNodeUI {- 19 -}
     , svgGraphUI {- 21 -}
+    , blank {- 22 -}
     , exSingleMenuItem {- 00 -}
     , exCompleteMenu {- 01 -}
     , exFixedNoGaps {- 02 -}
@@ -685,6 +686,7 @@ noodleVertNodeUI =
             ]
 
 
+{- 20 -}
 noodleUI :: Example
 noodleUI =
     let
@@ -763,6 +765,7 @@ noodleUI =
             ]
 
 
+{- 21 -}
 svgGraphUI :: Example
 svgGraphUI =
     let
@@ -833,3 +836,12 @@ svgGraphUI =
                             ]
                     ]
             ]
+
+
+{- 22 -}
+blank :: Example
+blank =
+    ex 22 "Blank UI" 850.0 650.0 $
+        Play.i (il "Canvas")
+        ~* Play.width  800.0
+        ~* Play.height 600.0

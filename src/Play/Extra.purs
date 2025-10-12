@@ -4,22 +4,25 @@ module Play.Extra
     , updateAt, updateDefAt
     , addChildAt, removeChildAt
     , overTree, treeAt
+    , find, findBy, findInLayout, findByInLayout
     )
     where
 
 import Prelude
 
 import Data.Array (snoc, modifyAt, deleteAt, uncons) as Array
+import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Maybe (Maybe(..), fromMaybe)
-
-import Play (Play)
-import Play (toTree, fromTree) as Play
-import Play.Types (Def, WithDef) as PT
+import Data.Tuple.Nested ((/\), type (/\))
 
 import Yoga.Tree (Tree)
-import Yoga.Tree.Extended (node, value, children, update) as Tree
+import Yoga.Tree.Extended (break, children, node, update, value) as Tree
 import Yoga.Tree.Extended.Path (Path(..)) as Tree
 import Yoga.Tree.Extended.Path (find, with) as Tree.Path
+
+import Play (Play, Layout)
+import Play (toTree, fromTree, layoutToTree) as Play
+import Play.Types (Def, WithDef, WithRect) as PT
 
 -- | A path to a specific item in the layout tree.
 -- | Represented as an array of child indices, where each number indicates
@@ -124,3 +127,53 @@ removeChildInTree path childIndex tree = case Array.uncons path of
     Nothing -> tree
 
 
+_findInTree :: forall a. (a -> Boolean) -> Tree a -> Maybe (ItemPath /\ Tree a) -- TODO: either use `find` from `Yoga.Tree.Zipper` which also utilizes depth search or move to my `Yoga.Tree.Extended`
+_findInTree pred =
+    Tree.break (findSubTree [])
+    where
+        findSubTree :: ItemPath -> a -> Array (Tree a) -> Maybe (ItemPath /\ Tree a)
+        findSubTree path item children =
+            if pred item then Just $ path /\ Tree.node item children
+            else
+                foldlWithIndex
+                    (\idx acc childTree ->
+                        case acc of
+                            Just res -> Just res
+                            Nothing -> Tree.break (findSubTree $ Array.snoc path idx) childTree
+                    )
+                    Nothing
+                    children
+
+
+-- | Find the first sub-layout in the layout tree that is bound to the provided value.
+-- | Returns `Nothing` if no such item exists.
+-- | The returned value includes both the path to the item and its layout.
+-- | Root is at path `[]`.
+find :: forall a. Eq a => a -> Play a -> Maybe (ItemPath /\ Play a)
+find a = findBy (_ == a)
+
+
+-- | Find the first sub-layout in the layout tree in the layout tree that satisfies the given predicate.
+-- | Returns `Nothing` if no such item exists.
+-- | The returned value includes both the path to the item and the item itself.
+-- | Root is at path `[]`.
+findBy :: forall a. (a -> Boolean) -> Play a -> Maybe (ItemPath /\ Play a)
+findBy pred =
+    Play.toTree >>> _findInTree (_.v >>> pred) >>> map (map Play.fromTree)
+
+
+-- | Find the first sub-layout in the layout tree that is bound to the provided value.
+-- | Returns `Nothing` if no such item exists.
+-- | The returned value includes both the path to the item and its layout.
+-- | Root is at path `[]`.
+findInLayout :: forall a. Eq a => a -> Layout a -> Maybe (ItemPath /\ Tree (PT.WithRect a))
+findInLayout a = findByInLayout (_ == a)
+
+
+-- | Find the first sub-layout in the layout tree in the layout tree that satisfies the given predicate.
+-- | Returns `Nothing` if no such item exists.
+-- | The returned value includes both the path to the item and the item itself.
+-- | Root is at path `[]`.
+findByInLayout :: forall a. (a -> Boolean) -> Layout a -> Maybe (ItemPath /\ Tree (PT.WithRect a))
+findByInLayout pred =
+    Play.layoutToTree >>> _findInTree (_.v >>> pred)
