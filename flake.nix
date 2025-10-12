@@ -4,7 +4,7 @@
     nixpkgs_24_11.url = "github:nixos/nixpkgs/24.11";
     flake-utils.url = "github:numtide/flake-utils";
     ps-overlay.url = "github:thomashoneyman/purescript-overlay";
-    mkSpagoDerivation = { 
+    mkSpagoDerivation = {
       url = "github:jeslie0/mkSpagoDerivation";
       inputs = {
         registry.url = "github:purescript/registry/fe3f499706755bb8a501bf989ed0f592295bb4e3";
@@ -30,7 +30,8 @@
               spagoLock = ./spago.lock;
               src = ./.;
               version = "0.1.0";
-              nativeBuildInputs = [ pkgs.esbuild pkgs.purs-backend-es pkgs.purs-unstable pkgs.spago-unstable ]; # nixpkgs_24_11.nodePackages.parcel ];
+              nativeBuildInputs = [ pkgs.esbuild pkgs.purs-backend-es pkgs.purs-bin.purs-0_15_15 pkgs.spago-unstable ]; # nixpkgs_24_11.nodePackages.parcel
+              # changed `pkgs.purs-unstable` to `pkgs.purs-bin.purs-0_15_15`
               buildPhase = "spago build";
               installPhase = "mkdir $out; cp -r ./web $out";
               buildNodeModulesArgs = {
