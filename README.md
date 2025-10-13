@@ -2,7 +2,7 @@
 
 UI layout system, as simple and minimal as possible, inspired by Clay (C Layout) from Nic Baker: [YouTube Video](https://www.youtube.com/watch?v=by9lQvpvMIc).
 
-No text measurement and so auto-fit support yet.
+No text measurement (since the library is not bound to any UI engine, web or server) and so no auto-fit support yet.
 
 Quick overview with `test/Demo` module running: [as YT shorts](https://youtube.com/shorts/cRGQw67-7FQ).
 
@@ -10,12 +10,16 @@ Constructor Demo: https://shamansir.github.io/purescript-play/constructor.html
 
 Pursuit Page: https://pursuit.purescript.org/packages/purescript-play/
 
+# Developing with NixOS
+
+Just use `nix develop` in the repository and everything should work.
+
 # Examples:
 
 Menu with items:
 
 ```purescript
-import Play (Play)
+import Play (Play, (~*))
 import Play as Play
 
 menuUI =
@@ -48,7 +52,14 @@ menuItem itemName =
 Noodle Horizontal Node UI:
 
 ```purescript
-noodleHorzNodeUI :: Play _
+-- surely you can use sum-type here instead
+data NItem = NItem Color String
+
+ic :: Color -> String -> NItem
+ic = NItem
+
+
+noodleHorzNodeUI :: Play NItem
 noodleHorzNodeUI =
     let
         titleWidth = 30.0
@@ -133,9 +144,207 @@ noodleHorzNodeUI =
                 ]
 ```
 
+Noodle Node UI alternative definition:
+
+```purescript
+data NodePart
+    = Title
+    | TitleArea -- Title + Paddings
+    | ControlButton
+    | TitlePadding
+    | Inlet Int InletDefRec
+    | InletName
+    | InletConnector
+    | Outlet Int OutletDefRec
+    | OutletName
+    | OutletConnector
+    | NodeBackground
+    | BodyArea -- Body + Inlets + Outltets
+    | Inlets
+    | Outlets
+    | BodyBackground
+    | Body
+
+
+type NodeParams =
+    { inlets :: Array InletDefRec
+    , outlets :: Array OutletDefRec
+    , bodyWidth :: Number
+    , bodyHeight :: Number
+    }
+
+
+horzNodeUI :: NodeParams -> Play NodePart
+horzNodeUI params =
+    let
+        titleWidth = 16.0
+        channelsHeight = 20.0
+        channelWidth = 70.0
+        connectorWidth = 15.0
+
+        inlet n def =
+            Play.i (Inlet n def)
+            ~* Play.width channelWidth
+            ~* Play.heightGrow
+            ~* Play.with
+                [ Play.i InletConnector
+                    ~* Play.width connectorWidth
+                    ~* Play.heightGrow
+                , Play.i InletName
+                    ~* Play.widthGrow
+                    ~* Play.heightGrow
+                ]
+        inlets = mapWithIndex inlet params.inlets
+
+        outlet n def =
+            Play.i (Outlet n def)
+            ~* Play.width channelWidth
+            ~* Play.heightGrow
+            ~* Play.with
+                [ Play.i OutletConnector
+                    ~* Play.width connectorWidth
+                    ~* Play.heightGrow
+                , Play.i OutletName
+                    ~* Play.widthGrow
+                    ~* Play.heightGrow
+                ]
+        outlets = mapWithIndex outlet params.outlets
+
+    in Play.i NodeBackground
+        ~* Play.widthFit
+        ~* Play.heightFit
+        ~* Play.leftToRight
+        ~* Play.with
+            [ Play.i TitleArea
+                ~* Play.width titleWidth
+                ~* Play.heightFit
+                ~* Play.topToBottom
+            ~* Play.with
+                [ Play.i ControlButton
+                    ~* Play.widthGrow
+                    ~* Play.height channelsHeight
+                , Play.i Title
+                    ~* Play.widthGrow
+                    ~* Play.height params.bodyHeight
+                , Play.i TitlePadding
+                    ~* Play.widthGrow
+                    ~* Play.height channelsHeight
+                ]
+            , Play.i BodyArea
+                ~* Play.widthFit
+                ~* Play.heightFit
+                ~* Play.topToBottom
+                ~* Play.padding { top : 0.0, left : 5.0, right : 0.0, bottom : 0.0 }
+                ~* Play.with
+                    [ Play.i Inlets
+                        ~* Play.widthFit
+                        ~* Play.height channelsHeight
+                        ~* Play.with inlets
+                    , Play.i BodyBackground
+                        ~* Play.widthFitGrow
+                        ~* Play.height params.bodyHeight
+                        ~* Play.with
+                            [ Play.i Body
+                                ~* Play.width  params.bodyWidth
+                                ~* Play.height params.bodyHeight
+                            ]
+                    , Play.i Outlets
+                        ~* Play.widthFit
+                        ~* Play.height channelsHeight
+                        ~* Play.with outlets
+                    ]
+                ]
+
+
+vertNodeUI :: NodeParams -> Play NodePart
+vertNodeUI params =
+    let
+        titleHeight = 30.0
+        channelNameMinWidth = 100.0
+        paddingWidth = channelNameMinWidth + connectorWidth
+        channelHeight = 20.0
+        connectorWidth = 15.0
+
+        inlet n def =
+            Play.i (Inlet n def)
+            ~* Play.widthFit
+            ~* Play.heightFit
+            ~* Play.with
+                [ Play.i InletName
+                    ~* Play.width  channelNameMinWidth
+                    ~* Play.height channelHeight
+                , Play.i InletConnector
+                    ~* Play.width connectorWidth
+                    ~* Play.heightGrow
+                ]
+        inlets = mapWithIndex inlet params.inlets
+
+        outlet n def =
+            Play.i (Outlet n def)
+            ~* Play.widthFit
+            ~* Play.heightFit
+            ~* Play.with
+                [ Play.i OutletConnector
+                    ~* Play.width connectorWidth
+                    ~* Play.heightGrow
+                , Play.i OutletName
+                    ~* (Play.width  channelNameMinWidth)
+                    ~* (Play.height channelHeight)
+                ]
+        outlets = mapWithIndex outlet params.outlets
+
+    in Play.i NodeBackground
+        ~* Play.widthFit
+        ~* Play.heightFit
+        ~* Play.topToBottom
+        ~* Play.with
+            [ Play.i TitleArea
+                ~* Play.widthFit
+                ~* Play.height titleHeight
+                ~* Play.leftToRight
+                ~* Play.with
+                    [ Play.i TitlePadding
+                        ~* Play.width paddingWidth
+                        ~* Play.heightGrow
+                    , Play.i Title
+                        ~* Play.width  params.bodyWidth
+                        ~* Play.height titleHeight
+                    , Play.i TitlePadding
+                        ~* Play.width paddingWidth
+                        ~* Play.heightGrow
+                    ]
+
+            , Play.i BodyArea
+                ~* Play.widthFit
+                ~* Play.heightFit
+                ~* Play.leftToRight
+                ~* Play.with
+                    [ Play.i Inlets
+                        ~* Play.widthFit
+                        ~* Play.heightFit
+                        ~* Play.topToBottom
+                        ~* Play.with inlets
+                    , Play.i BodyBackground
+                        ~* Play.width params.bodyWidth
+                        ~* Play.heightFitGrow
+                        ~* Play.with
+                            [ Play.i Body
+                                ~* Play.width  params.bodyWidth
+                                ~* Play.height params.bodyHeight
+                            ]
+                    , Play.i Outlets
+                        ~* Play.widthFit
+                        ~* Play.heightFit
+                        ~* Play.topToBottom
+                        ~* Play.with outlets
+                    ]
+            ]
+```
+
+
 You may find much more examples in [`Test.Demo.Examples` source](https://github.com/shamansir/purescript-play/blob/main/test/Demo/Examples.purs).
 
-Or take a look at a code that is generated with Constructor.
+Or just take a look at a code that is generated with Constructor.
 
 # Calculating Positions
 
@@ -143,19 +352,19 @@ To convert your UI definition to the layout definition, use `Play.layout` functi
 
 ```purescript
 menuLayout = Play.layout menuUI :: Play.Layout String
-noodleHorzNodeLayout = Play.layout noodleHorzUI :: Play.Layout _
+noodleHorzNodeLayout = Play.layout noodleHorzUI :: Play.Layout NItem
 ```
 
 The `Layout a` can be converted to an array of items with positions `Array (Play.WithRect a)` with `Play.flattenLayout`,
-or `Play.layoutToTree` to get a `Tree (Play.WithRect a)` if you want to keep the parent-child relations
-(we use [`Yoga.Tree`](https://pursuit.purescript.org/packages/purescript-yoga-tree/1.0.0/docs/Yoga.Tree#t:Tree)  here).
+or  you may prefer`Play.layoutToTree` to get a `Tree (Play.WithRect a)` if you want to keep all the parent-child relations
+(we use [`Yoga.Tree`](https://pursuit.purescript.org/packages/purescript-yoga-tree/1.0.0/docs/Yoga.Tree#t:Tree) to represent them here).
 
 
 ```purescript
 menuPositionedItems = Play.flattenLayout menuLayout :: Array (Play.WithRect String)
 menuPositionedTree  = Play.layoutToTree  menuLayout :: Yoga.Tree (Play.WithRect String)
 
-noodleHorzNodeItems = Play.flattenLayout noodleHorzNodeLayout :: Array (Play.WithRect _)
-noodleHorzNodeTree  = Play.layoutToTree  noodleHorzNodeLayout :: Yoga.Tree (Play.WithRect _)
+noodleHorzNodeItems = Play.flattenLayout noodleHorzNodeLayout :: Array (Play.WithRect NItem)
+noodleHorzNodeTree  = Play.layoutToTree  noodleHorzNodeLayout :: Yoga.Tree (Play.WithRect NItem)
 ```
 

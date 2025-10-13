@@ -58,6 +58,8 @@ import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(
 -- |   ~* P.with [ P.i "child1", P.i "child2" ]
 -- |   :: Play String
 -- | ```
+-- |
+-- | See more examples in the README and `Test/Demo/Examples` in the source.
 newtype Play a =
     Play (Tree (PT.WithDef a))
 
@@ -481,7 +483,7 @@ rollback :: forall a. Layout a -> Play a
 rollback (Layout ltree) = fromTree $ _unrect <$> ltree
 
 -- | Extract the tree structure from a Layout, removing layout definitions.
--- | The result contains only the user data and computed rectangular bounds.
+-- | The result contains only the values and computed rectangular bounds.
 -- | This is useful for rendering with keeping hierarchy or hit-testing operations.
 layoutToTree :: forall a. Layout a -> Tree (PT.WithRect a)
 layoutToTree (Layout ltree) = ltree <#> _undef

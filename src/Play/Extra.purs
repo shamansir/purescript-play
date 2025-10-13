@@ -51,7 +51,7 @@ playAt path = treeAt path >>> map Play.fromTree
 
 -- | Get the item value at a specific path in the tree.
 -- | Returns `Nothing` if the path doesn't exist.
--- | This extracts just the user data without layout information.
+-- | This extracts just the cell value without layout information.
 itemAt :: forall a. ItemPath -> Play a -> Maybe a
 itemAt path =
     Play.toTree
@@ -67,14 +67,14 @@ defAt path = treeAt path >>> map (Tree.value >>> _.def)
 
 -- | Update the item value at a specific path using a transformation function.
 -- | Returns the original layout unchanged if the path doesn't exist.
--- | Only modifies the user data, leaving layout definitions intact.
+-- | Only modifies the cell value, leaving layout definitions intact.
 updateAt :: forall a. ItemPath -> (a -> a) -> Play a -> Play a
 updateAt path updateFn =
     updateWithDefAt path \wd -> wd { v = updateFn wd.v }
 
 -- | Update the layout definition at a specific path using a transformation function.
 -- | Returns the original layout unchanged if the path doesn't exist.
--- | Only modifies layout properties (sizing, padding, etc.), leaving user data intact.
+-- | Only modifies layout properties (sizing, padding, etc.), leaving cell value intact.
 updateDefAt :: forall a. ItemPath -> (PT.Def -> PT.Def) -> Play a -> Play a
 updateDefAt path updateFn =
     updateWithDefAt path \wd -> wd { def = updateFn wd.def }
@@ -129,7 +129,7 @@ removeChildInTree path childIndex tree = case Array.uncons path of
 
 _findInTree :: forall a. (a -> Boolean) -> Tree a -> Maybe (ItemPath /\ Tree a) -- TODO: either use `find` from `Yoga.Tree.Zipper` which also utilizes depth search or move to my `Yoga.Tree.Extended`
 _findInTree pred =
-    Tree.break (findSubTree [])
+    Tree.break $ findSubTree []
     where
         findSubTree :: ItemPath -> a -> Array (Tree a) -> Maybe (ItemPath /\ Tree a)
         findSubTree path item children =
