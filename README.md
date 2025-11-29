@@ -368,3 +368,9 @@ noodleHorzNodeItems = Play.flattenLayout noodleHorzNodeLayout :: Array (Play.Wit
 noodleHorzNodeTree  = Play.layoutToTree  noodleHorzNodeLayout :: Yoga.Tree (Play.WithRect NItem)
 ```
 
+# TODO
+
+* Evenly distribute children over the parent area (a.k.a flex layout)
+    * Examples
+* Support associating custom values in the constructor
+

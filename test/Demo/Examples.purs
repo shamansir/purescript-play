@@ -546,6 +546,15 @@ noodleHorzNodeUI =
                 ]
         outlets = outlet <$> Array.range 0 outletsCount
 
+        buttons =
+           [ Play.i (ic (HA.RGB 128 0 0) "[x] remove button")
+                ~* Play.widthGrow
+                ~* Play.height 20.0
+            , Play.i (ic (HA.RGB 0 128 0) "(*) collapse button")
+                ~* Play.widthGrow
+                ~* Play.height 20.0
+            ]
+
     in ex 18 "Noodle Horizontal Node" 800.0 200.0
     $ Play.i (ic (HA.Named "blue") "background")
         ~* Play.widthFit
@@ -583,6 +592,12 @@ noodleHorzNodeUI =
                             [ Play.i (ic (HA.RGB 90 189 172) "body")
                                 ~* Play.width  bodyWidth
                                 ~* Play.height bodyHeight
+                            , Play.i (ic (HA.RGB 90 90 90) "buttons")
+                                ~* Play.width 30.0
+                                ~* Play.heightGrow
+                                ~* Play.childGap 5.0
+                                ~* Play.topToBottom
+                                ~* Play.with buttons
                             ]
                     , Play.i (ic (HA.RGB 79 27 57) "outlets")
                         ~* Play.widthFit
