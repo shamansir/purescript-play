@@ -17,7 +17,7 @@ module Play
     , paddingTop, paddingLeft, paddingBottom, paddingRight
     , default, all, tb, lr, p, i
     , toTree, fromTree
-    , layout, layoutToTree, flattenLayout, rollback, layoutSize
+    , layout, layoutToTree, layoutToTree_, flattenLayout, rollback, layoutSize
     , widthFit, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, widthGrowMinMax, width, width_
     , heightFit, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, heightGrowMinMax, height, height_
     , topToBottom, leftToRight
@@ -495,6 +495,14 @@ rollback (Layout ltree) = fromTree $ _unrect <$> ltree
 -- | This is useful for rendering with keeping hierarchy or hit-testing operations.
 layoutToTree :: forall a. Layout a -> Tree (PT.WithRect a)
 layoutToTree (Layout ltree) = ltree <#> _undef
+
+
+-- | Extract the tree structure from a Layout, keeping layout definitions.
+-- | The result contains only the values and computed rectangular bounds.
+-- | This is useful for rendering with keeping hierarchy or hit-testing operations.
+layoutToTree_ :: forall a. Layout a -> Tree (PT.WithDefRect a)
+layoutToTree_ (Layout ltree) = ltree
+
 
 -- | Flatten a Layout into an array of all elements with their computed bounds.
 -- | This provides a simple list of all elements for rendering or processing.

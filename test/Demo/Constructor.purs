@@ -28,14 +28,14 @@ import Data.String as String
 
 import Play (Play, (~*))
 import Play as Play
-import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect) as PT
+import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect) as PT
 import Play.Extra as Play
 
 -- import Test.Demo (renderOne) as Demo
 import Test.Demo.Examples (Item(..), ic, itemName, nameOf, noodleUI, playOf, theExamples)
 
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
-import Test.Demo.Constructor.ToCode (toCode) as Play
+import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
 
 
 
@@ -70,6 +70,7 @@ data Action
     | ToggleCodePanel
     | SelectCodeTab Int
     | ToggleNodeCollapsed Play.ItemPath
+    | ToggleShowEncodedSizing
 
 
 type EditingState =
@@ -97,6 +98,7 @@ type State =
     , selectedPath :: Play.ItemPath
     , editing :: EditingState
     , codePanel :: CodePanelState
+    , showEncodedSizing :: Boolean
     }
 
 
@@ -132,9 +134,6 @@ component =
             let updatedTree = Play.updateDefAt state.selectedPath modifyDef state.playTree
             H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { def = modifyDef s.editing.def } }
 
-        updateFixed fn =
-            \s -> s { editing = s.editing { fixed = fn s.editing.fixed } }
-
         loadEditState path tree =
             let
                 mbItem = Play.itemAt path tree
@@ -163,6 +162,7 @@ component =
                              , tabIndex: 0
                              , collapsedNodes: []
                              }
+                , showEncodedSizing: false
                 }
 
         render :: State -> _
@@ -275,6 +275,9 @@ component =
                         then Array.filter (_ /= path) state.codePanel.collapsedNodes
                         else Array.snoc state.codePanel.collapsedNodes path
                 H.modify_ \s -> s { codePanel = s.codePanel { collapsedNodes = updatedCollapsed } }
+
+            ToggleShowEncodedSizing ->
+                H.modify_ \s -> s { showEncodedSizing = not s.showEncodedSizing }
 
 
 -- Set item name
@@ -626,7 +629,7 @@ renderCodePanel state =
         arrowSymbol = if state.codePanel.expanded then "▼" else "▶"
 
         collapsedStyle = "position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #f0f0f0; border-top: 2px solid #ccc; cursor: pointer;"
-        expandedPanelStyle = "position: fixed; bottom: 0; left: 20%; right: 60%; height: 40vh; z-index: 1000; background: #f0f0f0; border: 2px solid #ccc; border-radius: 8px 8px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);"
+        expandedPanelStyle = "position: fixed; bottom: 0; left: 20%; right: 50%; height: 40vh; z-index: 1000; background: #f0f0f0; border: 2px solid #ccc; border-radius: 8px 8px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);"
 
         titleStyle = "padding: 8px 15px; font-weight: bold; border-bottom: 1px solid #ccc; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;"
 
@@ -697,11 +700,25 @@ renderClickablePreview :: forall i. State -> HH.HTML i Action
 renderClickablePreview state =
     let
         layout = Play.layout state.playTree
-        layoutTree = Play.layoutToTree layout
+        layoutTree = Play.layoutToTree_ layout
         size = Play.layoutSize layout
     in
     HH.div_
-        [ HH.h3_ [ HH.text $ fromMaybe "Interactive Preview" state.exampleName ]
+        [ HH.div
+            [ HP.style "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;" ]
+            [ HH.h3
+                [ HP.style "margin: 0;" ]
+                [ HH.text $ fromMaybe "Interactive Preview" state.exampleName ]
+            , HH.label
+                [ HP.style "display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;" ]
+                [ HH.input
+                    [ HP.type_ HP.InputCheckbox
+                    , HP.checked state.showEncodedSizing
+                    , HE.onChecked \_ -> ToggleShowEncodedSizing
+                    ]
+                , HH.text "Show encoded sizing"
+                ]
+            ]
         , HS.svg
             [ HA.width size.width
             , HA.height size.height
@@ -715,16 +732,19 @@ renderClickablePreview state =
                 )
         ]
 
-renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithRect Item) -> HH.HTML i Action
-renderClickableItem state (path /\ { v, rect }) =
+
+renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithDefRect Item) -> HH.HTML i Action
+renderClickableItem state (path /\ { v, def, rect }) =
     case v of
         Item mbCol itemLabel ->
-            let isSelected = state.selectedPath == path
+            let
+                isSelected = state.selectedPath == path
+                labelText = Play.encodeDef def
             in HS.g
                 [ HE.onClick \_ -> SelectItem path
                 , HP.style "pointer-events: all; cursor: pointer;"
                 ]
-                [ HS.rect
+                $ [ HS.rect
                     [ HA.x rect.pos.x
                     , HA.y rect.pos.y
                     , HA.rx 3.0
@@ -753,6 +773,20 @@ renderClickableItem state (path /\ { v, rect }) =
                     ]
                     [ HH.text itemLabel ]
                 ]
+                <> if state.showEncodedSizing then
+                    [ HS.text
+                        [ HA.x $ rect.pos.x + 5.0
+                        , HA.y $ rect.pos.y + 23.0
+                        , HA.fontSize $ HA.FontSizeLength $ HA.Px 10.0
+                        , HA.fill $ HA.Named "white"
+                        , HA.strokeWidth 0.3
+                        , HA.dominantBaseline HA.Hanging
+                        , HP.style "pointer-events: none; opacity: 0.8;"
+                        , HE.onClick \_ -> SelectItem path
+                        ]
+                        [ HH.text labelText ]
+                    ]
+                   else []
 
 
 renderTextualTree :: forall i. Play.ItemPath -> Array Play.ItemPath -> Play Item -> HH.HTML i Action
@@ -761,7 +795,7 @@ renderTextualTree selectedPath collapsedNodes playTree =
     tree = Play.toTree playTree
   in
     HH.div
-      [ HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; margin: 0; overflow: auto;"
+      [ HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 5px; box-sizing: border-box; margin: 0; overflow: auto;"
       ]
       [ renderTextualTreeNode [] selectedPath collapsedNodes tree ]
 
@@ -797,6 +831,8 @@ renderTextualTreeNode currentPath selectedPath collapsedNodes tree =
             renderTextualTreeNode (Array.snoc currentPath i) selectedPath collapsedNodes
         ) $ Tree.children tree
       else []
+
+    encodedDef = Play.encodeDef item.def
   in
     HH.div_ $
         [ HH.div
@@ -804,15 +840,20 @@ renderTextualTreeNode currentPath selectedPath collapsedNodes tree =
           ]
           [ HH.span [ HP.style "white-space: pre;" ] [ HH.text indent ]
           , HH.span
-              [ HP.style "white-space: pre; user-select: none; cursor: pointer; display: inline-block; width: 20px; margin-right: 5px;"
-              , HE.onClick \_ -> if hasChildren then ToggleNodeCollapsed currentPath else SelectItem currentPath
-              ]
-              [ HH.text expandSymbol ]
+                [ HP.style "white-space: pre; user-select: none; cursor: pointer; display: inline-block; width: 20px; margin-right: 5px;"
+                , HE.onClick \_ -> if hasChildren then ToggleNodeCollapsed currentPath else SelectItem currentPath
+                ]
+                [ HH.text expandSymbol ]
           , HH.span
-              [ HP.style $ "user-select: none; cursor: pointer;"
-              , HE.onClick \_ -> SelectItem currentPath
-              ]
-              [ HH.text $ highlighted ]
+                [ HP.style $ "user-select: none; cursor: pointer;"
+                , HE.onClick \_ -> SelectItem currentPath
+                ]
+                [ HH.text $ highlighted ]
+        , HH.span
+                [ HP.style "font-weight: 300; color: #888; margin-left: 8px; font-size: 0.8em;"
+                , HE.onClick \_ -> SelectItem currentPath
+                ]
+                [ HH.text encodedDef ]
           ]
       ] <> childrenNodes
 

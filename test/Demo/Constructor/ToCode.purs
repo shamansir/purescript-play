@@ -87,8 +87,8 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
         in if Array.null modifiersList then start else start <> " \n" <> indent <> "~* " <> joinedMods
 
 
-toLabel :: PT.Def -> String
-toLabel def =
+encodeDef :: PT.Def -> String
+encodeDef def =
     case def.direction of
         PT.LeftToRight -> "→"
         PT.TopToBottom -> "↓"
