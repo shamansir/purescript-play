@@ -28,6 +28,10 @@ data Sizing
     | Fit
     | Grow
     | FitGrow
+    | FitMin { min :: Number }
+    | GrowMin { min :: Number }
+    | FitMinMax { min :: Number, max :: Number }
+    | GrowMinMax { min :: Number, max :: Number }
     -- | FixedPct Percentage
     -- | FitMin { min :: Number }
     -- | FitMax { max :: Number }

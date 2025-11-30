@@ -31,6 +31,10 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
                 PT.Fit -> Just "Play.widthFit"
                 PT.Grow -> Just "Play.widthGrow"
                 PT.FitGrow -> Just "Play.widthFitGrow"
+                PT.FitMin fit -> Just $ "Play.widthFitMin" <> " " <> show fit.min
+                PT.FitMinMax fit -> Just $ "Play.widthFitMinMax" <> " " <> show fit.min <> " " <> show fit.max
+                PT.GrowMin grow -> Just $ "Play.widthGrowMin" <> " " <> show grow.min
+                PT.GrowMinMax grow -> Just $ "Play.widthGrowMinMax" <> " " <> show grow.min <> " " <> show grow.max
 
             renderHeight :: PT.Sizing -> Maybe String
             renderHeight = case _ of
@@ -39,6 +43,10 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
                 PT.Fit -> Just "Play.heightFit"
                 PT.Grow -> Just "Play.heightGrow"
                 PT.FitGrow -> Just "Play.heightFitGrow"
+                PT.FitMin fit -> Just $ "Play.heightFitMin" <> " " <> show fit.min
+                PT.FitMinMax fit -> Just $ "Play.heightFitMinMax" <> " " <> show fit.min <> " " <> show fit.max
+                PT.GrowMin grow -> Just $ "Play.heightGrowMin" <> " " <> show grow.min
+                PT.GrowMinMax grow -> Just $ "Play.heightGrowMinMax" <> " " <> show grow.min <> " " <> show grow.max
 
             renderPadding :: PT.Padding -> Maybe String
             renderPadding pad = if pad.top == 0.0 && pad.left == 0.0 && pad.bottom == 0.0 && pad.right == 0.0 then

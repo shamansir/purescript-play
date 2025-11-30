@@ -166,6 +166,10 @@ layout =
                         PT.Fixed n -> n
                         PT.Fit -> fitAtSide side
                         PT.FitGrow -> fitAtSide side
+                        PT.FitMin fit -> max fit.min $ fitAtSide side
+                        PT.GrowMin grow -> grow.min
+                        PT.FitMinMax fit -> min fit.max $ max fit.min $ fitAtSide side
+                        PT.GrowMinMax grow -> grow.min
                         PT.Grow -> 0.0
                         PT.None -> 0.0
 
@@ -185,10 +189,14 @@ layout =
                 hasGrowingSide :: Side_ -> PT.Def -> Boolean
                 hasGrowingSide Width = _.sizing >>> case _ of
                     { width : PT.Grow } -> true
+                    { width : PT.GrowMin _ } -> true
+                    { width : PT.GrowMinMax _ } -> true
                     { width : PT.FitGrow } -> true
                     _ -> false
                 hasGrowingSide Height = _.sizing >>> case _ of
                     { height : PT.Grow } -> true
+                    { height : PT.GrowMin _ } -> true
+                    { height : PT.GrowMinMax _ } -> true
                     { height : PT.FitGrow } -> true
                     _ -> false
                 childrenCount = Array.length children
