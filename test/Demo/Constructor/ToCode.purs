@@ -85,3 +85,38 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
 
             joinedMods = String.joinWith ("\n" <> indent <> "~* ") modifiersList
         in if Array.null modifiersList then start else start <> " \n" <> indent <> "~* " <> joinedMods
+
+
+toLabel :: PT.Def -> String
+toLabel def =
+    case def.direction of
+        PT.LeftToRight -> "→"
+        PT.TopToBottom -> "↓"
+    <>
+    " W:" <> sizingToLabel def.sizing.width
+    <>
+    " H:" <> sizingToLabel def.sizing.height
+    <> case def.childGap of
+        0.0 -> ""
+        n -> " GAP(" <> show n <> ")"
+    <> case def.padding of
+        { top: 0.0, left: 0.0, bottom: 0.0, right: 0.0 } -> ""
+        pad ->
+            if (pad.top == pad.left) && (pad.left == pad.bottom) && (pad.bottom == pad.right) then
+                " PAD(" <> show pad.top <> ")"
+            else
+                " PAD(" <> show pad.top <> "," <> show pad.left <> "," <> show pad.bottom <> "," <> show pad.right <> ")"
+    where
+    sizingToLabel :: PT.Sizing -> String
+    sizingToLabel = case _ of
+        PT.None -> "•"
+        PT.Fixed n -> "FIX(" <> show n <> ")"
+        PT.Fit -> "FIT"
+        PT.Grow -> "GRW"
+        PT.FitGrow -> "FIT-GRW"
+        PT.FitMin { min } -> "FIT(>" <> show min <> ")"
+        PT.GrowMin { min } -> "GRW(>" <> show min <> ")"
+        PT.FitMinMax { min, max } -> "FIT(" <> show min <> "<>" <> show max <> ")"
+        PT.GrowMinMax { min, max } -> "GRW(" <> show min <> "<>" <> show max <> ")"
+
+

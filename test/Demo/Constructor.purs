@@ -76,9 +76,9 @@ type EditingState =
     { name :: String
     , def :: PT.Def
     , color :: Maybe HA.Color
-    , fixed ::
-        { width :: Maybe Number
-        , height :: Maybe Number
+    , sizing ::
+        { width :: Maybe PT.Sizing
+        , height :: Maybe PT.Sizing
         }
     , childName :: String
     }
@@ -105,6 +105,8 @@ defaultColor = HA.RGB 128 128 128 :: HA.Color
 
 
 defaultSizeValue = 100.0 :: Number
+defaultMinSizeValue = 50.0 :: Number
+defaultMaxSizeValue = 150.0 :: Number
 
 
 component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
@@ -142,9 +144,9 @@ component =
                 { name : fromMaybe "?" (itemName <$> mbItem)
                 , def : fromMaybe Play.default mbDef
                 , color : mbColor
-                , fixed :
-                    { width  : isFixedSizing =<< _.width  <$> _.sizing <$> mbDef
-                    , height : isFixedSizing =<< _.height <$> _.sizing <$> mbDef
+                , sizing :
+                    { width  : _.width  <$> _.sizing <$> mbDef
+                    , height : _.height <$> _.sizing <$> mbDef
                     }
                 , childName: ""
                 }
@@ -224,17 +226,11 @@ component =
 
             UpdateField (WidthSizing sizing) -> do
                 updateSelectedDef \def -> def { sizing = def.sizing { width = sizing } }
-                case sizing of
-                    PT.Fixed n ->
-                        H.modify_ $ updateFixed $ _ { width = Just n }
-                    _ -> pure unit
+                H.modify_ \s -> s { editing = s.editing { sizing = s.editing.sizing { width = Just sizing } } }
 
             UpdateField (HeightSizing sizing) -> do
                 updateSelectedDef \def -> def { sizing = def.sizing { height = sizing } }
-                case sizing of
-                    PT.Fixed n ->
-                        H.modify_ $ updateFixed $ _ { height = Just n }
-                    _ -> pure unit
+                H.modify_ \s -> s { editing = s.editing { sizing = s.editing.sizing { height = Just sizing } } }
 
             AddChild _ childName -> do
                 state <- H.get
@@ -381,21 +377,27 @@ renderPropertyEditor state =
             ]
         , HH.div
             [ HP.style "margin-bottom: 15px;" ]
-            [ HH.label_ [ HH.text "Width Sizing:" ]
-            , renderSizingSelect
-                state.editing
-                (_.fixed >>> _.width)
-                state.editing.def.sizing.width
-                $ UpdateField <<< WidthSizing
-            ]
-        , HH.div
-            [ HP.style "margin-bottom: 15px;" ]
-            [ HH.label_ [ HH.text "Height Sizing:" ]
-            , renderSizingSelect
-                state.editing
-                (_.fixed >>> _.height)
-                state.editing.def.sizing.height
-                $ UpdateField <<< HeightSizing
+            [ HH.div
+                [ HP.style "display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" ]
+                [ HH.div_
+                    [ HH.label_ [ HH.text "Width Sizing:" ]
+                    , renderSizingRadio
+                        "width-sizing"
+                        state.editing
+                        (_.sizing >>> _.width)
+                        state.editing.def.sizing.width
+                        $ UpdateField <<< WidthSizing
+                    ]
+                , HH.div_
+                    [ HH.label_ [ HH.text "Height Sizing:" ]
+                    , renderSizingRadio
+                        "height-sizing"
+                        state.editing
+                        (_.sizing >>> _.height)
+                        state.editing.def.sizing.height
+                        $ UpdateField <<< HeightSizing
+                    ]
+                ]
             ]
         , HH.div
             [ HP.style "margin-bottom: 15px;" ]
@@ -447,61 +449,158 @@ renderPropertyEditor state =
             ]
         ]
 
-renderSizingSelect :: forall i. EditingState -> (EditingState -> Maybe Number) -> PT.Sizing -> (PT.Sizing -> Action) -> HH.HTML i Action
-renderSizingSelect editingState fromEditingState currentSizing updateAction =
+
+renderSizingRadio
+    :: forall i
+     . String                           -- Unique name for radio group
+    -> EditingState                     -- Current editing state
+    -> (EditingState -> Maybe PT.Sizing) -- Extract sizing from editing state
+    -> PT.Sizing                        -- Current sizing value
+    -> (PT.Sizing -> Action)            -- Update action
+    -> HH.HTML i Action
+renderSizingRadio radioName editingState fromEditingState currentSizing updateAction =
     let
-        mbEditingValue = fromEditingState editingState
-        isInputEnabled = isJust $ isFixedSizing currentSizing
-        isInputDisabled = not isInputEnabled
-        isSelectBoxEnabled = not isInputEnabled
-        isSelectBoxDisabled = not isSelectBoxEnabled
+        -- Get the stored sizing from editing state, or use current sizing as fallback
+        editingSizing = fromMaybe currentSizing (fromEditingState editingState)
+
+        -- Simple radio option without inputs
+        simpleRadioOption label sizing =
+            HH.div
+                [ HP.style "margin: 5px 0;" ]
+                [ HH.input
+                    [ HP.type_ HP.InputRadio
+                    , HP.name radioName
+                    , HP.checked (currentSizing == sizing)
+                    , HE.onChecked \_ -> updateAction sizing
+                    , HP.id $ radioName <> "-" <> label
+                    ]
+                , HH.label
+                    [ HP.for $ radioName <> "-" <> label
+                    , HP.style "margin-left: 5px; cursor: pointer;"
+                    ]
+                    [ HH.text label ]
+                ]
+
+        -- Radio option with one number input
+        radioOptionWithInput label isCurrentType getValue createSizing placeholderText =
+            let
+                isSelected = isCurrentType currentSizing
+                currentValue = if isSelected then getValue currentSizing else getValue editingSizing
+            in
+            HH.div
+                [ HP.style "margin: 5px 0; display: flex; align-items: center; gap: 5px;" ]
+                [ HH.input
+                    [ HP.type_ HP.InputRadio
+                    , HP.name radioName
+                    , HP.checked isSelected
+                    , HE.onChecked \_ -> updateAction $ createSizing currentValue
+                    , HP.id $ radioName <> "-" <> label
+                    ]
+                , HH.label
+                    [ HP.for $ radioName <> "-" <> label
+                    , HP.style "margin: 0; cursor: pointer;"
+                    ]
+                    [ HH.text $ label <> ":" ]
+                , HH.input
+                    [ HP.type_ HP.InputNumber
+                    , HP.value $ show currentValue
+                    , HE.onValueInput \str -> case Number.fromString str of
+                        Just n -> updateAction $ createSizing n
+                        Nothing -> Skip
+                    , HP.disabled (not isSelected)
+                    , HP.style $ "padding: 3px; width: 70px;" <>
+                        if not isSelected then " opacity: 0.5;" else ""
+                    , HP.placeholder placeholderText
+                    ]
+                ]
+
+        -- Radio option with two number inputs (min/max)
+        radioOptionWithMinMax label isCurrentType getValues createSizing =
+            let
+                isSelected = isCurrentType currentSizing
+                currentValues = if isSelected then getValues currentSizing else getValues editingSizing
+            in
+            HH.div
+                [ HP.style "margin: 5px 0; display: flex; align-items: center; gap: 5px;" ]
+                [ HH.input
+                    [ HP.type_ HP.InputRadio
+                    , HP.name radioName
+                    , HP.checked isSelected
+                    , HE.onChecked \_ -> updateAction $ createSizing currentValues
+                    , HP.id $ radioName <> "-" <> label
+                    ]
+                , HH.label
+                    [ HP.for $ radioName <> "-" <> label
+                    , HP.style "margin: 0; cursor: pointer; white-space: nowrap;"
+                    ]
+                    [ HH.text $ label <> ":" ]
+                , HH.input
+                    [ HP.type_ HP.InputNumber
+                    , HP.value $ show currentValues.min
+                    , HE.onValueInput \str -> case Number.fromString str of
+                        Just n -> updateAction $ createSizing { min: n, max: currentValues.max }
+                        Nothing -> Skip
+                    , HP.disabled (not isSelected)
+                    , HP.style $ "padding: 3px; width: 60px;" <>
+                        if not isSelected then " opacity: 0.5;" else ""
+                    , HP.placeholder "min"
+                    ]
+                , HH.span [ HP.style "margin: 0 2px;" ] [ HH.text "/" ]
+                , HH.input
+                    [ HP.type_ HP.InputNumber
+                    , HP.value $ show currentValues.max
+                    , HE.onValueInput \str -> case Number.fromString str of
+                        Just n -> updateAction $ createSizing { min: currentValues.min, max: n }
+                        Nothing -> Skip
+                    , HP.disabled (not isSelected)
+                    , HP.style $ "padding: 3px; width: 60px;" <>
+                        if not isSelected then " opacity: 0.5;" else ""
+                    , HP.placeholder "max"
+                    ]
+                ]
+
+        -- Type checkers and value extractors
+        isFixed = getFixed >>> isJust
+        getFixed =  case _ of
+            PT.Fixed n -> Just n
+            _ -> Nothing
+
+        isFitMin = getFitMin >>> isJust
+        getFitMin = case _ of
+            PT.FitMin { min } -> Just min
+            _ -> Nothing
+
+        isFitMinMax = getFitMinMax >>> isJust
+        getFitMinMax = case _ of
+            PT.FitMinMax rec -> Just rec
+            _ -> Nothing
+
+        isGrowMin = getGrowMin >>> isJust
+        getGrowMin = case _ of
+            PT.GrowMin { min } -> Just min
+            _ -> Nothing
+
+        isGrowMinMax = getGrowMinMax >>> isJust
+        getGrowMinMax = case _ of
+            PT.GrowMinMax rec -> Just rec
+            _ -> Nothing
+
+        toDefaultValue = fromMaybe defaultSizeValue
+        toDefaultMinValue = fromMaybe defaultMinSizeValue
+        toDefaultMinMaxValue = fromMaybe { min : defaultMinSizeValue, max : defaultMaxSizeValue }
     in
     HH.div_
-        [ HH.div
-            [ HP.style "display: flex; align-items: center; gap: 10px; margin-top: 5px;" ]
-            [ HH.input
-                [ HP.type_ HP.InputCheckbox
-                , HP.checked isInputEnabled
-                , HE.onChecked \checked ->
-                    if checked
-                    then updateAction $ PT.Fixed $ fromMaybe defaultSizeValue mbEditingValue
-                    else updateAction $ PT.Fit
-                , HP.id "fixed-checkbox"
-                ]
-            , HH.label
-                [ HP.for "fixed-checkbox"
-                , HP.style "margin: 0;"
-                ]
-                [ HH.text "Fixed size:" ]
-            , HH.input
-                [ HP.type_ HP.InputNumber
-                , HP.value $ show $ fromMaybe defaultSizeValue mbEditingValue
-                , HE.onValueInput \str -> case Number.fromString str of
-                    Just n -> updateAction $ PT.Fixed n
-                    Nothing -> Skip
-                , HP.disabled isInputDisabled
-                , HP.style $ "padding: 5px; width: 80px;" <>
-                    if isInputDisabled then " opacity: 0.5;" else ""
-                , HP.placeholder "---"
-                ]
-            ]
-        , HH.select
-            [ HE.onSelectedIndexChange \idx -> case idx of
-                0 -> updateAction PT.None
-                1 -> updateAction PT.Fit
-                2 -> updateAction PT.Grow
-                3 -> updateAction PT.FitGrow
-                _ -> updateAction PT.None
-            , HP.disabled isSelectBoxDisabled
-            , HP.style $ "width: 100%; padding: 5px; margin-top: 5px;" <>
-                if isSelectBoxDisabled then " opacity: 0.5;" else ""
-            ]
-            [ HH.option [ HP.selected (currentSizing == PT.None) ] [ HH.text "None" ]
-            , HH.option [ HP.selected (currentSizing == PT.Fit) ] [ HH.text "Fit" ]
-            , HH.option [ HP.selected (currentSizing == PT.Grow) ] [ HH.text "Grow" ]
-            , HH.option [ HP.selected (currentSizing == PT.FitGrow) ] [ HH.text "FitGrow" ]
-            ]
+        [ simpleRadioOption "None" PT.None
+        , simpleRadioOption "Fit" PT.Fit
+        , simpleRadioOption "Grow" PT.Grow
+        , simpleRadioOption "FitGrow" PT.FitGrow
+        , radioOptionWithInput "Fixed" isFixed (getFixed >>> toDefaultValue) PT.Fixed "value"
+        , radioOptionWithInput "FitMin" isFitMin (getFitMin >>> toDefaultMinValue) (\min -> PT.FitMin { min }) "min"
+        , radioOptionWithMinMax "FitMinMax" isFitMinMax (getFitMinMax >>> toDefaultMinMaxValue) PT.FitMinMax
+        , radioOptionWithInput "GrowMin" isGrowMin (getGrowMin >>> toDefaultMinValue) (\min -> PT.GrowMin { min }) "min"
+        , radioOptionWithMinMax "GrowMinMax" isGrowMinMax (getGrowMinMax >>> toDefaultMinMaxValue) PT.GrowMinMax
         ]
+
 
 renderColorSelect :: forall i. Maybe HA.Color -> HH.HTML i Action
 renderColorSelect currentColor =
@@ -654,6 +753,7 @@ renderClickableItem state (path /\ { v, rect }) =
                     ]
                     [ HH.text itemLabel ]
                 ]
+
 
 renderTextualTree :: forall i. Play.ItemPath -> Array Play.ItemPath -> Play Item -> HH.HTML i Action
 renderTextualTree selectedPath collapsedNodes playTree =

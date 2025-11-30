@@ -18,8 +18,8 @@ module Play
     , default, all, tb, lr, p, i
     , toTree, fromTree
     , layout, layoutToTree, flattenLayout, rollback, layoutSize
-    , widthFit, widthGrow, widthFitGrow, width
-    , heightFit, heightGrow, heightFitGrow, height
+    , widthFit, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, widthGrowMinMax, width, width_
+    , heightFit, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, heightGrowMinMax, height, height_
     , topToBottom, leftToRight
     , (~*), playProp
     )  where
@@ -517,31 +517,63 @@ layoutSize = _.size <<< _.rect <<< Tree.value <<< layoutToTree
 -- | Used for creating reusable layout property combinators.
 type PropF a = Play a -> Play a
 
--- | Set width to fit content (minimum required space).
+-- | Set width to fit its nested content.
 widthFit     = w PT.Fit       :: forall a. PropF a
 
 -- | Set width to grow and fill available horizontal space.
 widthGrow    = w PT.Grow      :: forall a. PropF a
 
--- | Set width to fit content but grow if extra space is available.
+-- | Set width to fit its nested content but grow if extra space is available.
 widthFitGrow = w PT.FitGrow   :: forall a. PropF a
+
+-- | Set width to fit its nested content, but not less than the specified minimum.
+widthFitMin min = w $ PT.FitMin { min } :: forall a. PropF a
+
+-- | Set width to fit its nested content, but not less than the specified minimum or more than the specified maximum.
+widthFitMinMax min max = w $ PT.FitMinMax { min, max } :: forall a. PropF a
+
+-- | Set width to to grow and fill available horizontal space, but not less than the specified minimum.
+widthGrowMin min = w $ PT.GrowMin { min } :: forall a. PropF a
+
+-- | Set width to to grow and fill available horizontal space, but not less than the specified minimum or more than the specified maximum.
+widthGrowMinMax min max = w $ PT.GrowMinMax { min, max } :: forall a. PropF a
 
 -- | Set width to a fixed pixel value.
 width               :: forall a. Number -> PropF a
 width      n = w $ PT.Fixed n ::           PropF a
 
--- | Set height to fit content (minimum required space).
+-- | Set width by specifying arbitrary sizing constraint.
+width_              :: forall a. PT.Sizing -> PropF a
+width_       = w
+
+-- | Set height to fit its nested content.
 heightFit     = h PT.Fit       :: forall a. PropF a
 
 -- | Set height to grow and fill available vertical space.
 heightGrow    = h PT.Grow      :: forall a. PropF a
 
--- | Set height to fit content but grow if extra space is available.
+-- | Set height to fit its nested content but grow if extra space is available.
 heightFitGrow = h PT.FitGrow   :: forall a. PropF a
+
+-- | Set height to fit its nested content, but not less than the specified minimum.
+heightFitMin min = h $ PT.FitMin { min } :: forall a. PropF a
+
+-- | Set height to fit its nested content, but not less than the specified minimum or more than the specified maximum.
+heightFitMinMax min max = h $ PT.FitMinMax { min, max } :: forall a. PropF a
+
+-- | Set height to to grow and fill available vertical space, but not less than the specified minimum.
+heightGrowMin min = h $ PT.GrowMin { min } :: forall a. PropF a
+
+-- | Set height to to grow and fill available vertical space, but not less than the specified minimum or more than the specified maximum.
+heightGrowMinMax min max = h $ PT.GrowMinMax { min, max } :: forall a. PropF a
 
 -- | Set height to a fixed pixel value.
 height               :: forall a. Number -> PropF a
 height      n = h $ PT.Fixed n ::           PropF a
+
+-- | Set height by specifying arbitrary sizing constraint.
+height_              :: forall a. PT.Sizing -> PropF a
+height_       = h
 
 -- | Set layout direction to arrange children vertically (top to bottom).
 topToBottom = direction PT.TopToBottom :: forall a. PropF a
