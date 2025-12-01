@@ -16,3 +16,4 @@ result/
 index.js
 web/app.js
 web/constructor.js
+.DS_Store
