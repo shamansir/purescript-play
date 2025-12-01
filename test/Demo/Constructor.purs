@@ -573,6 +573,11 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
             PT.FitMin { min } -> Just min
             _ -> Nothing
 
+        isFitMax = getFitMax >>> isJust
+        getFitMax = case _ of
+            PT.FitMax { max } -> Just max
+            _ -> Nothing
+
         isFitMinMax = getFitMinMax >>> isJust
         getFitMinMax = case _ of
             PT.FitMinMax rec -> Just rec
@@ -583,25 +588,28 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
             PT.GrowMin { min } -> Just min
             _ -> Nothing
 
-        isGrowMinMax = getGrowMinMax >>> isJust
-        getGrowMinMax = case _ of
-            PT.GrowMinMax rec -> Just rec
-            _ -> Nothing
+        -- isGrowMinMax = getGrowMinMax >>> isJust
+        -- getGrowMinMax = case _ of
+        --     PT.GrowMinMax rec -> Just rec
+        --     _ -> Nothing
 
         toDefaultValue = fromMaybe defaultSizeValue
         toDefaultMinValue = fromMaybe defaultMinSizeValue
+        toDefaultMaxValue = fromMaybe defaultMaxSizeValue
         toDefaultMinMaxValue = fromMaybe { min : defaultMinSizeValue, max : defaultMaxSizeValue }
     in
     HH.div_
         [ simpleRadioOption "None" PT.None
+        , radioOptionWithInput "Fixed" isFixed (getFixed >>> toDefaultValue) PT.Fixed "value"
         , simpleRadioOption "Fit" PT.Fit
+        , radioOptionWithInput "FitMin" isFitMin (getFitMin >>> toDefaultMinValue) (\min -> PT.FitMin { min }) "min"
+        , radioOptionWithInput "FitMax" isFitMax (getFitMax >>> toDefaultMaxValue) (\max -> PT.FitMax { max }) "max"
+        , radioOptionWithMinMax "FitMinMax" isFitMinMax (getFitMinMax >>> toDefaultMinMaxValue) PT.FitMinMax
         , simpleRadioOption "Grow" PT.Grow
         , simpleRadioOption "FitGrow" PT.FitGrow
-        , radioOptionWithInput "Fixed" isFixed (getFixed >>> toDefaultValue) PT.Fixed "value"
-        , radioOptionWithInput "FitMin" isFitMin (getFitMin >>> toDefaultMinValue) (\min -> PT.FitMin { min }) "min"
-        , radioOptionWithMinMax "FitMinMax" isFitMinMax (getFitMinMax >>> toDefaultMinMaxValue) PT.FitMinMax
         , radioOptionWithInput "GrowMin" isGrowMin (getGrowMin >>> toDefaultMinValue) (\min -> PT.GrowMin { min }) "min"
-        , radioOptionWithMinMax "GrowMinMax" isGrowMinMax (getGrowMinMax >>> toDefaultMinMaxValue) PT.GrowMinMax
+        -- , radioOptionWithInput "GrowMax" isGrowMax (getGrowMax >>> toDefaultMaxValue) (\max -> PT.GrowMax { max }) "max"
+        -- , radioOptionWithMinMax "GrowMinMax" isGrowMinMax (getGrowMinMax >>> toDefaultMinMaxValue) PT.GrowMinMax
         ]
 
 

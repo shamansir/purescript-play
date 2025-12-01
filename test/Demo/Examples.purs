@@ -81,14 +81,6 @@ theExamples =
     , exFitPaddingGap {- 07 -}
     , exFitTopBottom {- 08 -}
     , exFitTopBottomPaddingGap {- 09 -}
-    , exFitGrowLast {- 10 -}
-    , exFitGrowMiddle {- 11 -}
-    , exFitGrowLastPaddingGap {- 12 -}
-    , exFitGrowMiddlePaddingGap {- 13 -}
-    , exFitGrowMiddlePaddingGapVert {- 14 -}
-    , exFitGrowLastPaddingGapToToBottom {- 15 -}
-    , exFitGrowMiddlePaddingGapTopToBottom {- 16 -}
-    , exFitGrowMiddlePaddingGapTopToBottomHorz {- 17 -}
     ]
 
 
