@@ -18,25 +18,23 @@ module Play
     , default, all, tb, lr, p, i
     , toTree, fromTree
     , layout, layoutToTree, layoutToTree_, flattenLayout, rollback, layoutSize
-    , widthFit, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, widthGrowMinMax, width, width_
-    , heightFit, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, heightGrowMinMax, height, height_
+    , widthFit, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, width, width_
+    , heightFit, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, height, height_
     , topToBottom, leftToRight
     , (~*), playProp
     )  where
 
 import Prelude
 
-import Data.Tuple ( snd) as Tuple
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.Foldable (class Foldable, foldl)
-import Data.Traversable (class Traversable)
 import Data.Array (length, filter, snoc) as Array
+import Data.Foldable (class Foldable, foldl)
 import Data.Int (toNumber) as Int
-
+import Data.Traversable (class Traversable)
+import Data.Tuple (snd) as Tuple
+import Data.Tuple.Nested ((/\), type (/\))
+import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, WithRect) as PT
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, flatten, value, children, update) as Tree
-
-import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefSize, WithRect, WithDefRect)  as PT
 
 -- | A layout tree containing elements of type `a` with layout definitions.
 -- | This is the primary type for building layouts before they are computed.
@@ -167,10 +165,10 @@ layout =
                         PT.Fit -> fitAtSide side
                         PT.FitGrow -> fitAtSide side
                         PT.FitMin fit -> max fit.min $ fitAtSide side
-                        PT.GrowMin grow -> grow.min
+                        PT.FitMax fit -> min fit.max $ fitAtSide side
                         PT.FitMinMax fit -> min fit.max $ max fit.min $ fitAtSide side
-                        PT.GrowMinMax grow -> grow.min
                         PT.Grow -> 0.0
+                        PT.GrowMin grow -> grow.min
                         PT.None -> 0.0
 
                 size =
@@ -186,19 +184,15 @@ layout =
         doGrowSizing :: PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefSize a)
         doGrowSizing { v, def, size } children =
             let
+                isGrowingSide :: PT.Sizing -> Boolean
+                isGrowingSide = case _ of
+                    PT.Grow -> true
+                    PT.GrowMin _ -> true
+                    PT.FitGrow -> true
+                    _ -> false
                 hasGrowingSide :: Side_ -> PT.Def -> Boolean
-                hasGrowingSide Width = _.sizing >>> case _ of
-                    { width : PT.Grow } -> true
-                    { width : PT.GrowMin _ } -> true
-                    { width : PT.GrowMinMax _ } -> true
-                    { width : PT.FitGrow } -> true
-                    _ -> false
-                hasGrowingSide Height = _.sizing >>> case _ of
-                    { height : PT.Grow } -> true
-                    { height : PT.GrowMin _ } -> true
-                    { height : PT.GrowMinMax _ } -> true
-                    { height : PT.FitGrow } -> true
-                    _ -> false
+                hasGrowingSide Width = _.sizing >>> _.width >>> isGrowingSide
+                hasGrowingSide Height = _.sizing >>> _.height >>> isGrowingSide
                 childrenCount = Array.length children
                 growChildrenCount side =
                     Array.length
@@ -537,14 +531,14 @@ widthFitGrow = w PT.FitGrow   :: forall a. PropF a
 -- | Set width to fit its nested content, but not less than the specified minimum.
 widthFitMin min = w $ PT.FitMin { min } :: forall a. PropF a
 
+-- | Set width to fit its nested content, but not more than the specified maximum.
+widthFitMax max = w $ PT.FitMax { max } :: forall a. PropF a
+
 -- | Set width to fit its nested content, but not less than the specified minimum or more than the specified maximum.
 widthFitMinMax min max = w $ PT.FitMinMax { min, max } :: forall a. PropF a
 
 -- | Set width to to grow and fill available horizontal space, but not less than the specified minimum.
 widthGrowMin min = w $ PT.GrowMin { min } :: forall a. PropF a
-
--- | Set width to to grow and fill available horizontal space, but not less than the specified minimum or more than the specified maximum.
-widthGrowMinMax min max = w $ PT.GrowMinMax { min, max } :: forall a. PropF a
 
 -- | Set width to a fixed pixel value.
 width               :: forall a. Number -> PropF a
@@ -566,14 +560,14 @@ heightFitGrow = h PT.FitGrow   :: forall a. PropF a
 -- | Set height to fit its nested content, but not less than the specified minimum.
 heightFitMin min = h $ PT.FitMin { min } :: forall a. PropF a
 
+-- | Set height to fit its nested content, but not more than the specified maximum.
+heightFitMax max = h $ PT.FitMax { max } :: forall a. PropF a
+
 -- | Set height to fit its nested content, but not less than the specified minimum or more than the specified maximum.
 heightFitMinMax min max = h $ PT.FitMinMax { min, max } :: forall a. PropF a
 
 -- | Set height to to grow and fill available vertical space, but not less than the specified minimum.
 heightGrowMin min = h $ PT.GrowMin { min } :: forall a. PropF a
-
--- | Set height to to grow and fill available vertical space, but not less than the specified minimum or more than the specified maximum.
-heightGrowMinMax min max = h $ PT.GrowMinMax { min, max } :: forall a. PropF a
 
 -- | Set height to a fixed pixel value.
 height               :: forall a. Number -> PropF a
