@@ -32,7 +32,7 @@ import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRec
 import Play.Extra as Play
 
 -- import Test.Demo (renderOne) as Demo
-import Test.Demo.Examples (Item(..), ic, itemName, nameOf, noodleUI, playOf, theExamples)
+import Test.Demo.Examples (Item(..), ic, itemName, nameOf, noodleUI, playOf, selectedExamples)
 
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
@@ -250,7 +250,7 @@ component =
                 H.modify_ \s -> s { editing = s.editing { childName = newName } }
 
             SelectExample exampleIndex -> do
-                case Array.index theExamples exampleIndex of
+                case Array.index selectedExamples exampleIndex of
                     Just example -> do
                         let tree = playOf example
                         H.modify_ _
@@ -374,8 +374,8 @@ renderPropertyEditor state =
                     _ -> UpdateField $ Direction PT.LeftToRight
                 , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
                 ]
-                [ HH.option [ HP.selected (state.editing.def.direction == PT.LeftToRight) ] [ HH.text "Left to Right" ]
-                , HH.option [ HP.selected (state.editing.def.direction == PT.TopToBottom) ] [ HH.text "Top to Bottom" ]
+                [ HH.option [ HP.selected (state.editing.def.direction == PT.LeftToRight) ] [ HH.text "→ Left to Right" ]
+                , HH.option [ HP.selected (state.editing.def.direction == PT.TopToBottom) ] [ HH.text "↓ Top to Bottom" ]
                 ]
             ]
         , HH.div
@@ -700,7 +700,7 @@ renderExampleSelector state =
                 HH.option
                     [ HP.selected (nameOf example == currentExampleName) ]
                     [ HH.text $ nameOf example ]
-            ) theExamples
+            ) selectedExamples
         ]
 
 -- Render interactive preview

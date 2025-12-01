@@ -81,6 +81,38 @@ theExamples =
     , exFitPaddingGap {- 07 -}
     , exFitTopBottom {- 08 -}
     , exFitTopBottomPaddingGap {- 09 -}
+    , exFitGrowLast {- 10 -}
+    , exFitGrowMiddle {- 11 -}
+    , exFitGrowLastPaddingGap {- 12 -}
+    , exFitGrowMiddlePaddingGap {- 13 -}
+    , exFitGrowMiddlePaddingGapVert {- 14 -}
+    , exFitGrowLastPaddingGapToToBottom {- 15 -}
+    , exFitGrowMiddlePaddingGapTopToBottom {- 16 -}
+    , exFitGrowMiddlePaddingGapTopToBottomHorz {- 17 -}
+    , nodeGrowingExperiment {- 23 -}
+    ]
+
+
+-- not all of them, but for the constructor we don't need all of them,
+-- since there's UI for configuration of these settings and they would intersect too much
+selectedExamples :: Array Example
+selectedExamples =
+    [ noodleUI {- 20 -}
+    , noodleHorzNodeUI {- 18 -}
+    , noodleVertNodeUI {- 19 -}
+    , svgGraphUI {- 21 -}
+    , blank {- 22 -}
+    , exSingleMenuItem {- 00 -}
+    , exCompleteMenu {- 01 -}
+    , exFixedNoGaps {- 02 -}
+    , exFixedChildGap {- 03 -}
+    , exFixedPaddingChildGap {- 04 -}
+    , exFixedTopToBotPaddingChildGap {- 05 -}
+    , exFit {- 06 -}
+    , exFitPaddingGap {- 07 -}
+    , exFitTopBottom {- 08 -}
+    , exFitTopBottomPaddingGap {- 09 -}
+    , nodeGrowingExperiment {- 23 -}
     ]
 
 
@@ -509,6 +541,8 @@ noodleHorzNodeUI =
         connectorWidth = 15.0
         inletsCount = 5
         outletsCount = 7
+        minBodyWidth = 250.0
+        minNodeWidth = 300.0
 
         inlet n =
             Play.i (ic (HA.Named "transparent") "")
@@ -549,7 +583,7 @@ noodleHorzNodeUI =
 
     in ex 18 "Noodle Horizontal Node" 800.0 200.0
     $ Play.i (ic (HA.Named "blue") "background")
-        ~* Play.widthFit
+        ~* Play.widthFitMin minNodeWidth
         ~* Play.heightFit
         ~* Play.leftToRight
         ~* Play.with
@@ -581,11 +615,19 @@ noodleHorzNodeUI =
                         ~* Play.widthFitGrow
                         ~* Play.height bodyHeight
                         ~* Play.with
-                            [ Play.i (ic (HA.RGB 90 189 172) "body")
-                                ~* Play.width  bodyWidth
+                            [ Play.i (ic (HA.RGB 48 96 96) "body wrap")
+                                ~* Play.widthFitMin minBodyWidth
+                                ~* Play.height bodyHeight
+                                ~* Play.with
+                                    [ Play.i (ic (HA.RGB 90 189 172) "body content")
+                                        ~* Play.width  bodyWidth
+                                        ~* Play.height bodyHeight
+                                    ]
+                            , Play.i (ic (HA.RGB 90 128 172) "grow mid")
+                                ~* Play.widthGrow
                                 ~* Play.height bodyHeight
                             , Play.i (ic (HA.RGB 90 90 90) "buttons")
-                                ~* Play.width 30.0
+                                ~* Play.width 20.0
                                 ~* Play.heightGrow
                                 ~* Play.childGap 5.0
                                 ~* Play.topToBottom
@@ -852,3 +894,40 @@ blank =
         Play.i (il "Canvas")
         ~* Play.width  800.0
         ~* Play.height 600.0
+
+
+{- 23 -}
+nodeGrowingExperiment :: Example
+nodeGrowingExperiment =
+    ex 23 "Node Growing Experiment" 850.0 650.0 $
+        Play.i (il "Canvas")
+        ~* Play.widthFit
+        ~* Play.height 600.0
+        ~* Play.topToBottom
+        ~* Play.with
+        [ Play.i (ic (HA.RGB 96 128 128) "Inlets")
+            ~* Play.width 396.0
+            ~* Play.height 100.0
+        , Play.i (ic (HA.RGB 240 240 240) "Body")
+            ~* Play.widthGrow
+            ~* Play.height 100.0
+            ~* Play.with
+            [ Play.i (ic (HA.RGB 160 160 160) "Node Body Wrap")
+                ~* Play.widthFitMin 50.0
+                ~* Play.height 100.0
+                ~* Play.with
+                [ Play.i (ic (HA.RGB 128 32 128) "Node Body")
+                    ~* Play.width 180.0
+                    ~* Play.height 100.0
+                ]
+            , Play.i (ic (HA.RGB 128 128 128) "Grow MID")
+                ~* Play.widthGrow
+                ~* Play.heightGrow
+            , Play.i (ic (HA.RGB 128 96 128) "Buttons")
+                ~* Play.width 20.0
+                ~* Play.height 100.0
+            ]
+        , Play.i (ic (HA.RGB 96 128 128) "Outlets")
+            ~* Play.width 354.0
+            ~* Play.height 100.0
+        ]

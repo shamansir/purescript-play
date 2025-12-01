@@ -22,8 +22,8 @@ derive instance Eq Side_
 
 
 layoutTree :: forall a. Tree (PT.WithDef a) -> Tree (PT.WithDefRect a)
-layoutTree =
-    Tree.break doFitSizing
+layoutTree
+    =   Tree.break doFitSizing
     >>> Tree.break doGrowSizing
     >>> Tree.break (doPositioning { x : 0.0, y : 0.0 })
     where
