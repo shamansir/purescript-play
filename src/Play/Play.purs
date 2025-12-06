@@ -18,8 +18,8 @@ module Play
     , default, all, tb, lr, p, i
     , toTree, fromTree
     , layout, layoutToTree, layoutToTree_, flattenLayout, rollback, layoutSize
-    , widthFit, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, width, width_
-    , heightFit, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, height, height_
+    , widthFit, widthPercent, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, width, width_
+    , heightFit, heightPercent, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, height, height_
     , topToBottom, leftToRight
     , (~*), playProp
     )  where
@@ -357,13 +357,13 @@ layoutSize = _.size <<< _.rect <<< Tree.value <<< layoutToTree
 type PropF a = Play a -> Play a
 
 -- | Set width to fit its nested content.
-widthFit     = w PT.Fit       :: forall a. PropF a
+widthFit     = w PT.Fit        :: forall a. PropF a
 
 -- | Set width to grow and fill available horizontal space.
-widthGrow    = w PT.Grow      :: forall a. PropF a
+widthGrow    = w PT.Grow       :: forall a. PropF a
 
 -- | Set width to fit its nested content but grow if extra space is available.
-widthFitGrow = w PT.FitGrow   :: forall a. PropF a
+widthFitGrow = w PT.FitGrow    :: forall a. PropF a
 
 -- | Set width to fit its nested content, but not less than the specified minimum.
 widthFitMin min = w $ PT.FitMin { min } :: forall a. PropF a
@@ -379,7 +379,11 @@ widthGrowMin min = w $ PT.GrowMin { min } :: forall a. PropF a
 
 -- | Set width to a fixed pixel value.
 width               :: forall a. Number -> PropF a
-width      n = w $ PT.Fixed n ::           PropF a
+width        n = w $ PT.Fixed n ::           PropF a
+
+-- | Set height to be a parcentage of the parent container's height. (0.0 to 1.0)
+widthPercent        :: forall a. Number -> PropF a
+widthPercent n = w $ PT.Percentage n ::      PropF a
 
 -- | Set width by specifying arbitrary sizing constraint.
 width_              :: forall a. PT.Sizing -> PropF a
@@ -408,7 +412,11 @@ heightGrowMin min = h $ PT.GrowMin { min } :: forall a. PropF a
 
 -- | Set height to a fixed pixel value.
 height               :: forall a. Number -> PropF a
-height      n = h $ PT.Fixed n ::           PropF a
+height        n = h $ PT.Fixed n ::           PropF a
+
+-- | Set height to be a parcentage of the parent container's height. (0.0 to 1.0)
+heightPercent        :: forall a. Number -> PropF a
+heightPercent n = h $ PT.Percentage n ::      PropF a
 
 -- | Set height by specifying arbitrary sizing constraint.
 height_              :: forall a. PT.Sizing -> PropF a

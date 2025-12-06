@@ -65,6 +65,7 @@ layoutTree
                                 Height -> def.sizing.height
                     in case sizing of
                         PT.Fixed n -> n
+                        PT.Percentage _ -> 0.0
                         PT.Fit -> fitAtSide side
                         PT.FitGrow -> fitAtSide side
                         PT.FitMin fit -> max fit.min $ fitAtSide side
@@ -86,12 +87,14 @@ layoutTree
 
         doGrowSizing :: PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefSize a)
         doGrowSizing { v, def, size } children =
+            -- TODO: implement smallest and second smallest sizing algorithm : https://youtu.be/by9lQvpvMIc?t=1607, https://youtu.be/by9lQvpvMIc?t=1992
             let
                 isGrowingSide :: PT.Sizing -> Boolean
                 isGrowingSide = case _ of
                     PT.Grow -> true
                     PT.GrowMin _ -> true
                     PT.FitGrow -> true
+                    PT.Percentage _ -> true -- we consider percentage as growing too
                     _ -> false
                 hasGrowingSide :: Side_ -> PT.Def -> Boolean
                 hasGrowingSide Width = _.sizing >>> _.width >>> isGrowingSide
@@ -124,13 +127,17 @@ layoutTree
                             ch ->
                                 let
                                     addWidth  s =
-                                        if ch.def.sizing.width == PT.Grow then s { width = growWidth }
-                                        else if ch.def.sizing.width == PT.FitGrow then s { width = max s.width growWidth }
-                                        else s
+                                        case ch.def.sizing.width of
+                                            PT.Grow ->           s { width = growWidth }
+                                            PT.FitGrow ->        s { width = max s.width growWidth }
+                                            PT.Percentage pct -> s { width = min (size.width * pct) growWidth }
+                                            _ -> s
                                     addHeight s =
-                                        if ch.def.sizing.height == PT.Grow then s { height = growHeight }
-                                        else if ch.def.sizing.height == PT.FitGrow then s { height = max s.height growHeight }
-                                        else s
+                                        case ch.def.sizing.height of
+                                            PT.Grow ->           s { height = growHeight }
+                                            PT.FitGrow ->        s { height = max s.height growHeight }
+                                            PT.Percentage pct -> s { height = min (size.height * pct) growHeight }
+                                            _ -> s
                                 in
                                     Tree.update (\chv -> chv { size = addHeight $ addWidth chv.size }) child
                 in Tree.node { v, def, size } $ Tree.break doGrowSizing <$> addGrowingToChild <$> children

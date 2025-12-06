@@ -38,7 +38,6 @@ import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
 
 
-
 main :: Effect Unit
 main = HA.runHalogenAff do
     body <- HA.awaitBody
@@ -568,6 +567,11 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
             PT.Fixed n -> Just n
             _ -> Nothing
 
+        isPercentage = getPercentage >>> isJust
+        getPercentage =  case _ of
+            PT.Percentage n -> Just n
+            _ -> Nothing
+
         isFitMin = getFitMin >>> isJust
         getFitMin = case _ of
             PT.FitMin { min } -> Just min
@@ -594,6 +598,7 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
         --     _ -> Nothing
 
         toDefaultValue = fromMaybe defaultSizeValue
+        toDefaultPercentage = fromMaybe 0.0
         toDefaultMinValue = fromMaybe defaultMinSizeValue
         toDefaultMaxValue = fromMaybe defaultMaxSizeValue
         toDefaultMinMaxValue = fromMaybe { min : defaultMinSizeValue, max : defaultMaxSizeValue }
@@ -601,6 +606,7 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
     HH.div_
         [ simpleRadioOption "None" PT.None
         , radioOptionWithInput "Fixed" isFixed (getFixed >>> toDefaultValue) PT.Fixed "value"
+        , radioOptionWithInput "Percentage" isPercentage (getPercentage >>> toDefaultPercentage) PT.Percentage "value"
         , simpleRadioOption "Fit" PT.Fit
         , radioOptionWithInput "FitMin" isFitMin (getFitMin >>> toDefaultMinValue) (\min -> PT.FitMin { min }) "min"
         , radioOptionWithInput "FitMax" isFitMax (getFitMax >>> toDefaultMaxValue) (\max -> PT.FitMax { max }) "max"

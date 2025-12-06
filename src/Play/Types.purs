@@ -25,6 +25,7 @@ derive instance Eq Direction
 data Sizing
     = None
     | Fixed Number
+    | Percentage Number
     | Fit
     | Grow
     | FitGrow
