@@ -4,6 +4,9 @@ module Play.Types
 
 import Prelude
 
+import Foreign (Foreign, F, fail, ForeignError(..))
+import Yoga.JSON (class ReadForeign, class WriteForeign, writeImpl, readImpl)
+
 -- | Defines the layout direction for arranging child elements.
 -- |
 -- | - `TopToBottom`: Children are arranged vertically from top to bottom
@@ -101,6 +104,11 @@ type WithRect a    = { v :: a, rect :: Rect }
 type WithDefRect a = { v :: a, def :: Def, rect :: Rect }
 
 
+------------------------------------------------------------
+-------------- Percents newtype ----------------------------
+------------------------------------------------------------
+
+
 -- | A percentage value between 0.0 and 1.0 representing a fraction of available space.
 newtype Percents = Percents Number
 derive newtype instance Eq Percents
@@ -109,3 +117,103 @@ derive newtype instance Ord Percents
 instance Bounded Percents where
     bottom = Percents 0.0
     top    = Percents 1.0
+
+------------------------------------------------------------
+-------------- JSON Implementation -------------------------
+------------------------------------------------------------
+
+-- | WriteForeign instance for Direction
+instance WriteForeign Direction where
+    writeImpl TopToBottom = writeImpl "top-to-bottom"
+    writeImpl LeftToRight = writeImpl "left-to-right"
+
+-- | ReadForeign instance for Direction
+instance ReadForeign Direction where
+    readImpl f = do
+        str <- (readImpl f :: F String)
+        case str of
+            "top-to-bottom" -> pure TopToBottom
+            "left-to-right" -> pure LeftToRight
+            _ -> fail $ ForeignError $ "Invalid direction: " <> str
+
+derive newtype instance WriteForeign Percents
+derive newtype instance ReadForeign Percents
+
+-- | WriteForeign instance for Sizing
+instance WriteForeign Sizing where
+    writeImpl sizing = writeImpl $ case sizing of
+        None ->
+            { stype: "none", payload: writeImpl {} }
+
+        Fixed n ->
+            { stype: "fixed", payload: writeImpl { value : n } }
+
+        Percentage pct ->
+            { stype: "percentage", payload: writeImpl { value : pct } }
+
+        Fit ->
+            { stype: "fit", payload: writeImpl {} }
+
+        Grow ->
+            { stype: "grow", payload: writeImpl {} }
+
+        FitGrow ->
+            { stype: "fit-grow", payload: writeImpl {} }
+
+        FitMin { min } ->
+            { stype: "fit-min", payload: writeImpl { min } }
+
+        GrowMin { min } ->
+            { stype: "grow-min", payload: writeImpl { min } }
+
+        FitMax { max } ->
+            { stype: "fit-max", payload: writeImpl { max } }
+
+        FitMinMax { min, max } ->
+            { stype: "fit-min-max"
+            , payload: writeImpl { min, max }
+            }
+
+-- | ReadForeign instance for Sizing
+instance ReadForeign Sizing where
+    readImpl f = do
+        rec <- (readImpl f :: F { stype :: String, payload :: Foreign })
+        case rec.stype of
+            "none" ->
+                pure None
+
+            "fixed" -> do
+                value <- (readImpl rec.payload :: F Number)
+                pure $ Fixed value
+
+            "percentage" -> do
+                value <- (readImpl rec.payload :: F Percents)
+                pure $ Percentage value
+
+            "fit" ->
+                pure Fit
+
+            "grow" ->
+                pure Grow
+
+            "fit-grow" ->
+                pure FitGrow
+
+            "fit-min" -> do
+                { min } <- (readImpl rec.payload :: F { min :: Number })
+                pure $ FitMin { min }
+
+            "grow-min" -> do
+                { min } <- (readImpl rec.payload :: F { min :: Number })
+                pure $ GrowMin { min }
+
+            "fit-max" -> do
+                { max } <- (readImpl rec.payload :: F { max :: Number })
+                pure $ FitMax { max }
+
+            "fit-min-max" -> do
+                { min, max } <- (readImpl rec.payload :: F { min :: Number, max :: Number })
+                pure $ FitMinMax { min, max }
+
+            _ ->
+                fail $ ForeignError $ "Invalid sizing type: " <> rec.stype

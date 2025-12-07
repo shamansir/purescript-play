@@ -23,6 +23,7 @@ module Play
     , topToBottom, leftToRight
     , (~*), playProp
     , pctToNumber
+    , toJSON, fromJSON
     )  where
 
 import Prelude
@@ -34,6 +35,9 @@ import Yoga.Tree.Extended (node, flatten, value, children, update) as Tree
 import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, WithRect, Percents) as PT
 import Play.Types (Percents(..)) as PTX
 import Play.Layout (layoutTree) as Layout
+
+import Foreign (Foreign, F, fail, ForeignError(..))
+import Yoga.JSON (class ReadForeign, class WriteForeign, writeImpl, readImpl, writeJSON, readJSON, E)
 
 -- | A layout tree containing elements of type `a` with layout definitions.
 -- | This is the primary type for building layouts before they are computed.
@@ -444,3 +448,28 @@ pct n =
 -- | Unwrap percentage to number between 0.0 and 1.0
 pctToNumber :: PT.Percents -> Number
 pctToNumber (PTX.Percents n) = n
+
+
+------------------------------------------------------------
+-------------- JSON Implementation -------------------------
+------------------------------------------------------------
+
+
+-- | WriteForeign instance for Play a
+instance WriteForeign a => WriteForeign (Play a) where
+    writeImpl play = writeImpl $ toTree play
+
+-- | ReadForeign instance for Play a
+instance ReadForeign a => ReadForeign (Play a) where
+    readImpl f = do
+        tree <- readImpl f
+        pure $ fromTree tree
+
+
+-- | Serialize a Play layout to JSON string
+toJSON :: forall a. WriteForeign a => Play a -> String
+toJSON = writeJSON
+
+-- | Deserialize a Play layout from JSON string
+fromJSON :: forall a. ReadForeign a => String -> E (Play a)
+fromJSON = readJSON
