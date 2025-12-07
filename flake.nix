@@ -30,7 +30,7 @@
               spagoLock = ./spago.lock;
               src = ./.;
               version = "0.1.0";
-              nativeBuildInputs = [ pkgs.esbuild pkgs.purs-backend-es pkgs.purs-bin.purs-0_15_16-5 pkgs.spago-unstable ]; # nixpkgs_24_11.nodePackages.parcel
+              nativeBuildInputs = [ pkgs.esbuild pkgs.purs-backend-es pkgs.purs-bin.purs-0_15_15 pkgs.spago-unstable ]; # nixpkgs_24_11.nodePackages.parcel
               # changed `pkgs.purs-unstable` to `pkgs.purs-bin.purs-0_15_15`
               buildPhase = "spago build";
               installPhase = "mkdir $out; cp -r ./web $out";
