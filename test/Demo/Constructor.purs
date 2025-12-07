@@ -59,6 +59,8 @@ data Action
     = Skip
     | SelectItem Play.ItemPath
     | GoToRoot
+    | GoToPreviousSibling
+    | GoToNextSibling
     | UpdateName String
     | UpdateColor HA.Color
     | UpdateField Field
@@ -197,6 +199,35 @@ component =
                         , editing = loadEditState [] s.playTree
                         }
 
+            GoToPreviousSibling -> do
+                state <- H.get
+                case Array.unsnoc state.selectedPath of
+                    Nothing -> pure unit  -- At root, no siblings
+                    Just { init: parentPath, last: currentIndex } ->
+                        if currentIndex > 0 then
+                            let newPath = Array.snoc parentPath (currentIndex - 1)
+                            in H.modify_ _
+                                { selectedPath = newPath
+                                , editing = loadEditState newPath state.playTree
+                                }
+                        else pure unit
+
+            GoToNextSibling -> do
+                state <- H.get
+                case Array.unsnoc state.selectedPath of
+                    Nothing -> pure unit  -- At root, no siblings
+                    Just { init: parentPath, last: currentIndex } -> do
+                        let
+                            mbParentTree = Play.playAt parentPath state.playTree
+                            siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
+                        if currentIndex < siblingCount - 1 then
+                            let newPath = Array.snoc parentPath (currentIndex + 1)
+                            in H.modify_ _
+                                { selectedPath = newPath
+                                , editing = loadEditState newPath state.playTree
+                                }
+                        else pure unit
+
             UpdateName newName -> updateSelectedName newName
 
             UpdateColor color -> updateSelectedColor color
@@ -319,7 +350,7 @@ renderPropertyEditor state =
                 ]
         propertyFullWidthInput ptype name action curValue =
             HH.div
-                [ HP.style "margin-bottom: 15px;" ]
+                [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
                 [ HH.label_ [ HH.text name ]
                 , HH.input
                     [ HP.type_ ptype
@@ -329,42 +360,78 @@ renderPropertyEditor state =
                     , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
                     ]
                 ]
+        hasPreviousSibling :: State -> Boolean
+        hasPreviousSibling st =
+            case Array.unsnoc st.selectedPath of
+                Nothing -> false
+                Just { last: currentIndex } -> currentIndex > 0
+
+        hasNextSibling :: State -> Boolean
+        hasNextSibling st =
+            case Array.unsnoc st.selectedPath of
+                Nothing -> false
+                Just { init: parentPath, last: currentIndex } ->
+                    let
+                        mbParentTree = Play.playAt parentPath st.playTree
+                        siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
+                    in currentIndex < siblingCount - 1
+
         rootButtonStyle = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if state.selectedPath == [] then
             "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
         else
             "background: #007bff; cursor: pointer;"
-        parentButtonStyle = "margin-left: 10px; padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if state.selectedPath == [] then
+
+        parentButtonStyle = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if state.selectedPath == [] then
             "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
         else
             "background: #c9ae4bff; cursor: pointer;"
+
+        siblingButtonStyle enabled = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if enabled then
+            "background: #17a2b8; cursor: pointer;"
+        else
+            "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
     in
     HH.div
         [ HP.style "padding: 15px; border: 1px solid #ccc; background: #f9f9f9;" ]
         [ HH.h3_ [ HH.text "Property Editor" ]
         , HH.div
-            [ HP.style "margin-bottom: 10px;" ]
+            [ HP.style "margin-bottom: 10px; display: flex; gap: 10px; align-items: center;" ]
             [ HH.button
                 [ HE.onClick \_ -> GoToRoot
                 , HP.style rootButtonStyle
+                , HP.disabled (state.selectedPath == [])
                 ]
                 [ HH.text "← Root" ]
             , HH.button
                 [ HE.onClick \_ -> SelectItem $ Array.dropEnd 1 state.selectedPath
                 , HP.style parentButtonStyle
+                , HP.disabled (state.selectedPath == [])
                 ]
                 [ HH.text "← Parent" ]
+            , HH.button
+                [ HE.onClick \_ -> GoToPreviousSibling
+                , HP.style $ siblingButtonStyle $ hasPreviousSibling state
+                , HP.disabled (not $ hasPreviousSibling state)
+                ]
+                [ HH.text "<<" ]
+            , HH.button
+                [ HE.onClick \_ -> GoToNextSibling
+                , HP.style $ siblingButtonStyle $ hasNextSibling state
+                , HP.disabled (not $ hasNextSibling state)
+                ]
+                [ HH.text ">>" ]
             , HH.span
-                [ HP.style "margin-left: 10px; color: #666;" ]
+                [ HP.style "color: #666; font-size: 0.9em;" ]
                 [ HH.text $ "Path: " <> show state.selectedPath ]
             ]
-        , propertyFullWidthInput HP.InputText "Item Name" UpdateName state.editing.name
+        , propertyFullWidthInput HP.InputText "Item Name:" UpdateName state.editing.name
         , HH.div
-            [ HP.style "margin-bottom: 15px;" ]
+            [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
             [ HH.label_ [ HH.text "Color:" ]
             , renderColorSelect state.editing.color
             ]
         , HH.div
-            [ HP.style "margin-bottom: 15px;" ]
+            [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
             [ HH.label_ [ HH.text "Direction:" ]
             , HH.select
                 [ HE.onSelectedIndexChange \idx -> case idx of
@@ -382,7 +449,7 @@ renderPropertyEditor state =
             [ HH.div
                 [ HP.style "display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" ]
                 [ HH.div_
-                    [ HH.label_ [ HH.text "Width Sizing:" ]
+                    [ HH.label [ HP.style "font-size: 0.9em;" ] [ HH.text "Width Sizing:" ]
                     , renderSizingRadio
                         "width-sizing"
                         state.editing
@@ -391,7 +458,7 @@ renderPropertyEditor state =
                         $ UpdateField <<< WidthSizing
                     ]
                 , HH.div_
-                    [ HH.label_ [ HH.text "Height Sizing:" ]
+                    [ HH.label [ HP.style "font-size: 0.9em;" ] [ HH.text "Height Sizing:" ]
                     , renderSizingRadio
                         "height-sizing"
                         state.editing
@@ -402,7 +469,7 @@ renderPropertyEditor state =
                 ]
             ]
         , HH.div
-            [ HP.style "margin-bottom: 15px;" ]
+            [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
             [ HH.label_ [ HH.text "Padding:" ]
             , HH.div
                 [ HP.style "display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;" ]
@@ -414,7 +481,7 @@ renderPropertyEditor state =
             ]
         , propertyFullWidthInput HP.InputNumber "Child Gap" (UpdateField <<< ChildGap) $ show state.editing.def.childGap
         , HH.div
-            [ HP.style "margin-bottom: 15px;" ]
+            [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
             [ HH.h4_ [ HH.text $ "Children (" <> show childrenCount <> "):" ]
             , HH.div_
                 $ Array.mapWithIndex (\i child ->
@@ -465,20 +532,24 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
         -- Get the stored sizing from editing state, or use current sizing as fallback
         editingSizing = fromMaybe currentSizing (fromEditingState editingState)
 
+        -- Base style for all radio options
+        baseRadioStyle = "margin: 4px 0; display: flex; align-items: center; gap: 5px; min-height: 24px;"
+
         -- Simple radio option without inputs
         simpleRadioOption label sizing =
             HH.div
-                [ HP.style "margin: 5px 0;" ]
+                [ HP.style baseRadioStyle ]
                 [ HH.input
                     [ HP.type_ HP.InputRadio
                     , HP.name radioName
                     , HP.checked (currentSizing == sizing)
                     , HE.onChecked \_ -> updateAction sizing
                     , HP.id $ radioName <> "-" <> label
+                    , HP.style "margin: 0; flex-shrink: 0;"
                     ]
                 , HH.label
                     [ HP.for $ radioName <> "-" <> label
-                    , HP.style "margin-left: 5px; cursor: pointer;"
+                    , HP.style "margin: 0; cursor: pointer; flex-shrink: 0;"
                     ]
                     [ HH.text label ]
                 ]
@@ -490,17 +561,18 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
                 currentValue = if isSelected then getValue currentSizing else getValue editingSizing
             in
             HH.div
-                [ HP.style "margin: 5px 0; display: flex; align-items: center; gap: 5px;" ]
+                [ HP.style baseRadioStyle ]
                 [ HH.input
                     [ HP.type_ HP.InputRadio
                     , HP.name radioName
                     , HP.checked isSelected
                     , HE.onChecked \_ -> updateAction $ createSizing currentValue
                     , HP.id $ radioName <> "-" <> label
+                    , HP.style "margin: 0; flex-shrink: 0;"
                     ]
                 , HH.label
                     [ HP.for $ radioName <> "-" <> label
-                    , HP.style "margin: 0; cursor: pointer;"
+                    , HP.style "margin: 0; cursor: pointer; flex-shrink: 0; min-width: 80px;"
                     ]
                     [ HH.text $ label <> ":" ]
                 , HH.input
@@ -510,7 +582,7 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
                         Just n -> updateAction $ createSizing n
                         Nothing -> Skip
                     , HP.disabled (not isSelected)
-                    , HP.style $ "padding: 3px; width: 70px;" <>
+                    , HP.style $ "padding: 3px 5px; width: 70px; font-size: 0.85em; box-sizing: border-box;" <>
                         if not isSelected then " opacity: 0.5;" else ""
                     , HP.placeholder placeholderText
                     ]
@@ -523,41 +595,47 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
                 currentValues = if isSelected then getValues currentSizing else getValues editingSizing
             in
             HH.div
-                [ HP.style "margin: 5px 0; display: flex; align-items: center; gap: 5px;" ]
+                [ HP.style baseRadioStyle ]
                 [ HH.input
                     [ HP.type_ HP.InputRadio
                     , HP.name radioName
                     , HP.checked isSelected
                     , HE.onChecked \_ -> updateAction $ createSizing currentValues
                     , HP.id $ radioName <> "-" <> label
+                    , HP.style "margin: 0; flex-shrink: 0;"
                     ]
                 , HH.label
                     [ HP.for $ radioName <> "-" <> label
-                    , HP.style "margin: 0; cursor: pointer; white-space: nowrap;"
+                    , HP.style "margin: 0; cursor: pointer; white-space: nowrap; flex-shrink: 0; min-width: 80px;"
                     ]
                     [ HH.text $ label <> ":" ]
-                , HH.input
-                    [ HP.type_ HP.InputNumber
-                    , HP.value $ show currentValues.min
-                    , HE.onValueInput \str -> case Number.fromString str of
-                        Just n -> updateAction $ createSizing { min: n, max: currentValues.max }
-                        Nothing -> Skip
-                    , HP.disabled (not isSelected)
-                    , HP.style $ "padding: 3px; width: 60px;" <>
-                        if not isSelected then " opacity: 0.5;" else ""
-                    , HP.placeholder "min"
-                    ]
-                , HH.span [ HP.style "margin: 0 2px;" ] [ HH.text "/" ]
-                , HH.input
-                    [ HP.type_ HP.InputNumber
-                    , HP.value $ show currentValues.max
-                    , HE.onValueInput \str -> case Number.fromString str of
-                        Just n -> updateAction $ createSizing { min: currentValues.min, max: n }
-                        Nothing -> Skip
-                    , HP.disabled (not isSelected)
-                    , HP.style $ "padding: 3px; width: 60px;" <>
-                        if not isSelected then " opacity: 0.5;" else ""
-                    , HP.placeholder "max"
+                , HH.div
+                    [ HP.style "display: flex; align-items: center; gap: 3px;" ]
+                    [ HH.input
+                        [ HP.type_ HP.InputNumber
+                        , HP.value $ show currentValues.min
+                        , HE.onValueInput \str -> case Number.fromString str of
+                            Just n -> updateAction $ createSizing { min: n, max: currentValues.max }
+                            Nothing -> Skip
+                        , HP.disabled (not isSelected)
+                        , HP.style $ "padding: 3px 5px; width: 55px; font-size: 0.85em; box-sizing: border-box;" <>
+                            if not isSelected then " opacity: 0.5;" else ""
+                        , HP.placeholder "min"
+                        ]
+                    , HH.span
+                        [ HP.style "margin: 0 2px; color: #666;" ]
+                        [ HH.text "/" ]
+                    , HH.input
+                        [ HP.type_ HP.InputNumber
+                        , HP.value $ show currentValues.max
+                        , HE.onValueInput \str -> case Number.fromString str of
+                            Just n -> updateAction $ createSizing { min: currentValues.min, max: n }
+                            Nothing -> Skip
+                        , HP.disabled (not isSelected)
+                        , HP.style $ "padding: 3px 5px; width: 55px; font-size: 0.85em; box-sizing: border-box;" <>
+                            if not isSelected then " opacity: 0.5;" else ""
+                        , HP.placeholder "max"
+                        ]
                     ]
                 ]
 
@@ -592,21 +670,17 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
             PT.GrowMin { min } -> Just min
             _ -> Nothing
 
-        -- isGrowMinMax = getGrowMinMax >>> isJust
-        -- getGrowMinMax = case _ of
-        --     PT.GrowMinMax rec -> Just rec
-        --     _ -> Nothing
-
         toDefaultValue = fromMaybe defaultSizeValue
         toDefaultPercentage = fromMaybe 0.0
         toDefaultMinValue = fromMaybe defaultMinSizeValue
         toDefaultMaxValue = fromMaybe defaultMaxSizeValue
         toDefaultMinMaxValue = fromMaybe { min : defaultMinSizeValue, max : defaultMaxSizeValue }
     in
-    HH.div_
+    HH.div
+        [ HP.style "font-size: 0.8em;" ]
         [ simpleRadioOption "None" PT.None
         , radioOptionWithInput "Fixed" isFixed (getFixed >>> toDefaultValue) PT.Fixed "value"
-        , radioOptionWithInput "Percentage" isPercentage (getPercentage >>> toDefaultPercentage) PT.Percentage "value"
+        , radioOptionWithInput "Percent" isPercentage (getPercentage >>> toDefaultPercentage) PT.Percentage "value"
         , simpleRadioOption "Fit" PT.Fit
         , radioOptionWithInput "FitMin" isFitMin (getFitMin >>> toDefaultMinValue) (\min -> PT.FitMin { min }) "min"
         , radioOptionWithInput "FitMax" isFitMax (getFitMax >>> toDefaultMaxValue) (\max -> PT.FitMax { max }) "max"
@@ -614,8 +688,6 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
         , simpleRadioOption "Grow" PT.Grow
         , simpleRadioOption "FitGrow" PT.FitGrow
         , radioOptionWithInput "GrowMin" isGrowMin (getGrowMin >>> toDefaultMinValue) (\min -> PT.GrowMin { min }) "min"
-        -- , radioOptionWithInput "GrowMax" isGrowMax (getGrowMax >>> toDefaultMaxValue) (\max -> PT.GrowMax { max }) "max"
-        -- , radioOptionWithMinMax "GrowMinMax" isGrowMinMax (getGrowMinMax >>> toDefaultMinMaxValue) PT.GrowMinMax
         ]
 
 
