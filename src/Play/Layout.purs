@@ -8,7 +8,7 @@ import Data.Foldable (foldl)
 import Data.Int (toNumber) as Int
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
-import Play.Types (Def, Direction(..), Offset, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize) as PT
+import Play.Types (Def, Direction(..), Offset, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, Percents(..)) as PT
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, value, children, update) as Tree
 
@@ -102,7 +102,7 @@ layoutTree
                     _ -> false
                 extractPercentage :: PT.Sizing -> Maybe Number
                 extractPercentage = case _ of
-                    PT.Percentage pct -> Just pct
+                    PT.Percentage (PT.Percents pct) -> Just pct
                     _ -> Nothing
                 hasGrowingSide :: Side_ -> PT.Def -> Boolean
                 hasGrowingSide Width  = _.sizing >>> _.width  >>> isGrowingSide
@@ -160,16 +160,16 @@ layoutTree
                                 let
                                     addWidth  s =
                                         case ch.def.sizing.width of
-                                            PT.Grow ->           s { width = growWidth }
-                                            PT.FitGrow ->        s { width = max s.width growWidth }
-                                            PT.Percentage pct -> s { width = size.width * pct }
+                                            PT.Grow ->                         s { width = growWidth }
+                                            PT.FitGrow ->                      s { width = max s.width growWidth }
+                                            PT.Percentage (PT.Percents pct) -> s { width = size.width * pct }
                                             -- PT.Percentage pct -> s { width = min (size.width * pct) growWidth }
                                             _ -> s
                                     addHeight s =
                                         case ch.def.sizing.height of
-                                            PT.Grow ->           s { height = growHeight }
-                                            PT.FitGrow ->        s { height = max s.height growHeight }
-                                            PT.Percentage pct -> s { height = size.height * pct }
+                                            PT.Grow ->                         s { height = growHeight }
+                                            PT.FitGrow ->                      s { height = max s.height growHeight }
+                                            PT.Percentage (PT.Percents pct) -> s { height = size.height * pct }
                                             -- PT.Percentage pct -> s { height = min (size.height * pct) growHeight }
                                             _ -> s
                                 in

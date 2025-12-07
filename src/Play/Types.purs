@@ -1,5 +1,5 @@
 module Play.Types
-    ( Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefSize, WithRect, WithDefRect )
+    ( Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefSize, WithRect, WithDefRect, Percents(..) )
     where
 
 import Prelude
@@ -25,7 +25,7 @@ derive instance Eq Direction
 data Sizing
     = None
     | Fixed Number
-    | Percentage Number
+    | Percentage Percents
     | Fit
     | Grow
     | FitGrow
@@ -99,3 +99,13 @@ type WithRect a    = { v :: a, rect :: Rect }
 -- | An element with both layout definition and computed rectangular bounds.
 -- | Contains complete layout information for potential rollback operations.
 type WithDefRect a = { v :: a, def :: Def, rect :: Rect }
+
+
+-- | A percentage value between 0.0 and 1.0 representing a fraction of available space.
+newtype Percents = Percents Number
+derive newtype instance Eq Percents
+derive newtype instance Ord Percents
+
+instance Bounded Percents where
+    bottom = Percents 0.0
+    top    = Percents 1.0

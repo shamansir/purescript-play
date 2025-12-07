@@ -28,7 +28,7 @@ import Data.String as String
 
 import Play (Play, (~*))
 import Play as Play
-import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect) as PT
+import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect, Percents(..)) as PT
 import Play.Extra as Play
 
 -- import Test.Demo (renderOne) as Demo
@@ -647,7 +647,7 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
 
         isPercentage = getPercentage >>> isJust
         getPercentage =  case _ of
-            PT.Percentage n -> Just n
+            PT.Percentage n -> Just $ Play.pctToNumber n
             _ -> Nothing
 
         isFitMin = getFitMin >>> isJust
@@ -680,7 +680,7 @@ renderSizingRadio radioName editingState fromEditingState currentSizing updateAc
         [ HP.style "font-size: 0.8em;" ]
         [ simpleRadioOption "None" PT.None
         , radioOptionWithInput "Fixed" isFixed (getFixed >>> toDefaultValue) PT.Fixed "value"
-        , radioOptionWithInput "Percent" isPercentage (getPercentage >>> toDefaultPercentage) PT.Percentage "value"
+        , radioOptionWithInput "Percent" isPercentage (getPercentage >>> map (_ * 100.0) >>> toDefaultPercentage) ((_ / 100.0) >>> Play.pct >>> PT.Percentage) "value"
         , simpleRadioOption "Fit" PT.Fit
         , radioOptionWithInput "FitMin" isFitMin (getFitMin >>> toDefaultMinValue) (\min -> PT.FitMin { min }) "min"
         , radioOptionWithInput "FitMax" isFitMax (getFitMax >>> toDefaultMaxValue) (\max -> PT.FitMax { max }) "max"

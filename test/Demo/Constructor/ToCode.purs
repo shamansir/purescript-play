@@ -8,7 +8,7 @@ import Data.String (joinWith) as String
 
 import Play (Play)
 import Play (toTree) as Play
-import Play.Types (Def, WithDef, Sizing(..), Padding, Direction(..)) as PT
+import Play.Types (Def, WithDef, Sizing(..), Padding, Direction(..), Percents(..)) as PT
 
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (value, children) as Tree
@@ -28,7 +28,7 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
             renderWidth = case _ of
                 PT.None -> Nothing -- default
                 PT.Fixed n -> Just $ "Play.width " <> show n
-                PT.Percentage n -> Just $ "Play.widthPercent " <> show n
+                PT.Percentage (PT.Percents n) -> Just $ "Play.widthPercent (Play.pct " <> show n <> ")"
                 PT.Fit -> Just "Play.widthFit"
                 PT.Grow -> Just "Play.widthGrow"
                 PT.FitGrow -> Just "Play.widthFitGrow"
@@ -43,7 +43,7 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
             renderHeight = case _ of
                 PT.None -> Nothing -- default
                 PT.Fixed n -> Just $ "Play.height " <> show n
-                PT.Percentage n -> Just $ "Play.heightPercent " <> show n
+                PT.Percentage (PT.Percents n) -> Just $ "Play.heightPercent (Play.pct " <> show n <> ")"
                 PT.Fit -> Just "Play.heightFit"
                 PT.Grow -> Just "Play.heightGrow"
                 PT.FitGrow -> Just "Play.heightFitGrow"
@@ -117,7 +117,7 @@ encodeDef def =
     sizingToLabel = case _ of
         PT.None -> "•"
         PT.Fixed n -> "FIX(" <> show n <> ")"
-        PT.Percentage n -> "PCT(" <> show n <> ")"
+        PT.Percentage (PT.Percents n) -> "PCT(" <> show (100.0 * n) <> "%)"
         PT.Fit -> "FIT"
         PT.Grow -> "GRW"
         PT.FitGrow -> "FIT-GRW"

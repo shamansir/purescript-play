@@ -13,7 +13,7 @@ module Play
     ( Play
     , Layout
     , module PT
-    , direction, padding, childGap, w, h, with
+    , direction, padding, childGap, w, h, with, pct
     , paddingTop, paddingLeft, paddingBottom, paddingRight
     , default, all, tb, lr, p, i
     , toTree, fromTree
@@ -22,6 +22,7 @@ module Play
     , heightFit, heightPercent, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, height, height_
     , topToBottom, leftToRight
     , (~*), playProp
+    , pctToNumber
     )  where
 
 import Prelude
@@ -30,7 +31,8 @@ import Data.Foldable (class Foldable)
 import Data.Traversable (class Traversable)
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, flatten, value, children, update) as Tree
-import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, WithRect) as PT
+import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, WithRect, Percents) as PT
+import Play.Types (Percents(..)) as PTX
 import Play.Layout (layoutTree) as Layout
 
 -- | A layout tree containing elements of type `a` with layout definitions.
@@ -382,7 +384,7 @@ width               :: forall a. Number -> PropF a
 width        n = w $ PT.Fixed n ::           PropF a
 
 -- | Set height to be a parcentage of the parent container's height. (0.0 to 1.0)
-widthPercent        :: forall a. Number -> PropF a
+widthPercent        :: forall a. PT.Percents -> PropF a
 widthPercent n = w $ PT.Percentage n ::      PropF a
 
 -- | Set width by specifying arbitrary sizing constraint.
@@ -415,7 +417,7 @@ height               :: forall a. Number -> PropF a
 height        n = h $ PT.Fixed n ::           PropF a
 
 -- | Set height to be a parcentage of the parent container's height. (0.0 to 1.0)
-heightPercent        :: forall a. Number -> PropF a
+heightPercent        :: forall a. PT.Percents -> PropF a
 heightPercent n = h $ PT.Percentage n ::      PropF a
 
 -- | Set height by specifying arbitrary sizing constraint.
@@ -428,3 +430,17 @@ topToBottom = direction PT.TopToBottom :: forall a. PropF a
 -- | Set layout direction to arrange children horizontally (left to right).
 -- | This is the default direction.
 leftToRight = direction PT.LeftToRight :: forall a. PropF a
+
+
+-- | Set percentage value between 0.0 and 1.0 representing a fraction of available space.
+-- | If the value is outside this range, it will be clamped.
+pct :: Number -> PT.Percents
+pct n =
+    PTX.Percents
+           $ if PTX.Percents n > top then top
+        else if PTX.Percents n < bottom then bottom
+        else n
+
+-- | Unwrap percentage to number between 0.0 and 1.0
+pctToNumber :: PT.Percents -> Number
+pctToNumber (PTX.Percents n) = n
