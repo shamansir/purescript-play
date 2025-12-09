@@ -14,6 +14,7 @@ import Play as Play
 
 data Item
     = Item (Maybe HA.Color) String
+    | AKanji Kanji
 
 
 data Example = Example Int Play.Size String (Play Item)
@@ -62,6 +63,12 @@ nameOf (Example _ _ name _) = name
 
 itemName :: Item -> String
 itemName (Item _ name) = name
+itemName (AKanji (Kanji kanji)) = kanji
+
+
+colorOf :: Item -> Maybe HA.Color
+colorOf (Item mbCol _) = mbCol
+colorOf (AKanji _) = Just $ HA.RGB 100 100 255
 
 
 theExamples :: Array Example
@@ -931,3 +938,74 @@ nodeGrowingExperiment =
             ~* Play.width 354.0
             ~* Play.height 100.0
         ]
+
+
+newtype Kanji = Kanji String
+
+
+data SurroundKind
+    = Full
+    | FromAbove
+    | FromBelow
+    | FromLeft
+    | FromRight
+    | FromUpperLeft
+    | FromUpperRight
+    | FromLowerLeft
+    | FromLowerRight
+
+
+data KanjiOp
+    = Single Kanji
+    | LeftToRight { left :: KanjiOp, right :: KanjiOp } { rate :: Number }
+    | TopToBottom { top :: KanjiOp, bottom :: KanjiOp } { rate :: Number }
+    -- | LeftToMiddleAndRight { left :: KanjiOp, middle :: KanjiOp, right :: KanjiOp } { rateA :: Number, rateB :: Number }
+    -- | AboveToMiddleAndBelow { above :: KanjiOp, middle :: KanjiOp, below :: KanjiOp } { rateA :: Number, rateB :: Number }
+    | Surround SurroundKind { inside :: KanjiOp, surround :: KanjiOp }
+
+
+toLayout :: KanjiOp -> Play (Maybe Kanji)
+toLayout = case _ of
+    Single kanji ->
+        Play.i (Just kanji)
+            ~* Play.widthGrow
+            ~* Play.heightGrow
+
+    LeftToRight { left, right } { rate } ->
+        Play.i Nothing
+            ~* Play.widthFit
+            ~* Play.heightFit
+            ~* Play.leftToRight
+            ~* Play.with
+                [ toLayout left
+                    ~* Play.widthPercent (Play.pct rate)
+                , toLayout right
+                    ~* Play.widthPercent (Play.pct rate)
+                ]
+
+    TopToBottom { top, bottom } { rate } ->
+        Play.i Nothing
+            ~* Play.widthFit
+            ~* Play.heightFit
+            ~* Play.topToBottom
+            ~* Play.with
+                [ toLayout top
+                    ~* Play.heightPercent (Play.pct rate)
+                , toLayout bottom
+                    ~* Play.heightPercent (Play.pct $ 1.0 - rate)
+                ]
+
+    Surround kind { inside, surround } ->
+        let
+            insidePlay = toLayout inside
+            surroundPlay = toLayout surround
+        in case kind of
+            Full ->
+                Play.i Nothing
+                    ~* Play.widthFit
+                    ~* Play.heightFit
+                    ~* Play.with
+                        [ surroundPlay
+                        , insidePlay
+                        ]
+            _ -> insidePlay -- TODO: implement other kinds

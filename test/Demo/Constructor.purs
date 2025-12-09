@@ -32,7 +32,7 @@ import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRec
 import Play.Extra as Play
 
 -- import Test.Demo (renderOne) as Demo
-import Test.Demo.Examples (Item(..), ic, itemName, nameOf, noodleUI, playOf, selectedExamples)
+import Test.Demo.Examples (Item(..), ic, itemName, nameOf, colorOf, noodleUI, playOf, selectedExamples, Kanji(..))
 
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
@@ -139,7 +139,7 @@ component =
             let
                 mbItem = Play.itemAt path tree
                 mbDef = Play.defAt path tree
-                mbColor = mbItem >>= \(Item mbCol _) -> mbCol
+                mbColor = mbItem >>= colorOf
             in
                 { name : fromMaybe "?" (itemName <$> mbItem)
                 , def : fromMaybe Play.default mbDef
@@ -313,10 +313,12 @@ component =
 -- Set item name
 setItemName :: String -> Item -> Item
 setItemName newName (Item mbCol _) = Item mbCol newName
+setItemName _       (AKanji kanji) = AKanji kanji
 
 -- Set item color
 setItemColor :: HA.Color -> Item -> Item
-setItemColor newColor (Item _ name) = Item (Just newColor) name
+setItemColor newColor (Item _ name)  = Item (Just newColor) name
+setItemColor _        (AKanji kanji) = AKanji kanji
 
 
 isFixedSizing :: PT.Sizing -> Maybe Number
@@ -821,11 +823,11 @@ renderClickablePreview state =
 
 renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithDefRect Item) -> HH.HTML i Action
 renderClickableItem state (path /\ { v, def, rect }) =
-    case v of
-        Item mbCol itemLabel ->
+
             let
                 isSelected = state.selectedPath == path
                 labelText = Play.encodeDef def
+                mbCol = colorOf v
             in HS.g
                 [ HE.onClick \_ -> SelectItem path
                 , HP.style "pointer-events: all; cursor: pointer;"
@@ -847,17 +849,31 @@ renderClickableItem state (path /\ { v, def, rect }) =
                     , HP.style "cursor: pointer;"
                     , HE.onClick \_ -> SelectItem path
                     ]
-                , HS.text
-                    [ HA.x $ rect.pos.x + 5.0
-                    , HA.y $ rect.pos.y + 7.0
-                    , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
-                    , HA.fill $ HA.Named "white"
-                    , HA.strokeWidth 0.5
-                    , HA.dominantBaseline HA.Hanging
-                    , HP.style "pointer-events: none;"
-                    , HE.onClick \_ -> SelectItem path
-                    ]
-                    [ HH.text itemLabel ]
+                , case v of
+                    Item _ itemLabel ->
+                        HS.text
+                            [ HA.x $ rect.pos.x + 5.0
+                            , HA.y $ rect.pos.y + 7.0
+                            , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
+                            , HA.fill $ HA.Named "white"
+                            , HA.strokeWidth 0.5
+                            , HA.dominantBaseline HA.Hanging
+                            , HP.style "pointer-events: none;"
+                            , HE.onClick \_ -> SelectItem path
+                            ]
+                            [ HH.text itemLabel ]
+                    AKanji (Kanji kanji) ->
+                        HS.text
+                            [ HA.x $ rect.pos.x + 5.0
+                            , HA.y $ rect.pos.y + 7.0
+                            , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
+                            , HA.fill $ HA.Named "white"
+                            , HA.strokeWidth 0.5
+                            , HA.dominantBaseline HA.Hanging
+                            , HP.style "pointer-events: none;"
+                            , HE.onClick \_ -> SelectItem path
+                            ]
+                            [ HH.text kanji ]
                 ]
                 <> if state.showEncodedSizing then
                     [ HS.text

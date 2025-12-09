@@ -108,3 +108,5 @@ renderOne clickAction { id, label, size, layout } =
                             ]
                             [ HH.text itemLabel ]
                         ]
+                AKanji _ ->
+                    HS.g [] []
