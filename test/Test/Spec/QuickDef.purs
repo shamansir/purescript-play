@@ -1,3 +1,4 @@
+-- filepath: test/Test/Spec/QuickDef.purs
 module Test.Spec.QuickDef where
 
 import Prelude
@@ -148,6 +149,168 @@ spec =
               let def = (Play.toTree play # Tree.value).def
               def.direction `shouldEqual` PT.TopToBottom
 
+    describe "inline children syntax" do
+
+      describe "with single child" do
+
+        it "parses single child" do
+          parsesPlay "W:FIT H:FIT [ W:FIX(50) H:FIX(30) ]" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 1
+            case children !! 0 of
+              Just c1 -> do
+                let def1 = (Tree.value c1).def
+                def1.sizing.width `shouldEqual` PT.Fixed 50.0
+                def1.sizing.height `shouldEqual` PT.Fixed 30.0
+              Nothing -> fail "Expected first child"
+
+        it "parses single child in horizontal container" do
+          parsesPlay "LR W:FIT H:FIT [ W:FIX(100) H:FIX(50) ]" \play -> do
+            let tree = Play.toTree play
+            let def = (Tree.value tree).def
+            def.direction `shouldEqual` PT.LeftToRight
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 1
+
+        it "parses single child in vertical container" do
+          parsesPlay "TB W:FIT H:FIT [ W:FIX(100) H:FIX(50) ]" \play -> do
+            let tree = Play.toTree play
+            let def = (Tree.value tree).def
+            def.direction `shouldEqual` PT.TopToBottom
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 1
+
+      describe "with semicolon separator" do
+
+        it "parses two children with semicolon" do
+          parsesPlay "LR W:FIT H:FIT [ W:FIX(50) H:FIX(30); W:FIX(50) H:FIX(30) ]" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 2
+            case children !! 0 of
+              Just c1 -> do
+                let def1 = (Tree.value c1).def
+                def1.sizing.width `shouldEqual` PT.Fixed 50.0
+                def1.sizing.height `shouldEqual` PT.Fixed 30.0
+              Nothing -> fail "Expected first child"
+            case children !! 1 of
+              Just c2 -> do
+                let def2 = (Tree.value c2).def
+                def2.sizing.width `shouldEqual` PT.Fixed 50.0
+                def2.sizing.height `shouldEqual` PT.Fixed 30.0
+              Nothing -> fail "Expected second child"
+
+        it "parses three children with semicolons" do
+          parsesPlay "TB W:FIT H:FIT [ W:FIX(50) H:FIX(30); W:FIX(60) H:FIX(40); W:FIX(70) H:FIX(50) ]" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 3
+
+        it "parses children with mixed properties" do
+          parsesPlay "LR W:FIX(500) H:FIT GAP:10 [ W:FIX(100) H:FIT; W:GRW H:FIT; W:FIX(100) H:FIT ]" \play -> do
+            let tree = Play.toTree play
+            let def = (Tree.value tree).def
+            def.childGap `shouldEqual` 10.0
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 3
+
+      describe "nested children" do
+
+        it "parses nested horizontal in vertical" do
+          parsesPlay "TB W:FIT H:FIT [ LR W:FIT H:FIT [ W:FIX(50) H:FIX(30); W:FIX(50) H:FIX(30) ]; W:FIX(100) H:FIX(40) ]" \play -> do
+            let tree = Play.toTree play
+            let def = (Tree.value tree).def
+            def.direction `shouldEqual` PT.TopToBottom
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 2
+            case children !! 0 of
+              Just c1 -> do
+                let innerDef = (Tree.value c1).def
+                innerDef.direction `shouldEqual` PT.LeftToRight
+                let innerChildren = Tree.children c1
+                Array.length innerChildren `shouldEqual` 2
+              Nothing -> fail "Expected first child"
+
+        it "parses nested vertical in horizontal" do
+          parsesPlay "LR W:FIT H:FIT [ TB W:FIT H:FIT [ W:FIX(50) H:FIX(30), W:FIX(50) H:FIX(40) ], W:FIX(60) H:FIX(100) ]" \play -> do
+            let tree = Play.toTree play
+            let def = (Tree.value tree).def
+            def.direction `shouldEqual` PT.LeftToRight
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 2
+            case children !! 0 of
+              Just c1 -> do
+                let innerDef = (Tree.value c1).def
+                innerDef.direction `shouldEqual` PT.TopToBottom
+                let innerChildren = Tree.children c1
+                Array.length innerChildren `shouldEqual` 2
+              Nothing -> fail "Expected first child"
+
+        it "parses deeply nested layout" do
+          parsesPlay "LR W:FIT H:FIT [ TB W:FIT H:FIT [ LR W:FIT H:FIT [ W:FIX(10) H:FIX(10); W:FIX(10) H:FIX(10) ]; W:FIX(50) H:FIX(30) ]; W:FIX(100) H:FIX(60) ]" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 2
+            case children !! 0 of
+              Just c1 -> do
+                let level1Children = Tree.children c1
+                Array.length level1Children `shouldEqual` 2
+                case level1Children !! 0 of
+                  Just c2 -> do
+                    let level2Children = Tree.children c2
+                    Array.length level2Children `shouldEqual` 2
+                  Nothing -> fail "Expected nested child at level 2"
+              Nothing -> fail "Expected child at level 1"
+
+        it "parses nested with different properties" do
+          parsesPlay "LR W:FIT H:FIT GAP:5 [ TB W:FIT H:FIT GAP:10 PAD:(5,5,5,5) [ W:FIX(50) H:FIX(30); W:FIX(50) H:FIX(30) ]; W:GRW H:FIT ]" \play -> do
+            let tree = Play.toTree play
+            let def = (Tree.value tree).def
+            def.childGap `shouldEqual` 5.0
+            let children = Tree.children tree
+            case children !! 0 of
+              Just c1 -> do
+                let innerDef = (Tree.value c1).def
+                innerDef.childGap `shouldEqual` 10.0
+                innerDef.padding.top `shouldEqual` 5.0
+              Nothing -> fail "Expected first child"
+
+      describe "with complex sizing combinations" do
+
+        it "parses percentage children inline" do
+          parsesPlay "LR W:FIX(400) H:FIX(100) [ W:PCT(25%) H:FIT; W:PCT(50%) H:FIT; W:PCT(25%) H:FIT ]" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 3
+            case children !! 0 of
+              Just c1 -> (Tree.value c1).def.sizing.width `shouldEqual` PT.Percentage (PT.Percents 0.25)
+              Nothing -> fail "Expected first child"
+            case children !! 1 of
+              Just c2 -> (Tree.value c2).def.sizing.width `shouldEqual` PT.Percentage (PT.Percents 0.5)
+              Nothing -> fail "Expected second child"
+
+        it "parses grow with fixed children inline" do
+          parsesPlay "LR W:FIX(500) H:FIT [ W:FIX(100) H:FIT; W:GRW H:FIT; W:FIX(100) H:FIT ]" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 3
+            case children !! 1 of
+              Just c2 -> (Tree.value c2).def.sizing.width `shouldEqual` PT.Grow
+              Nothing -> fail "Expected second child"
+
+        it "parses fit with min/max constraints inline" do
+          parsesPlay "LR W:FIT H:FIT [ W:FITMIN(100) H:FIT [ W:FIX(50) H:FIX(50) ]; W:FITMAX(150) H:FIT [ W:FIX(200) H:FIX(50) ] ]" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 2
+            case children !! 0 of
+              Just c1 -> (Tree.value c1).def.sizing.width `shouldEqual` PT.FitMin { min: 100.0 }
+              Nothing -> fail "Expected first child"
+            case children !! 1 of
+              Just c2 -> (Tree.value c2).def.sizing.width `shouldEqual` PT.FitMax { max: 150.0 }
+              Nothing -> fail "Expected second child"
+
     describe "from helper" do
 
       it "creates parent with children" do
@@ -268,6 +431,12 @@ spec =
         parsesPlay "W:FIX(100)" \play -> do
             let def = (Play.toTree play # Tree.value).def
             def.sizing.width `shouldEqual` PT.Fixed 100.0
+
+      it "handles empty children brackets" do
+        parsesPlay "LR W:FIT H:FIT []" \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 0
 
       {-
       it "handles whitespace variations" do

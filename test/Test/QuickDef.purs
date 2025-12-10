@@ -1,9 +1,10 @@
+-- filepath: test/Test/QuickDef.purs
 module Test.QuickDef where
 
 import Prelude
 
 import Data.Array (many, some) as Array
-import Data.List (toUnfoldable) as List
+import Data.List (List(..), toUnfoldable) as List
 import Data.Either (Either(..))
 import Data.Int as Int
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -19,12 +20,9 @@ import Play as Play
 import Play.Types (Direction(..), Sizing(..), Percents(..)) as PT
 
 import Parsing (Parser, runParser, fail, ParseError)
-import Parsing.Combinators (between, sepBy, option, optionMaybe, try, (<?>))
-import Parsing.String (char, string, anyChar, eof)
-import Parsing.String.Basic (number, skipSpaces, takeWhile1)
-
-
-propSep = ' ' :: Char
+import Parsing.Combinators (between, sepBy, sepBy1, sepEndBy, option, optionMaybe, many, try, (<?>))
+import Parsing.String (char, string, anyChar, eof, satisfy)
+import Parsing.String.Basic (number, skipSpaces)
 
 
 -- | Parse a sizing specification like "FIX(100)", "PCT(30%)", "GRW", etc.
@@ -42,81 +40,66 @@ parseSizing =
     <|> try parseNone
     <?> "NONE | FIX(n) | PCT(n%) | FIT | GRW | FITGRW | FITMIN(n) | FITMAX(n) | FITMINMAX(min,max) | GRWMIN(n)"
     where
-        parseNone = do
-            _ <- string "NONE"
-            pure PT.None
+        parseNone = string "NONE" $> PT.None
 
         parseFixed = do
-            _ <- string "FIX"
-            n <- between (char '(') (char ')') number
+            _ <- string "FIX("
+            n <- number
+            _ <- char ')'
             pure $ PT.Fixed n
 
         parsePercentage = do
-            _ <- string "PCT"
-            _ <- char '('
+            _ <- string "PCT("
             n <- number
             _ <- char '%'
             _ <- char ')'
             pure $ PT.Percentage (PT.Percents $ n / 100.0)
 
-        parseFit = do
-            _ <- string "FIT"
-            pure PT.Fit
+        parseFit = string "FIT" $> PT.Fit
 
-        parseGrow = do
-            _ <- string "GRW"
-            pure PT.Grow
+        parseGrow = string "GRW" $> PT.Grow
 
-        parseFitGrow = do
-            _ <- string "FITGRW"
-            pure PT.FitGrow
+        parseFitGrow = string "FITGRW" $> PT.FitGrow
 
         parseFitMin = do
-            _ <- string "FITMIN"
-            min <- between (char '(') (char ')') number
+            _ <- string "FITMIN("
+            min <- number
+            _ <- char ')'
             pure $ PT.FitMin { min }
 
         parseFitMax = do
-            _ <- string "FITMAX"
-            max <- between (char '(') (char ')') number
+            _ <- string "FITMAX("
+            max <- number
+            _ <- char ')'
             pure $ PT.FitMax { max }
 
         parseFitMinMax = do
-            _ <- string "FITMINMAX"
-            _ <- char '('
+            _ <- string "FITMINMAX("
             min <- number
             _ <- char ','
-            skipSpaces
             max <- number
             _ <- char ')'
             pure $ PT.FitMinMax { min, max }
 
         parseGrowMin = do
-            _ <- string "GRWMIN"
-            min <- between (char '(') (char ')') number
+            _ <- string "GRWMIN("
+            min <- number
+            _ <- char ')'
             pure $ PT.GrowMin { min }
 
 
 -- | Parse direction specification like "LR", "TB", "→", "↓" or with optional "D:" prefix
 parseDirection :: Parser String PT.Direction
 parseDirection =
-    -- Try with D: prefix first
-    (try parseWithPrefix)
-    -- Then try without prefix
-    <|> (try parseWithoutPrefix)
+    (try $ string "D:LR" $> PT.LeftToRight)
+    <|> (try $ string "D:TB" $> PT.TopToBottom)
+    <|> (try $ string "D:→" $> PT.LeftToRight)
+    <|> (try $ string "D:↓" $> PT.TopToBottom)
+    <|> (try $ string "LR" $> PT.LeftToRight)
+    <|> (try $ string "TB" $> PT.TopToBottom)
+    <|> (try $ string "→" $> PT.LeftToRight)
+    <|> (string "↓" $> PT.TopToBottom)
     <?> "LR | TB | → | ↓ | D:LR | D:TB | D:→ | D:↓"
-    where
-        parseWithPrefix = do
-            _ <- string "D:"
-            parseDirectionValue
-
-        parseWithoutPrefix = parseDirectionValue
-
-        parseDirectionValue =
-            (try (string "LR") $> PT.LeftToRight)
-            <|> (try (string "TB") $> PT.TopToBottom)
-            <|> (try (string "→") $> PT.LeftToRight)
-            <|> (try (string "↓") $> PT.TopToBottom)
 
 
 -- | Parse a single property like "W:FIX(100)" or "H:GRW" or just "LR"
@@ -146,9 +129,7 @@ parseProperty =
             sizing <- parseSizing
             pure $ HeightProp sizing
 
-        parseDirectionProp = do
-            dir <- parseDirection
-            pure $ DirectionProp dir
+        parseDirectionProp = DirectionProp <$> parseDirection
 
         parseGap = do
             _ <- string "GAP:"
@@ -156,25 +137,22 @@ parseProperty =
             pure $ GapProp n
 
         parsePadding = do
-            _ <- string "PAD:"
-            _ <- char '('
+            _ <- string "PAD:("
             top <- number
             _ <- char ','
-            skipSpaces
             right <- number
             _ <- char ','
-            skipSpaces
             bottom <- number
             _ <- char ','
-            skipSpaces
             left <- number
             _ <- char ')'
             pure $ PaddingProp top right bottom left
 
 
--- | Parse a property list like "W:FIX(100) H:GRW LR" or "LR W:FIX(100) H:GRW"
+-- | Parse a property list like "W:FIX(100) H:GRW LR"
+-- | Properties must be separated by exactly one space
 parseProperties :: Parser String (Array Property)
-parseProperties = sepBy parseProperty (char propSep) <#> List.toUnfoldable
+parseProperties = sepBy parseProperty (char ' ') <#> List.toUnfoldable
 
 
 -- | Apply properties to a Play item
@@ -189,43 +167,12 @@ applyProperties props play = foldl applyProperty play props
             PaddingProp t r b l -> p ~* Play.padding { top: t, right: r, bottom: b, left: l }
 
 
--- | Parse a layout specification without children
--- | Format: "W:FIX(100) H:GRW" or "LR W:FIX(100) H:GRW"
-parseSimpleLayout :: forall a. a -> Parser String (Play a)
-parseSimpleLayout item = do
-    skipSpaces
-    props <- option [] parseProperties
-    skipSpaces
-    let base = Play.i item
-    pure $ applyProperties props base
-
-
--- | Parse children in brackets
--- | Format: "[ W:FIT H:FIT, W:GRW H:FIX(50) ]"
-parseChildren :: forall a. a -> Parser String (Array (Play a))
-parseChildren item = do
-    _ <- char '['
-    skipSpaces
-    children <- sepBy (parseSimpleLayout item) (do
-        skipSpaces
-        _ <- char ','
-        skipSpaces
-        pure unit)
-    skipSpaces
-    _ <- char ']'
-    pure $ List.toUnfoldable children
-
-
--- | Parse a complete layout with optional children
--- | Format: "W:FIX(100) H:GRW [ W:FIT H:FIT, W:GRW H:FIX(50) ]"
--- | or "LR W:FIX(100) H:GRW [ W:FIT H:FIT, W:GRW H:FIX(50) ]"
+-- | Parse a layout specification (may have children)
+-- | Format: "W:FIX(100) H:GRW [ W:FIT H:FIT; W:GRW H:FIX(50) ]"
 parseLayout :: forall a. a -> Parser String (Play a)
 parseLayout item = do
-    skipSpaces
     props <- option [] parseProperties
-    skipSpaces
-    mbChildren <- optionMaybe (parseChildren item)
-    skipSpaces
+    mbChildren <- optionMaybe (try $ parseChildren item)
 
     let base = Play.i item
     let withProps = applyProperties props base
@@ -235,29 +182,69 @@ parseLayout item = do
         Just children -> pure $ withProps ~* Play.with children
 
 
+-- | Parse children in brackets
+-- | Strict format: "[ W:FIT H:FIT; W:GRW H:FIX(50) ]" or "[ W:FIT H:FIT ]"
+-- | - Must have space after [
+-- | - Must have space before ]
+-- | - Children separated by "; " (no space before semicolon, space after)
+parseChildren :: forall a. a -> Parser String (Array (Play a))
+parseChildren item = do
+    _ <- char '['
+    _ <- char ' '  -- Required space after [
+
+    -- Parse first child
+    first <- parseLayout item
+
+    -- Parse remaining children (each preceded by "; ")
+    rest <- many $ do
+        _ <- char ';'
+        _ <- char ' '
+        parseLayout item
+
+    _ <- char ' '  -- Required space before ]
+    _ <- char ']'
+
+    pure $ [first] <> (List.toUnfoldable rest)
+
+
+-- | Parse empty children brackets "[ ]"
+parseEmptyChildren :: Parser String (Array (Play Unit))
+parseEmptyChildren = do
+    _ <- char '['
+    _ <- char ']'
+    pure []
+
+
 -- | Convenience function to parse a layout with default item value
--- | Format: "W:FIX(100) H:GRW [ W:FIT H:FIT, W:GRW H:FIX(50) ]"
 parsePlay :: forall a. a -> String -> Either ParseError (Play a)
 parsePlay defaultItem input =
-    runParser input $ parseLayout defaultItem <* eof
+    runParser input (parseLayout defaultItem <* eof)
 
 
 -- | Parse multiple sibling layouts separated by semicolons
 -- | Format: "W:FIT H:FIT; W:GRW H:FIX(50); W:FIX(100) H:GRW"
 parsePlayArray :: forall a. a -> String -> Either ParseError (Array (Play a))
 parsePlayArray defaultItem input =
-    runParser input (sepBy (parseLayout defaultItem) (char ';') <* eof)
-        <#> List.toUnfoldable
+    runParser input $ do
+        -- Parse first layout
+        first <- parseLayout defaultItem
+
+        -- Parse remaining layouts (each preceded by "; ")
+        rest <- many $ do
+            _ <- char ';'
+            _ <- char ' '
+            parseLayout defaultItem
+
+        _ <- eof
+        pure $ [first] <> (List.toUnfoldable rest)
 
 
 -- | Helper to create a parent with children from string specs
--- | Example: from "LR W:GRW H:FIT" ["W:FIT H:FIT", "W:FIX(30) H:FIT"]
 from :: String -> Array String -> Either ParseError (Play Unit)
 from parentSpec childSpecs = from' parentSpec childSpecs unit
 
 
--- | Helper to create a parent with children from string specs
--- | Example: from "LR W:GRW H:FIT" ["W:FIT H:FIT", "W:FIX(30) H:FIT"]
+-- | Helper to create a parent with children from string specs with custom item
 from' :: forall a. String -> Array String -> a -> Either ParseError (Play a)
 from' parentSpec childSpecs item = do
     parent <- parsePlay item parentSpec
@@ -267,6 +254,8 @@ from' parentSpec childSpecs item = do
 
 -- | Infix version of `from` for convenience
 infixl 5 from as :<
+
+-- | Infix version of `from'` for convenience
 infixl 5 from' as :<<
 
 -- | Helper to quickly create a Play from a spec string

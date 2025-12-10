@@ -10,7 +10,7 @@ import Control.Monad.Error.Class (class MonadThrow)
 import Effect.Exception (Error)
 
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy, fail)
+import Test.Spec.Assertions (shouldEqual, fail)
 
 import Play as Play
 
@@ -54,6 +54,17 @@ checkChild' children index check =
         Nothing -> fail $ "Expected child at index " <> show index
 
 
+epsilon = 0.001 :: Number
+
+
+shouldApproxEqual :: forall m. MonadThrow Error m => Number -> Number -> m Unit
+shouldApproxEqual actual expected =
+  if (actual <= expected + epsilon) && (actual >= expected - epsilon) then
+    pure unit
+  else
+    fail $ "Expected approximately " <> show expected <> ", but got " <> show actual
+
+
 spec :: Spec Unit
 spec =
   describe "Play.Layout Algorithm" do
@@ -63,27 +74,27 @@ spec =
       it "handles three equal percentages (33.33% each) in horizontal container" do
         checkLayoutTreeFrom
             "LR W:FIX(300) H:FIX(100)"
-                        ["W:PCT(33.33%) H:FIT", "W:PCT(33.33%) H:FIT", "W:PCT(33.34%) H:FIT"] \tree -> do
+                        [ "W:PCT(33.33%) H:FIT", "W:PCT(33.33%) H:FIT", "W:PCT(33.34%) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           Array.length children `shouldEqual` 3
 
           checkChild children 0 \c1 -> do
               let rect1 = c1.rect
-              rect1.size.width `shouldEqual` (300.0 * 0.3333)
+              rect1.size.width `shouldApproxEqual` (300.0 * 0.3333)
 
           checkChild children 1 \c2 -> do
               let rect2 = c2.rect
-              rect2.size.width `shouldEqual` (300.0 * 0.3333)
+              rect2.size.width `shouldApproxEqual` (300.0 * 0.3333)
 
           checkChild children 2 \c3 -> do
               let rect3 = c3.rect
-              rect3.size.width `shouldEqual` (300.0 * 0.3334)
+              rect3.size.width `shouldApproxEqual` (300.0 * 0.3334)
 
       it "handles 25%, 25%, 50% in horizontal container (should fill parent)" do
         checkLayoutTreeFrom
             "LR W:FIX(400) H:FIX(100)"
-                        ["W:PCT(25%) H:FIT", "W:PCT(25%) H:FIT", "W:PCT(50%) H:FIT"] \tree -> do
+                        [ "W:PCT(25%) H:FIT", "W:PCT(25%) H:FIT", "W:PCT(50%) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           Array.length children `shouldEqual` 3
@@ -109,7 +120,7 @@ spec =
       it "handles 30%, 40%, 30% in vertical container" do
         checkLayoutTreeFrom
             "TB W:FIX(200) H:FIX(300)"
-                        ["W:FIT H:PCT(30%)", "W:FIT H:PCT(40%)", "W:FIT H:PCT(30%)"] \tree -> do
+                        [ "W:FIT H:PCT(30%)", "W:FIT H:PCT(40%)", "W:FIT H:PCT(30%)" ] \tree -> do
 
           let children = Tree.children tree
           Array.length children `shouldEqual` 3
@@ -133,7 +144,7 @@ spec =
       it "handles percentage with fixed children" do
         checkLayoutTreeFrom
             "LR W:FIX(500) H:FIX(100)"
-                        ["W:FIX(100) H:FIT", "W:PCT(50%) H:FIT", "W:FIX(150) H:FIT"] \tree -> do
+                        [ "W:FIX(100) H:FIT", "W:PCT(50%) H:FIT", "W:FIX(150) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
 
@@ -150,7 +161,7 @@ spec =
       it "handles percentage with gap" do
         checkLayoutTreeFrom
             "LR W:FIX(420) H:FIX(100) GAP:10"
-                        ["W:PCT(25%) H:FIT", "W:PCT(25%) H:FIT", "W:PCT(50%) H:FIT"] \tree -> do
+                        [ "W:PCT(25%) H:FIT", "W:PCT(25%) H:FIT", "W:PCT(50%) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
 
@@ -171,7 +182,7 @@ spec =
       it "handles percentage with grow children" do
         checkLayoutTreeFrom
             "LR W:FIX(400) H:FIX(100)"
-                        ["W:PCT(25%) H:FIT", "W:GRW H:FIT", "W:PCT(25%) H:FIT"] \tree -> do
+                        [ "W:PCT(25%) H:FIT", "W:GRW H:FIT", "W:PCT(25%) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
 
@@ -194,7 +205,7 @@ spec =
       it "handles percentage with multiple grow children" do
         checkLayoutTreeFrom
             "LR W:FIX(600) H:FIX(100)"
-                        ["W:PCT(20%) H:FIT", "W:GRW H:FIT", "W:GRW H:FIT", "W:PCT(20%) H:FIT"] \tree -> do
+                        [ "W:PCT(20%)", "W:GRW", "W:GRW", "W:PCT(20%)" ] \tree -> do
 
           let children = Tree.children tree
 
@@ -215,7 +226,7 @@ spec =
       it "calculates positions correctly with fixed children" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["W:FIX(100) H:FIX(50)", "W:FIX(150) H:FIX(50)", "W:FIX(200) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(100) H:FIX(50)", "W:FIX(150) H:FIX(50)", "W:FIX(200) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           parentRect.size.width `shouldEqual` 450.0
@@ -228,7 +239,7 @@ spec =
       it "handles fixed sizing in vertical layout" do
         checkLayoutTreeFrom
             "TB W:FIT H:FIT"
-                        ["W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(75)", "W:FIX(100) H:FIX(100)"] \tree -> do
+                        [ "W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(75)", "W:FIX(100) H:FIX(100)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           parentRect.size.height `shouldEqual` 225.0
@@ -243,7 +254,7 @@ spec =
       it "distributes grow evenly among children" do
         checkLayoutTreeFrom
             "LR W:FIX(600) H:FIX(100)"
-                        ["W:GRW H:FIT", "W:GRW H:FIT", "W:GRW H:FIT"] \tree -> do
+                        [ "W:GRW", "W:GRW", "W:GRW" ] \tree -> do
 
           let children = Tree.children tree
           -- Each child should get 200 (600 / 3)
@@ -255,7 +266,7 @@ spec =
       it "distributes remaining space after fixed children" do
         checkLayoutTreeFrom
             "LR W:FIX(500) H:FIX(100)"
-                        ["W:FIX(100) H:FIT", "W:GRW H:FIT", "W:GRW H:FIT"] \tree -> do
+                        [ "W:FIX(100) H:FIT", "W:GRW H:FIT", "W:GRW H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           -- Fixed: 100, Remaining: 400 / 2 = 200 each grow
@@ -268,7 +279,7 @@ spec =
       it "fits to content width in horizontal layout" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["W:FIX(80) H:FIX(50)", "W:FIX(120) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(80) H:FIX(50)", "W:FIX(120) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           -- Parent should fit: 80 + 120 = 200
@@ -277,7 +288,7 @@ spec =
       it "fits to maximum child width in vertical layout" do
         checkLayoutTreeFrom
             "TB W:FIT H:FIT"
-                        ["W:FIX(80) H:FIX(50)", "W:FIX(120) H:FIX(50)", "W:FIX(100) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(80) H:FIX(50)", "W:FIX(120) H:FIX(50)", "W:FIX(100) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           -- Parent should fit to max width: 120
@@ -289,7 +300,7 @@ spec =
       it "grows when available space exceeds fit size" do
         checkLayoutTreeFrom
             "LR W:FIX(500) H:FIX(100)"
-                        ["W:FIX(100) H:FIT", "W:FITGRW H:FIT"] \tree -> do
+                        [ "W:FIX(100) H:FIT", "W:FITGRW H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           -- FitGrow should take remaining: 500 - 100 = 400
@@ -299,7 +310,7 @@ spec =
       it "fits when content is larger than available grow space" do
         checkLayoutTreeFrom
             "LR W:FIX(200) H:FIX(100)"
-                        ["W:FIX(50) H:FIT", "W:FITGRW H:FIT [ W:FIX(200) H:FIT ]"] \tree -> do
+                        [ "W:FIX(50) H:FIT", "W:FITGRW H:FIT [ W:FIX(200) H:FIT ]" ] \tree -> do
 
           let children = Tree.children tree
           -- FitGrow needs 200 for child, available grow is 150
@@ -312,7 +323,7 @@ spec =
       it "respects FITMIN constraint" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["W:FITMIN(100) H:FIT [ W:FIX(50) H:FIX(50) ]"] \tree -> do
+                        [ "W:FITMIN(100) H:FIT [ W:FIX(50) H:FIX(50) ]" ] \tree -> do
 
           let children = Tree.children tree
           -- Content is 50, but min is 100
@@ -322,7 +333,7 @@ spec =
       it "respects FITMAX constraint" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["W:FITMAX(80) H:FIT [ W:FIX(120) H:FIX(50) ]"] \tree -> do
+                        [ "W:FITMAX(80) H:FIT [ W:FIX(120) H:FIX(50) ]" ] \tree -> do
 
           let children = Tree.children tree
           -- Content is 120, but max is 80
@@ -332,9 +343,9 @@ spec =
       it "respects FITMINMAX constraints" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["W:FITMINMAX(80,120) H:FIT [ W:FIX(50) H:FIX(50) ]"
-                        ,"W:FITMINMAX(80,120) H:FIT [ W:FIX(100) H:FIX(50) ]"
-                        ,"W:FITMINMAX(80,120) H:FIT [ W:FIX(150) H:FIX(50) ]"] \tree -> do
+                        [ "W:FITMINMAX(80,120) H:FIT [ W:FIX(50) H:FIX(50) ]"
+                        , "W:FITMINMAX(80,120) H:FIT [ W:FIX(100) H:FIX(50) ]"
+                        , "W:FITMINMAX(80,120) H:FIT [ W:FIX(150) H:FIX(50) ]" ] \tree -> do
 
           let children = Tree.children tree
           -- First: content 50 < min 80, should be 80
@@ -348,11 +359,12 @@ spec =
       it "respects GRWMIN constraint" do
         checkLayoutTreeFrom
             "LR W:FIX(500) H:FIX(100)"
-                        ["W:FIX(100) H:FIT", "W:GRWMIN(50) H:FIT", "W:GRWMIN(50) H:FIT"] \tree -> do
+                        [ "W:FIX(100) H:FIT", "W:GRWMIN(50) H:FIT", "W:GRWMIN(50) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           -- Remaining: 400 / 2 = 200 each (both exceed min of 50)
           checkChild children 1 \c2 -> c2.rect.size.width `shouldEqual` 200.0
+          checkChild children 2 \c3 -> c3.rect.size.width `shouldEqual` 200.0
 
 
     describe "Padding" do
@@ -360,7 +372,7 @@ spec =
       it "applies padding to parent container" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT PAD:(10,20,30,40)"
-                        ["W:FIX(100) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(100) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           -- Width: 100 + left(40) + right(20) = 160
@@ -378,7 +390,7 @@ spec =
       it "accounts for padding in grow calculations" do
         checkLayoutTreeFrom
             "LR W:FIX(300) H:FIX(100) PAD:(0,20,0,10)"
-                        ["W:GRW H:FIT", "W:GRW H:FIT"] \tree -> do
+                        [ "W:GRW H:FIT", "W:GRW H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           -- Available width: 300 - 10 - 20 = 270
@@ -398,7 +410,7 @@ spec =
       it "applies gap between horizontal children" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT GAP:15"
-                        ["W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           -- Width: 100 + 100 + 100 + 15 + 15 = 330
@@ -411,7 +423,7 @@ spec =
       it "applies gap between vertical children" do
         checkLayoutTreeFrom
             "TB W:FIT H:FIT GAP:20"
-                        ["W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(100) H:FIX(50)", "W:FIX(100) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           -- Height: 50 + 50 + 20 = 120
@@ -423,7 +435,7 @@ spec =
       it "accounts for gap in grow calculations" do
         checkLayoutTreeFrom
             "LR W:FIX(350) H:FIX(100) GAP:10"
-                        ["W:FIX(50) H:FIT", "W:GRW H:FIT", "W:GRW H:FIT"] \tree -> do
+                        [ "W:FIX(50) H:FIT", "W:GRW H:FIT", "W:GRW H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           -- Total: 350, Fixed: 50, Gaps: 20 (2 gaps)
@@ -437,8 +449,8 @@ spec =
       it "handles nested horizontal in vertical layout" do
         checkLayoutTreeFrom
             "TB W:FIT H:FIT"
-                        ["LR W:FIT H:FIT [ W:FIX(50) H:FIX(30), W:FIX(50) H:FIX(30) ]"
-                        ,"W:FIX(100) H:FIX(40)"] \tree -> do
+                        [ "LR W:FIT H:FIT [ W:FIX(50) H:FIX(30), W:FIX(50) H:FIX(30) ]"
+                        , "W:FIX(100) H:FIX(40)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           parentRect.size.width `shouldEqual` 100.0  -- max of 100 and 100
@@ -452,8 +464,8 @@ spec =
       it "handles nested vertical in horizontal layout" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["TB W:FIT H:FIT [ W:FIX(50) H:FIX(30), W:FIX(50) H:FIX(40) ]"
-                        ,"W:FIX(60) H:FIX(100)"] \tree -> do
+                        [ "TB W:FIT H:FIT [ W:FIX(50) H:FIX(30), W:FIX(50) H:FIX(40) ]"
+                        , "W:FIX(60) H:FIX(100)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           parentRect.size.width `shouldEqual` 110.0  -- 50 + 60
@@ -471,7 +483,7 @@ spec =
       it "handles single child" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["W:FIX(100) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(100) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           parentRect.size.width `shouldEqual` 100.0
@@ -480,7 +492,7 @@ spec =
       it "handles zero-sized children" do
         checkLayoutTreeFrom
             "LR W:FIT H:FIT"
-                        ["W:FIX(0) H:FIX(0)", "W:FIX(100) H:FIX(50)"] \tree -> do
+                        [ "W:FIX(0) H:FIX(0)", "W:FIX(100) H:FIX(50)" ] \tree -> do
 
           let parentRect = (Tree.value tree).rect
           parentRect.size.width `shouldEqual` 100.0
@@ -488,7 +500,7 @@ spec =
       it "handles 100% percentage child" do
         checkLayoutTreeFrom
             "LR W:FIX(500) H:FIX(100)"
-                        ["W:PCT(100%) H:FIT"] \tree -> do
+                        [ "W:PCT(100%) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           checkChild children 0 \c1 -> c1.rect.size.width `shouldEqual` 500.0
@@ -497,7 +509,7 @@ spec =
       it "handles over 100% total percentage (should still work)" do
         checkLayoutTreeFrom
             "LR W:FIX(300) H:FIX(100)"
-                        ["W:PCT(60%) H:FIT", "W:PCT(60%) H:FIT"] \tree -> do
+                        [ "W:PCT(60%) H:FIT", "W:PCT(60%) H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           -- Each gets their percentage of parent, even if total > 100%
@@ -508,11 +520,11 @@ spec =
       it "handles complex mix of all sizing types" do
         checkLayoutTreeFrom
             "LR W:FIX(1000) H:FIX(100) GAP:10 PAD:(5,5,5,5)"
-                        ["W:FIX(100) H:FIT"
-                        ,"W:PCT(20%) H:FIT"
-                        ,"W:GRW H:FIT"
-                        ,"W:FITMIN(80) H:FIT [ W:FIX(50) H:FIX(50) ]"
-                        ,"W:GRW H:FIT"] \tree -> do
+                        [ "W:FIX(100) H:FIT"
+                        , "W:PCT(20%) H:FIT"
+                        , "W:GRW H:FIT"
+                        , "W:FITMIN(80) H:FIT [ W:FIX(50) H:FIX(50) ]"
+                        , "W:GRW H:FIT" ] \tree -> do
 
           let children = Tree.children tree
           Array.length children `shouldEqual` 5
