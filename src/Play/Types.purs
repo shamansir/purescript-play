@@ -217,3 +217,29 @@ instance ReadForeign Sizing where
 
             _ ->
                 fail $ ForeignError $ "Invalid sizing type: " <> rec.stype
+
+
+
+
+------------------------------------------------------------
+-------------- Show instances ------------------------------
+------------------------------------------------------------
+
+instance Show Direction where
+    show = case _ of
+        TopToBottom -> "TopToBottom"
+        LeftToRight -> "LeftToRight"
+
+
+instance Show Sizing where
+    show = case _ of
+        None -> "None"
+        Fixed n -> "Fixed: " <> show n
+        Percentage (Percents p) -> "Percentage: " <> show (p * 100.0) <> "%"
+        Fit -> "Fit"
+        Grow -> "Grow"
+        FitGrow -> "FitGrow"
+        FitMin { min } -> "FitMin: " <> show min
+        GrowMin { min } -> "GrowMin: " <> show min
+        FitMax { max } -> "FitMax: " <> show max
+        FitMinMax { min, max } -> "FitMinMax: " <> show min <> ";" <> show max

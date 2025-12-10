@@ -32,6 +32,7 @@ import Data.Foldable (class Foldable)
 import Data.Traversable (class Traversable)
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, flatten, value, children, update) as Tree
+import Yoga.Tree.Extended.Convert (showTree') as Tree
 import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, WithRect, Percents) as PT
 import Play.Types (Percents(..)) as PTX
 import Play.Layout (layoutTree) as Layout
@@ -473,3 +474,7 @@ toJSON = writeJSON
 -- | Deserialize a Play layout from JSON string
 fromJSON :: forall a. ReadForeign a => String -> E (Play a)
 fromJSON = readJSON
+
+
+
+instance Show a => Show (Play a) where show = toTree >>> Tree.showTree'

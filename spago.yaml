@@ -18,6 +18,8 @@ package:
   test:
     main: Test.Main
     dependencies:
+      - parsing
+      - spec
       - halogen
       - halogen-svg-elems
   publish:

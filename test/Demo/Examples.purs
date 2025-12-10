@@ -973,25 +973,29 @@ toLayout = case _ of
 
     LeftToRight { left, right } { rate } ->
         Play.i Nothing
-            ~* Play.widthFit
-            ~* Play.heightFit
+            ~* Play.widthGrow
+            ~* Play.heightGrow
             ~* Play.leftToRight
             ~* Play.with
                 [ toLayout left
                     ~* Play.widthPercent (Play.pct rate)
+                    ~* Play.heightGrow
                 , toLayout right
-                    ~* Play.widthPercent (Play.pct rate)
+                    ~* Play.widthPercent (Play.pct $ 1.0 - rate)
+                    ~* Play.heightGrow
                 ]
 
     TopToBottom { top, bottom } { rate } ->
         Play.i Nothing
-            ~* Play.widthFit
-            ~* Play.heightFit
+            ~* Play.widthGrow
+            ~* Play.heightGrow
             ~* Play.topToBottom
             ~* Play.with
                 [ toLayout top
+                    ~* Play.widthGrow
                     ~* Play.heightPercent (Play.pct rate)
                 , toLayout bottom
+                    ~* Play.widthGrow
                     ~* Play.heightPercent (Play.pct $ 1.0 - rate)
                 ]
 
@@ -1002,10 +1006,36 @@ toLayout = case _ of
         in case kind of
             Full ->
                 Play.i Nothing
-                    ~* Play.widthFit
-                    ~* Play.heightFit
+                    ~* Play.widthGrow
+                    ~* Play.heightGrow
                     ~* Play.with
                         [ surroundPlay
-                        , insidePlay
+                        , Play.i Nothing -- ("Surround")
+                            ~* Play.widthGrow
+                            ~* Play.heightGrow
+                            ~* Play.topToBottom
+                            ~* Play.with
+                            [ Play.i Nothing -- ("Top row")
+                                ~* Play.widthGrow
+                                ~* Play.heightPercent (Play.pct 0.2)
+                            , Play.i Nothing -- ("Middle row")
+                                ~* Play.widthGrow
+                                ~* Play.heightPercent (Play.pct 0.6)
+                                ~* Play.with
+                                [ Play.i Nothing -- ("Left column")
+                                    ~* Play.widthPercent (Play.pct 0.2)
+                                    ~* Play.heightGrow
+                                , Play.i Nothing -- ("Middle Column")
+                                    ~* Play.widthPercent (Play.pct 0.6)
+                                    ~* Play.heightGrow
+                                    ~* Play.with [ insidePlay ]
+                                , Play.i Nothing -- ("Right Column")
+                                    ~* Play.widthPercent (Play.pct 0.2)
+                                    ~* Play.heightGrow
+                                ]
+                            , Play.i Nothing -- ("Bottom row")
+                                ~* Play.widthGrow
+                                ~* Play.heightPercent (Play.pct 0.2)
+                            ]
                         ]
             _ -> insidePlay -- TODO: implement other kinds
