@@ -1,4 +1,3 @@
--- filepath: test/Test/QuickDef.purs
 module Test.QuickDef where
 
 import Prelude
