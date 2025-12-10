@@ -20,7 +20,7 @@ import Play as Play
 import Play.Types (Direction(..), Sizing(..), Percents(..)) as PT
 
 import Parsing (Parser, runParser, fail, ParseError)
-import Parsing.Combinators (between, sepBy, sepBy1, sepEndBy, option, optionMaybe, many, try, (<?>))
+import Parsing.Combinators (between, sepBy, sepBy1, option, optionMaybe, try, (<?>))
 import Parsing.String (char, string, anyChar, eof, satisfy)
 import Parsing.String.Basic (number, skipSpaces)
 
@@ -167,52 +167,13 @@ applyProperties props play = foldl applyProperty play props
             PaddingProp t r b l -> p ~* Play.padding { top: t, right: r, bottom: b, left: l }
 
 
--- | Parse a layout specification (may have children)
--- | Format: "W:FIX(100) H:GRW [ W:FIT H:FIT; W:GRW H:FIX(50) ]"
+-- | Parse a simple layout specification (no children)
+-- | Format: "W:FIX(100) H:GRW" or "LR W:FIX(100) H:GRW"
 parseLayout :: forall a. a -> Parser String (Play a)
 parseLayout item = do
     props <- option [] parseProperties
-    mbChildren <- optionMaybe (try $ parseChildren item)
-
     let base = Play.i item
-    let withProps = applyProperties props base
-
-    case mbChildren of
-        Nothing -> pure withProps
-        Just children -> pure $ withProps ~* Play.with children
-
-
--- | Parse children in brackets
--- | Strict format: "[ W:FIT H:FIT; W:GRW H:FIX(50) ]" or "[ W:FIT H:FIT ]"
--- | - Must have space after [
--- | - Must have space before ]
--- | - Children separated by "; " (no space before semicolon, space after)
-parseChildren :: forall a. a -> Parser String (Array (Play a))
-parseChildren item = do
-    _ <- char '['
-    _ <- char ' '  -- Required space after [
-
-    -- Parse first child
-    first <- parseLayout item
-
-    -- Parse remaining children (each preceded by "; ")
-    rest <- many $ do
-        _ <- char ';'
-        _ <- char ' '
-        parseLayout item
-
-    _ <- char ' '  -- Required space before ]
-    _ <- char ']'
-
-    pure $ [first] <> (List.toUnfoldable rest)
-
-
--- | Parse empty children brackets "[ ]"
-parseEmptyChildren :: Parser String (Array (Play Unit))
-parseEmptyChildren = do
-    _ <- char '['
-    _ <- char ']'
-    pure []
+    pure $ applyProperties props base
 
 
 -- | Convenience function to parse a layout with default item value
@@ -226,20 +187,43 @@ parsePlay defaultItem input =
 parsePlayArray :: forall a. a -> String -> Either ParseError (Array (Play a))
 parsePlayArray defaultItem input =
     runParser input $ do
-        -- Parse first layout
-        first <- parseLayout defaultItem
-
-        -- Parse remaining layouts (each preceded by "; ")
-        rest <- many $ do
+        result <- sepBy (parseLayout defaultItem) (do
+            skipSpaces
             _ <- char ';'
-            _ <- char ' '
-            parseLayout defaultItem
-
+            skipSpaces
+            pure unit)
         _ <- eof
-        pure $ [first] <> (List.toUnfoldable rest)
+        pure $ List.toUnfoldable result
+
+
+-- | A child specification that can be either a string or nested children
+data ChildSpec
+    = Leaf String
+    | Node String (Array ChildSpec)
+
+
+-- | Helper to create a leaf child from a string
+leaf :: String -> ChildSpec
+leaf = Leaf
+
+
+-- | Helper to create a node with nested children
+node :: String -> Array ChildSpec -> ChildSpec
+node = Node
+
+
+-- | Build a Play tree from a ChildSpec
+buildFromSpec :: forall a. a -> ChildSpec -> Either ParseError (Play a)
+buildFromSpec item spec = case spec of
+    Leaf str -> parsePlay item str
+    Node str children -> do
+        parent <- parsePlay item str
+        childPlays <- traverse (buildFromSpec item) children
+        pure $ parent ~* Play.with childPlays
 
 
 -- | Helper to create a parent with children from string specs
+-- | Simple version for flat children (backward compatible)
 from :: String -> Array String -> Either ParseError (Play Unit)
 from parentSpec childSpecs = from' parentSpec childSpecs unit
 
@@ -252,11 +236,37 @@ from' parentSpec childSpecs item = do
     pure $ parent ~* Play.with children
 
 
+-- | Helper to create a parent with nested children using ChildSpec
+-- | Example: fromNested "LR W:GRW H:FIT"
+-- |            [ leaf "W:FIT H:FIT"
+-- |            , node "TB W:FIT H:FIT"
+-- |                [ leaf "W:FIX(50) H:FIX(30)"
+-- |                , leaf "W:FIX(50) H:FIX(30)"
+-- |                ]
+-- |            ]
+fromNested :: String -> Array ChildSpec -> Either ParseError (Play Unit)
+fromNested parentSpec childSpecs = fromNested' parentSpec childSpecs unit
+
+
+-- | Helper to create a parent with nested children using ChildSpec with custom item
+fromNested' :: forall a. String -> Array ChildSpec -> a -> Either ParseError (Play a)
+fromNested' parentSpec childSpecs item = do
+    parent <- parsePlay item parentSpec
+    children <- traverse (buildFromSpec item) childSpecs
+    pure $ parent ~* Play.with children
+
+
 -- | Infix version of `from` for convenience
 infixl 5 from as :<
 
 -- | Infix version of `from'` for convenience
 infixl 5 from' as :<<
+
+-- | Infix version of `fromNested` for convenience
+infixl 5 fromNested as ::<
+
+-- | Infix version of `fromNested'` for convenience
+infixl 5 fromNested' as ::<<
 
 -- | Helper to quickly create a Play from a spec string
 quick :: forall a. String -> a -> Either ParseError (Play a)
