@@ -21,13 +21,10 @@ import Yoga.Tree.Extended (value, children) as Tree
 
 import Test.QuickDef
     ( parsePlay
-    , parsePlayArray
-    , from
-    , fromNested
+    , build
     , leaf
-    , node
     , (:<)
-    , (::<)
+    , QDef
     )
 
 
@@ -38,18 +35,11 @@ parsesPlay input check =
     Left err -> fail $ "Failed to parse Play layout: " <> show err
 
 
-parsesFrom :: forall m. MonadThrow Error m => String -> Array String -> (Play Unit -> m Unit) -> m Unit
-parsesFrom layoutStr childStrs check =
-  case from layoutStr childStrs of
+parsesFromSpec :: forall m. MonadThrow Error m => QDef -> (Play Unit -> m Unit) -> m Unit
+parsesFromSpec spec check =
+  case build spec of
     Right play -> check play
-    Left err -> fail $ "Failed to parse Play layout from strings: " <> show err
-
-
-parsesFromNested :: forall m. MonadThrow Error m => String -> Array _ -> (Play Unit -> m Unit) -> m Unit
-parsesFromNested layoutStr childSpecs check =
-  case fromNested layoutStr childSpecs of
-    Right play -> check play
-    Left err -> fail $ "Failed to parse nested Play layout: " <> show err
+    Left err -> fail $ "Failed to build Play from spec: " <> show err
 
 
 spec :: Spec Unit
@@ -135,25 +125,27 @@ spec =
               let def = (Play.toTree play # Tree.value).def
               def.direction `shouldEqual` PT.TopToBottom
 
-    describe "nested children with fromNested" do
+    describe "nested children with :< operator" do
 
-      it "creates simple parent with leaf children" do
-        parsesFromNested "LR W:FIT H:FIT"
-          [ leaf "W:FIX(50) H:FIX(30)"
-          , leaf "W:FIX(60) H:FIX(40)"
-          ] \play -> do
+      it "creates simple parent with string children (auto-converts to leaf)" do
+        parsesFromSpec
+          ("LR W:FIT H:FIT" :<
+            [ leaf "W:FIX(50) H:FIX(30)"
+            , leaf "W:FIX(60) H:FIX(40)"
+            ]) \play -> do
             let tree = Play.toTree play
             let children = Tree.children tree
             Array.length children `shouldEqual` 2
 
-      it "creates nested layout with node children" do
-        parsesFromNested "LR W:FIT H:FIT"
-          [ node "TB W:FIT H:FIT"
-              [ leaf "W:FIX(50) H:FIX(30)"
-              , leaf "W:FIX(50) H:FIX(30)"
-              ]
-          , leaf "W:FIX(100) H:FIX(40)"
-          ] \play -> do
+      it "creates nested layout with explicit node children" do
+        parsesFromSpec
+          ("LR W:FIT H:FIT" :<
+            [ "TB W:FIT H:FIT" :<
+                [ leaf "W:FIX(50) H:FIX(30)"
+                , leaf "W:FIX(50) H:FIX(30)"
+                ]
+            , leaf "W:FIX(100) H:FIX(40)"
+            ]) \play -> do
             let tree = Play.toTree play
             let def = (Tree.value tree).def
             def.direction `shouldEqual` PT.LeftToRight
@@ -168,16 +160,17 @@ spec =
               Nothing -> fail "Expected first child"
 
       it "creates deeply nested layout" do
-        parsesFromNested "LR W:FIT H:FIT"
-          [ node "TB W:FIT H:FIT"
-              [ node "LR W:FIT H:FIT"
-                  [ leaf "W:FIX(10) H:FIX(10)"
-                  , leaf "W:FIX(10) H:FIX(10)"
-                  ]
-              , leaf "W:FIX(50) H:FIX(30)"
-              ]
-          , leaf "W:FIX(100) H:FIX(60)"
-          ] \play -> do
+        parsesFromSpec
+          ("LR W:FIT H:FIT" :<
+            [ "TB W:FIT H:FIT" :<
+                [ "LR W:FIT H:FIT" :<
+                    [ leaf "W:FIX(10) H:FIX(10)"
+                    , leaf "W:FIX(10) H:FIX(10)"
+                    ]
+                , leaf "W:FIX(50) H:FIX(30)"
+                ]
+            , leaf "W:FIX(100) H:FIX(60)"
+            ]) \play -> do
             let tree = Play.toTree play
             let children = Tree.children tree
             Array.length children `shouldEqual` 2
@@ -193,11 +186,12 @@ spec =
               Nothing -> fail "Expected child at level 1"
 
       it "creates layout with percentage children" do
-        parsesFromNested "LR W:FIX(400) H:FIX(100)"
-          [ leaf "W:PCT(25%) H:FIT"
-          , leaf "W:PCT(50%) H:FIT"
-          , leaf "W:PCT(25%) H:FIT"
-          ] \play -> do
+        parsesFromSpec
+          ("LR W:FIX(400) H:FIX(100)" :<
+            [ leaf "W:PCT(25%) H:FIT"
+            , leaf "W:PCT(50%) H:FIT"
+            , leaf "W:PCT(25%) H:FIT"
+            ]) \play -> do
             let tree = Play.toTree play
             let children = Tree.children tree
             Array.length children `shouldEqual` 3
@@ -205,27 +199,21 @@ spec =
               Just c1 -> (Tree.value c1).def.sizing.width `shouldEqual` PT.Percentage (PT.Percents 0.25)
               Nothing -> fail "Expected first child"
 
-    describe "from helper (flat children)" do
+    describe "mixed usage" do
 
-      it "creates parent with children" do
-        parsesFrom "LR W:GRW H:FIT"
-          [ "W:FIT H:FIT"
-          , "W:FIX(30) H:FIT"
-          , "W:GRW H:FIX(70)"
-          ] \play -> do
+      it "works with explicit leaf helper" do
+        parsesFromSpec
+          ("LR W:FIT H:FIT" :< [ leaf "W:FIT H:FIT", leaf "W:GRW H:GRW" ]) \play -> do
             let tree = Play.toTree play
             let children = Tree.children tree
-            Array.length children `shouldEqual` 3
+            Array.length children `shouldEqual` 2
 
-    describe "infix operators" do
-
-      it "works with :< for flat children" do
-        let result = "LR W:GRW H:FIT" :< ["W:FIT H:FIT", "W:GRW H:GRW"]
-        result `shouldSatisfy` isRight
-
-      it "works with ::< for nested children" do
-        let result = "LR W:FIT H:FIT" ::<
-              [ node "TB W:FIT H:FIT" [leaf "W:FIX(50) H:FIX(30)"]
-              , leaf "W:GRW H:GRW"
-              ]
-        result `shouldSatisfy` isRight
+      it "works with explicit node helper" do
+        parsesFromSpec
+          ("LR W:FIT H:FIT" :<
+            [ "TB W:FIT H:FIT" :< [ leaf "W:FIX(50) H:FIX(30)" ]
+            , leaf "W:GRW H:GRW"
+            ]) \play -> do
+            let tree = Play.toTree play
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 2

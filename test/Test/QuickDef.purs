@@ -3,14 +3,9 @@ module Test.QuickDef where
 
 import Prelude
 
-import Data.Array (many, some) as Array
-import Data.List (List(..), toUnfoldable) as List
-import Data.Either (Either(..))
-import Data.Int as Int
-import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Number as Number
-import Data.String (Pattern(..), split, trim) as String
-import Data.String.CodeUnits (fromCharArray, toCharArray) as String
+import Data.Array (length) as Array
+import Data.List (toUnfoldable) as List
+import Data.Either (Either)
 import Control.Alt ((<|>))
 import Data.Foldable (foldl)
 import Data.Traversable (traverse)
@@ -19,10 +14,13 @@ import Play (Play, (~*))
 import Play as Play
 import Play.Types (Direction(..), Sizing(..), Percents(..)) as PT
 
-import Parsing (Parser, runParser, fail, ParseError)
-import Parsing.Combinators (between, sepBy, sepBy1, option, optionMaybe, try, (<?>))
-import Parsing.String (char, string, anyChar, eof, satisfy)
+import Parsing (Parser, runParser, ParseError)
+import Parsing.Combinators (option, sepBy, try, (<?>))
+import Parsing.String (char, eof, string)
 import Parsing.String.Basic (number, skipSpaces)
+
+import Yoga.Tree (Tree)
+import Yoga.Tree.Extended (children, leaf, node, value) as Tree
 
 
 -- | Parse a sizing specification like "FIX(100)", "PCT(30%)", "GRW", etc.
@@ -196,78 +194,58 @@ parsePlayArray defaultItem input =
         pure $ List.toUnfoldable result
 
 
--- | A child specification that can be either a string or nested children
-data ChildSpec
-    = Leaf String
-    | Node String (Array ChildSpec)
+-- | Type alias for specification tree
+type QDef = Tree String
 
 
--- | Helper to create a leaf child from a string
-leaf :: String -> ChildSpec
-leaf = Leaf
+-- | Helper to create a leaf spec from a string
+leaf :: String -> QDef
+leaf spec = Tree.leaf spec
 
 
--- | Helper to create a node with nested children
-node :: String -> Array ChildSpec -> ChildSpec
-node = Node
+-- | Helper to create a node with children
+-- | Example: node "LR W:FIT H:FIT" [leaf "W:FIX(50) H:FIX(30)", leaf "W:FIX(60) H:FIX(40)"]
+node :: String -> Array QDef -> QDef
+node spec children = Tree.node spec children
 
 
--- | Build a Play tree from a ChildSpec
-buildFromSpec :: forall a. a -> ChildSpec -> Either ParseError (Play a)
-buildFromSpec item spec = case spec of
-    Leaf str -> parsePlay item str
-    Node str children -> do
-        parent <- parsePlay item str
-        childPlays <- traverse (buildFromSpec item) children
-        pure $ parent ~* Play.with childPlays
+-- | Build operator: creates a node with children from specs
+-- | Example: "LR W:FIT H:FIT" :< [leaf "W:FIX(50) H:FIX(30)", leaf "W:FIX(60) H:FIX(40)"]
+-- | Or even simpler: "LR W:FIT H:FIT" :< ["W:FIX(50) H:FIX(30)", "W:FIX(60) H:FIX(40)"]
+infixl 5 buildNode as :<
+
+buildNode :: String -> Array QDef -> QDef
+buildNode spec children = Tree.node spec children
 
 
--- | Helper to create a parent with children from string specs
--- | Simple version for flat children (backward compatible)
-from :: String -> Array String -> Either ParseError (Play Unit)
-from parentSpec childSpecs = from' parentSpec childSpecs unit
+-- | Build a Play tree from a Spec tree
+buildFromSpec :: forall a. a -> QDef -> Either ParseError (Play a)
+buildFromSpec item spec = do
+    let specStr = Tree.value spec
+    parent <- parsePlay item specStr
+    let childSpecs = Tree.children spec
+    if Array.length childSpecs == 0
+        then pure parent
+        else do
+            childPlays <- traverse (buildFromSpec item) childSpecs
+            pure $ parent ~* Play.with childPlays
 
 
--- | Helper to create a parent with children from string specs with custom item
-from' :: forall a. String -> Array String -> a -> Either ParseError (Play a)
-from' parentSpec childSpecs item = do
-    parent <- parsePlay item parentSpec
-    children <- traverse (\spec -> parsePlay item spec) childSpecs
-    pure $ parent ~* Play.with children
+-- | Build a Play tree from a Spec tree (using Unit as default item)
+build :: QDef -> Either ParseError (Play Unit)
+build spec = buildFromSpec unit spec
 
 
--- | Helper to create a parent with nested children using ChildSpec
--- | Example: fromNested "LR W:GRW H:FIT"
--- |            [ leaf "W:FIT H:FIT"
--- |            , node "TB W:FIT H:FIT"
--- |                [ leaf "W:FIX(50) H:FIX(30)"
--- |                , leaf "W:FIX(50) H:FIX(30)"
--- |                ]
--- |            ]
-fromNested :: String -> Array ChildSpec -> Either ParseError (Play Unit)
-fromNested parentSpec childSpecs = fromNested' parentSpec childSpecs unit
+-- | Build a Play tree from a Spec tree with custom item
+build' :: forall a. a -> QDef -> Either ParseError (Play a)
+build' = buildFromSpec
 
 
--- | Helper to create a parent with nested children using ChildSpec with custom item
-fromNested' :: forall a. String -> Array ChildSpec -> a -> Either ParseError (Play a)
-fromNested' parentSpec childSpecs item = do
-    parent <- parsePlay item parentSpec
-    children <- traverse (buildFromSpec item) childSpecs
-    pure $ parent ~* Play.with children
-
-
--- | Infix version of `from` for convenience
-infixl 5 from as :<
-
--- | Infix version of `from'` for convenience
-infixl 5 from' as :<<
-
--- | Infix version of `fromNested` for convenience
-infixl 5 fromNested as ::<
-
--- | Infix version of `fromNested'` for convenience
-infixl 5 fromNested' as ::<<
-
--- | Helper to quickly create a Play from a spec string
+-- | Helper to quickly create a Play from a spec string (no children)
 quick :: forall a. String -> a -> Either ParseError (Play a)
 quick = flip parsePlay
+
+
+-- | Coerce a String to a Spec (makes it a leaf automatically)
+-- instance Coercible String Spec where
+--     coerce = leaf
