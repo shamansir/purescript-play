@@ -19,24 +19,28 @@ import Play as Play
 import Play.Types (Direction(..), Sizing(..), Percents(..)) as PT
 
 import Parsing (Parser, runParser, fail, ParseError)
-import Parsing.Combinators (between, sepBy, option, optionMaybe, try)
+import Parsing.Combinators (between, sepBy, option, optionMaybe, try, (<?>))
 import Parsing.String (char, string, anyChar, eof)
 import Parsing.String.Basic (number, skipSpaces, takeWhile1)
+
+
+propSep = ' ' :: Char -- '+'
 
 
 -- | Parse a sizing specification like "FIX(100)", "PCT(30%)", "GRW", etc.
 parseSizing :: Parser String PT.Sizing
 parseSizing =
-    parseNone
-    <|> parseFixed
-    <|> parsePercentage
-    <|> parseFit
-    <|> parseGrow
-    <|> parseFitGrow
-    <|> parseFitMin
-    <|> parseFitMax
-    <|> parseFitMinMax
-    <|> parseGrowMin
+    try parsePercentage
+    <|> try parseFitMinMax
+    <|> try parseFitMin
+    <|> try parseFitMax
+    <|> try parseFitGrow
+    <|> try parseGrowMin
+    <|> try parseFixed
+    <|> try parseGrow
+    <|> try parseFit
+    <|> try parseNone
+    <?> "NONE | FIX(n) | PCT(n%) | FIT | GRW | FITGRW | FITMIN(n) | FITMAX(n) | FITMINMAX(min,max) | GRWMIN(n)"
     where
         parseNone = do
             _ <- string "NONE"
@@ -96,10 +100,11 @@ parseSizing =
 -- | Parse direction specification like "LR" or "TB"
 parseDirection :: Parser String PT.Direction
 parseDirection =
-    (string "LR" $> PT.LeftToRight)
-    <|> (string "TB" $> PT.TopToBottom)
-    <|> (string "→" $> PT.LeftToRight)
-    <|> (string "↓" $> PT.TopToBottom)
+    try (string "LR" $> PT.LeftToRight)
+    <|> try (string "TB" $> PT.TopToBottom)
+    <|> try (string "→" $> PT.LeftToRight)
+    <|> try (string "↓" $> PT.TopToBottom)
+    <?> "LR | TB | → | ↓"
 
 
 -- | Parse a single property like "W:FIX(100)" or "H:GRW"
@@ -112,11 +117,12 @@ data Property
 
 parseProperty :: Parser String Property
 parseProperty =
-    parseWidth
-    <|> parseHeight
-    <|> parseDirectionProp
-    <|> parseGap
-    <|> parsePadding
+    try parseWidth
+    <|> try parseHeight
+    <|> try parseDirectionProp
+    <|> try parseGap
+    <|> try parsePadding
+    <?> "W:..., H:..., D:..., GAP:..., PAD:..."
     where
         parseWidth = do
             _ <- string "W:"
@@ -155,9 +161,9 @@ parseProperty =
             pure $ PaddingProp top right bottom left
 
 
--- | Parse a property list like "W:FIX(100)+H:GRW+D:LR"
+-- | Parse a property list like "W:FIX(100) H:GRW+D:LR"
 parseProperties :: Parser String (Array Property)
-parseProperties = sepBy parseProperty (char '+') <#> List.toUnfoldable
+parseProperties = sepBy parseProperty (char propSep) <#> List.toUnfoldable
 
 
 -- | Apply properties to a Play item
@@ -172,16 +178,41 @@ applyProperties props play = foldl applyProperty play props
             PaddingProp t r b l -> p ~* Play.padding { top: t, right: r, bottom: b, left: l }
 
 
--- | Parse a layout specification with children
--- | Format: "W:FIX(100)+H:GRW [ W:FIT+H:FIT, W:GRW+H:FIX(50) ]"
-parseLayout :: forall a. Parser String a -> Parser String (Play a)
-parseLayout parseItem = do
+-- | Parse a layout specification without children
+-- | Format: "W:FIX(100) H:GRW"
+parseSimpleLayout :: forall a. a -> Parser String (Play a)
+parseSimpleLayout item = do
     skipSpaces
     props <- option [] parseProperties
     skipSpaces
-    mbChildren <- optionMaybe $ between (char '[') (char ']') parseChildren
+    let base = Play.i item
+    pure $ applyProperties props base
+
+
+-- | Parse children in brackets
+-- | Format: "[ W:FIT H:FIT, W:GRW H:FIX(50) ]"
+parseChildren :: forall a. a -> Parser String (Array (Play a))
+parseChildren item = do
+    _ <- char '['
     skipSpaces
-    item <- parseItem
+    children <- sepBy (parseSimpleLayout item) (do
+        skipSpaces
+        _ <- char ','
+        skipSpaces
+        pure unit)
+    skipSpaces
+    _ <- char ']'
+    pure $ List.toUnfoldable children
+
+
+-- | Parse a complete layout with optional children
+-- | Format: "W:FIX(100) H:GRW [ W:FIT H:FIT, W:GRW H:FIX(50) ]"
+parseLayout :: forall a. a -> Parser String (Play a)
+parseLayout item = do
+    skipSpaces
+    props <- option [] parseProperties
+    skipSpaces
+    mbChildren <- optionMaybe (parseChildren item)
     skipSpaces
 
     let base = Play.i item
@@ -189,9 +220,7 @@ parseLayout parseItem = do
 
     case mbChildren of
         Nothing -> pure withProps
-        Just children -> pure $ withProps ~* Play.with (List.toUnfoldable children)
-    where
-        parseChildren = sepBy (parseLayout parseItem) (char ',')
+        Just children -> pure $ withProps ~* Play.with children
 
 
 -- | Simple string-based parser for testing (parses item names in quotes)
@@ -205,24 +234,25 @@ parseStringItem = do
     pure name
 
 
+{-
 -- | Parse a layout with string items
 parsePlayString :: String -> Either ParseError (Play String)
 parsePlayString input =
-    runParser input $ parseLayout parseStringItem <* eof
+    runParser input $ parseLayout parseStringItem <* eof -}
 
 
 -- | Convenience function to parse a layout with default item value
 -- | Format: "W:FIX(100)+H:GRW [ W:FIT+H:FIT, W:GRW+H:FIX(50) ]"
 parsePlay :: forall a. a -> String -> Either ParseError (Play a)
 parsePlay defaultItem input =
-    runParser input $ parseLayout (pure defaultItem) <* eof
+    runParser input $ parseLayout defaultItem <* eof
 
 
 -- | Parse multiple sibling layouts separated by semicolons
 -- | Format: "W:FIT+H:FIT; W:GRW+H:FIX(50); W:FIX(100)+H:GRW"
 parsePlayArray :: forall a. a -> String -> Either ParseError (Array (Play a))
 parsePlayArray defaultItem input =
-    runParser input (sepBy (parseLayout (pure defaultItem)) (char ';') <* eof)
+    runParser input (sepBy (parseLayout defaultItem) (char ';') <* eof)
         <#> List.toUnfoldable
 
 
