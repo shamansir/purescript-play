@@ -1,3 +1,4 @@
+-- filepath: test/Test/QuickDef.purs
 module Test.QuickDef where
 
 import Prelude
@@ -24,7 +25,7 @@ import Parsing.String (char, string, anyChar, eof)
 import Parsing.String.Basic (number, skipSpaces, takeWhile1)
 
 
-propSep = ' ' :: Char -- '+'
+propSep = ' ' :: Char
 
 
 -- | Parse a sizing specification like "FIX(100)", "PCT(30%)", "GRW", etc.
@@ -97,17 +98,29 @@ parseSizing =
             pure $ PT.GrowMin { min }
 
 
--- | Parse direction specification like "LR" or "TB"
+-- | Parse direction specification like "LR", "TB", "→", "↓" or with optional "D:" prefix
 parseDirection :: Parser String PT.Direction
 parseDirection =
-    try (string "LR" $> PT.LeftToRight)
-    <|> try (string "TB" $> PT.TopToBottom)
-    <|> try (string "→" $> PT.LeftToRight)
-    <|> try (string "↓" $> PT.TopToBottom)
-    <?> "LR | TB | → | ↓"
+    -- Try with D: prefix first
+    (try parseWithPrefix)
+    -- Then try without prefix
+    <|> (try parseWithoutPrefix)
+    <?> "LR | TB | → | ↓ | D:LR | D:TB | D:→ | D:↓"
+    where
+        parseWithPrefix = do
+            _ <- string "D:"
+            parseDirectionValue
+
+        parseWithoutPrefix = parseDirectionValue
+
+        parseDirectionValue =
+            (try (string "LR") $> PT.LeftToRight)
+            <|> (try (string "TB") $> PT.TopToBottom)
+            <|> (try (string "→") $> PT.LeftToRight)
+            <|> (try (string "↓") $> PT.TopToBottom)
 
 
--- | Parse a single property like "W:FIX(100)" or "H:GRW"
+-- | Parse a single property like "W:FIX(100)" or "H:GRW" or just "LR"
 data Property
     = WidthProp PT.Sizing
     | HeightProp PT.Sizing
@@ -122,7 +135,7 @@ parseProperty =
     <|> try parseDirectionProp
     <|> try parseGap
     <|> try parsePadding
-    <?> "W:..., H:..., D:..., GAP:..., PAD:..."
+    <?> "W:... | H:... | LR | TB | → | ↓ | D:... | GAP:... | PAD:..."
     where
         parseWidth = do
             _ <- string "W:"
@@ -135,7 +148,6 @@ parseProperty =
             pure $ HeightProp sizing
 
         parseDirectionProp = do
-            _ <- string "D:"
             dir <- parseDirection
             pure $ DirectionProp dir
 
@@ -161,7 +173,7 @@ parseProperty =
             pure $ PaddingProp top right bottom left
 
 
--- | Parse a property list like "W:FIX(100) H:GRW+D:LR"
+-- | Parse a property list like "W:FIX(100) H:GRW LR" or "LR W:FIX(100) H:GRW"
 parseProperties :: Parser String (Array Property)
 parseProperties = sepBy parseProperty (char propSep) <#> List.toUnfoldable
 
@@ -179,7 +191,7 @@ applyProperties props play = foldl applyProperty play props
 
 
 -- | Parse a layout specification without children
--- | Format: "W:FIX(100) H:GRW"
+-- | Format: "W:FIX(100) H:GRW" or "LR W:FIX(100) H:GRW"
 parseSimpleLayout :: forall a. a -> Parser String (Play a)
 parseSimpleLayout item = do
     skipSpaces
@@ -207,6 +219,7 @@ parseChildren item = do
 
 -- | Parse a complete layout with optional children
 -- | Format: "W:FIX(100) H:GRW [ W:FIT H:FIT, W:GRW H:FIX(50) ]"
+-- | or "LR W:FIX(100) H:GRW [ W:FIT H:FIT, W:GRW H:FIX(50) ]"
 parseLayout :: forall a. a -> Parser String (Play a)
 parseLayout item = do
     skipSpaces
@@ -223,33 +236,15 @@ parseLayout item = do
         Just children -> pure $ withProps ~* Play.with children
 
 
--- | Simple string-based parser for testing (parses item names in quotes)
-parseStringItem :: Parser String String
-parseStringItem = do
-    skipSpaces
-    _ <- char '"'
-    name <- String.fromCharArray <$> Array.many (anyChar)
-    _ <- char '"'
-    skipSpaces
-    pure name
-
-
-{-
--- | Parse a layout with string items
-parsePlayString :: String -> Either ParseError (Play String)
-parsePlayString input =
-    runParser input $ parseLayout parseStringItem <* eof -}
-
-
 -- | Convenience function to parse a layout with default item value
--- | Format: "W:FIX(100)+H:GRW [ W:FIT+H:FIT, W:GRW+H:FIX(50) ]"
+-- | Format: "W:FIX(100) H:GRW [ W:FIT H:FIT, W:GRW H:FIX(50) ]"
 parsePlay :: forall a. a -> String -> Either ParseError (Play a)
 parsePlay defaultItem input =
     runParser input $ parseLayout defaultItem <* eof
 
 
 -- | Parse multiple sibling layouts separated by semicolons
--- | Format: "W:FIT+H:FIT; W:GRW+H:FIX(50); W:FIX(100)+H:GRW"
+-- | Format: "W:FIT H:FIT; W:GRW H:FIX(50); W:FIX(100) H:GRW"
 parsePlayArray :: forall a. a -> String -> Either ParseError (Array (Play a))
 parsePlayArray defaultItem input =
     runParser input (sepBy (parseLayout defaultItem) (char ';') <* eof)
@@ -257,9 +252,15 @@ parsePlayArray defaultItem input =
 
 
 -- | Helper to create a parent with children from string specs
--- | Example: from "D:LR+W:GRW+H:FIT" ["W:FIT+H:FIT", "W:FIX(30)+H:FIT"]
-from :: forall a. String -> Array String -> a -> Either ParseError (Play a)
-from parentSpec childSpecs item = do
+-- | Example: from "LR W:GRW H:FIT" ["W:FIT H:FIT", "W:FIX(30) H:FIT"]
+from :: String -> Array String -> Either ParseError (Play Unit)
+from parentSpec childSpecs = from' parentSpec childSpecs unit
+
+
+-- | Helper to create a parent with children from string specs
+-- | Example: from "LR W:GRW H:FIT" ["W:FIT H:FIT", "W:FIX(30) H:FIT"]
+from' :: forall a. String -> Array String -> a -> Either ParseError (Play a)
+from' parentSpec childSpecs item = do
     parent <- parsePlay item parentSpec
     children <- traverse (\spec -> parsePlay item spec) childSpecs
     pure $ parent ~* Play.with children
@@ -267,7 +268,7 @@ from parentSpec childSpecs item = do
 
 -- | Infix version of `from` for convenience
 infixl 5 from as :<
-
+infixl 5 from' as :<<
 
 -- | Helper to quickly create a Play from a spec string
 quick :: forall a. String -> a -> Either ParseError (Play a)
