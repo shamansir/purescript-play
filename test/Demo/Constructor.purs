@@ -774,8 +774,69 @@ renderCodePanel state =
 
         tabStyle isActive = "padding: 8px 16px; cursor: pointer; border-bottom: " <> (if isActive then "2px solid #007bff" else "1px solid #ccc") <> "; background: " <> (if isActive then "#fff" else "#f8f8f8") <> ";"
 
-        contentStyle = "height: calc(100% - 80px); overflow: auto;"
+        -- Updated content style to accommodate navigation bar
+        contentStyle = "height: calc(100% - 120px); overflow: auto;"
+        contentWithoutNavStyle = "height: calc(100% - 80px); overflow: auto;"
+
         isExpanded = state.codePanel.expanded
+
+        -- Helper functions for navigation state
+        hasPreviousSibling =
+            case Array.unsnoc state.selectedPath of
+                Nothing -> false
+                Just { last: currentIndex } -> currentIndex > 0
+
+        hasNextSibling =
+            case Array.unsnoc state.selectedPath of
+                Nothing -> false
+                Just { init: parentPath, last: currentIndex } ->
+                    let
+                        mbParentTree = Play.playAt parentPath state.playTree
+                        siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
+                    in currentIndex < siblingCount - 1
+
+        isAtRoot = state.selectedPath == []
+
+        -- Compact navigation button style
+        navButtonStyle enabled = "padding: 3px 8px; font-size: 11px; color: white; border: none; border-radius: 3px; cursor: " <>
+            (if enabled then "pointer; background: #007bff;" else "not-allowed; background: #6c757d; opacity: 0.6;")
+
+        -- Render navigation bar
+        renderNavBar =
+            HH.div
+                [ HP.style "padding: 6px 10px; border-bottom: 1px solid #ddd; background: #f8f8f8; display: flex; gap: 6px; align-items: center;" ]
+                [ HH.button
+                    [ HE.onClick \_ -> GoToRoot
+                    , HP.style $ navButtonStyle (not isAtRoot)
+                    , HP.disabled isAtRoot
+                    , HP.title "Go to root"
+                    ]
+                    [ HH.text "⌂" ]
+                , HH.button
+                    [ HE.onClick \_ -> SelectItem $ Array.dropEnd 1 state.selectedPath
+                    , HP.style $ navButtonStyle (not isAtRoot)
+                    , HP.disabled isAtRoot
+                    , HP.title "Go to parent"
+                    ]
+                    [ HH.text "↑" ]
+                , HH.button
+                    [ HE.onClick \_ -> GoToPreviousSibling
+                    , HP.style $ navButtonStyle hasPreviousSibling
+                    , HP.disabled (not hasPreviousSibling)
+                    , HP.title "Previous sibling"
+                    ]
+                    [ HH.text "←" ]
+                , HH.button
+                    [ HE.onClick \_ -> GoToNextSibling
+                    , HP.style $ navButtonStyle hasNextSibling
+                    , HP.disabled (not hasNextSibling)
+                    , HP.title "Next sibling"
+                    ]
+                    [ HH.text "→" ]
+                , HH.span
+                    [ HP.style "margin-left: auto; color: #666; font-size: 10px; font-family: monospace;" ]
+                    [ HH.text $ "Path: " <> show state.selectedPath ]
+                ]
     in
         if isExpanded then
             HH.div
@@ -805,26 +866,41 @@ renderCodePanel state =
                         ]
                         [ HH.text "JSON" ]
                     ]
-                , HH.div
-                    [ HP.style contentStyle ]
-                    [ case state.codePanel.tabIndex of
-                        0 ->  -- Tree tab
-                            renderTextualTree state.selectedPath state.codePanel.collapsedNodes state.playTree
-                        1 ->  -- Code tab
-                            HH.textarea
-                                [ HP.value codeContent
-                                , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
-                                , HP.readOnly true
-                                ]
+                , case state.codePanel.tabIndex of
+                    0 ->  -- Tree tab (no navigation bar)
+                        HH.div
+                            [ HP.style contentWithoutNavStyle ]
+                            [ renderTextualTree state.selectedPath state.codePanel.collapsedNodes state.playTree ]
 
-                        2 ->  -- JSON tab
-                            HH.textarea
-                                [ HP.value jsonContent
-                                , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
-                                , HP.readOnly true
+                    1 ->  -- Code tab (with navigation bar)
+                        HH.div
+                            [ HP.style "height: 100%;" ]
+                            [ renderNavBar
+                            , HH.div
+                                [ HP.style contentStyle ]
+                                [ HH.textarea
+                                    [ HP.value codeContent
+                                    , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
+                                    , HP.readOnly true
+                                    ]
                                 ]
-                        _ -> HH.text ""
-                    ]
+                            ]
+
+                    2 ->  -- JSON tab (with navigation bar)
+                        HH.div
+                            [ HP.style "height: 100%;" ]
+                            [ renderNavBar
+                            , HH.div
+                                [ HP.style contentStyle ]
+                                [ HH.textarea
+                                    [ HP.value jsonContent
+                                    , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
+                                    , HP.readOnly true
+                                    ]
+                                ]
+                            ]
+
+                    _ -> HH.text ""
                 ]
         else
             -- Collapsed: circular button with icons
@@ -837,7 +913,6 @@ renderCodePanel state =
                     [ HP.style "display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;" ]
                     $ (\name -> HH.span [ HP.style "font-size: 16px; margin: 2px 4px;" ] [ HH.text name ]) <$>
                     [ "◈ Tree", "◈ Code", "◈ JSON" ]
-                    -- ]
                 ]
 
 
