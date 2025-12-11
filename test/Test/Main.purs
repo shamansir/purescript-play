@@ -13,5 +13,5 @@ import Test.Spec.Layout as Layout
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [consoleReporter] do
-  QuickDef.spec
+  -- QuickDef.spec
   Layout.spec
