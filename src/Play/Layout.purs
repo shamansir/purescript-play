@@ -5,7 +5,7 @@ import Prelude
 import Data.Array (length, filter, snoc) as Array
 import Data.Foldable (foldl)
 import Data.Int (toNumber) as Int
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 
@@ -33,6 +33,9 @@ layoutTree
     =   Tree.break doFitSizing
     >>> Tree.break doGrowSizing
     >>> Tree.break (doPositioning { x : 0.0, y : 0.0 })
+    -- Fit sizing: calculate sizes needed to fit children
+    -- Grow sizing: allocate remaining space for growing children
+    -- Positioning: using the size information, assign positions to each child; also based on alignment and direction
     where
 
         rect :: PT.Pos -> PT.Size -> PT.Rect
@@ -40,29 +43,33 @@ layoutTree
 
         doFitSizing :: PT.WithDef a -> Array (Tree (PT.WithDef a)) -> Tree (PT.WithDefSize a)
         doFitSizing { v, def } xs =
+            -- fit sizing is done depth-first
             let
-                childrenSizes :: Array (Tree (PT.WithDefSize a))
-                childrenSizes = Tree.break doFitSizing <$> xs
-
                 childrenCount = Array.length xs :: Int
 
-                foldFMain :: (PT.Size -> Number) -> Number -> Tree (PT.WithDefSize a) -> Number
-                foldFMain extract n tree = n +   (tree # Tree.value # _.size # extract)
-
-                foldFSec  :: (PT.Size -> Number) -> Number -> Tree (PT.WithDefSize a) -> Number
-                foldFSec  extract n tree = max n (tree # Tree.value # _.size # extract)
-
+                -- get the size needed to fit children along a specific side
                 fitAtSide :: Side_ -> Number
                 fitAtSide = case _ of
                     Width ->
                         case def.direction of
-                            PT.LeftToRight -> foldl (foldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
-                            PT.TopToBottom -> foldl (foldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
+                            PT.LeftToRight -> foldl (fitFoldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
+                            PT.TopToBottom -> foldl (fitFoldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
                     Height ->
                         case def.direction of
-                            PT.LeftToRight -> foldl (foldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
-                            PT.TopToBottom -> foldl (foldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
+                            PT.LeftToRight -> foldl (fitFoldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
+                            PT.TopToBottom -> foldl (fitFoldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
 
+                -- fit folding function for main axis (sum)
+                -- first argument extracts width or height from size
+                fitFoldFMain :: (PT.Size -> Number) -> Number -> Tree (PT.WithDefSize a) -> Number
+                fitFoldFMain extract n tree = n +   (tree # Tree.value # _.size # extract)
+
+                -- fit folding function for secondary axis (max instead of sum)
+                -- first argument extracts width or height from size
+                fitFoldFSec  :: (PT.Size -> Number) -> Number -> Tree (PT.WithDefSize a) -> Number
+                fitFoldFSec  extract n tree = max n (tree # Tree.value # _.size # extract)
+
+                -- calculate side based on its children sizing
                 calcSide :: Side_ -> Number
                 calcSide side =
                     let
@@ -72,16 +79,21 @@ layoutTree
                                 Height -> def.sizing.height
                     in case sizing of
                         PT.Fixed n -> n
-                        PT.Percentage _ -> 0.0
+                        PT.Percentage _ -> 0.0 -- percentages are handled later
                         PT.Fit -> fitAtSide side
                         PT.FitGrow -> fitAtSide side
                         PT.FitMin fit -> max fit.min $ fitAtSide side
                         PT.FitMax fit -> min fit.max $ fitAtSide side
                         PT.FitMinMax fit -> min fit.max $ max fit.min $ fitAtSide side
-                        PT.Grow -> 0.0
-                        PT.GrowMin _ -> 0.0
+                        PT.Grow -> 0.0 -- growing is handled later
+                        PT.GrowMin _ -> 0.0 -- growing is handled later
                         PT.None -> 0.0
 
+                -- perform fit sizing for all the children (depth-first)
+                childrenSizes :: Array (Tree (PT.WithDefSize a))
+                childrenSizes = Tree.break doFitSizing <$> xs
+
+                -- calculate size to fit all the children when needed
                 size =
                     let
                         calcWidth  = calcSide Width
@@ -89,55 +101,63 @@ layoutTree
                     in { width : calcWidth, height : calcHeight }
             in
                 Tree.node
-                    { v, def, size }
-                    $ childrenSizes
+                    { v, def, size } -- write the new calculated size in the current node
+                    $ childrenSizes -- fit the chidren recursively by calling `doFitSizing` on them
 
         doGrowSizing :: PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefSize a)
         doGrowSizing { v, def, size } children =
+            -- reverse breadth-first, assign sizes to growing children
             Tree.node { v, def, size } $
-            -- TODO: implement smallest and second smallest sizing algorithm : https://youtu.be/by9lQvpvMIc?t=1607, https://youtu.be/by9lQvpvMIc?t=1992
             let
+                childrenCount = Array.length children
+
+                -- filter out only the children satisfying the given predicate
+                childrenDefsBy :: (Side_ -> PT.Def -> Boolean) -> Side_ -> Array PT.Def
+                childrenDefsBy condF side
+                     =  Array.filter (condF side)
+                     $  (Tree.value >>> _.def)
+                    <$> children
+
                 isGrowingSide :: PT.Sizing -> Boolean
                 isGrowingSide = case _ of
                     PT.Grow -> true
                     PT.GrowMin _ -> true
                     PT.FitGrow -> true
                     _ -> false
-                isPercentageSide :: PT.Sizing -> Boolean
-                isPercentageSide = case _ of
-                    PT.Percentage _ -> true
-                    _ -> false
+                hasGrowingSide :: Side_ -> PT.Def -> Boolean
+                hasGrowingSide Width  = _.sizing >>> _.width  >>> isGrowingSide
+                hasGrowingSide Height = _.sizing >>> _.height >>> isGrowingSide
+
                 extractPercentage :: PT.Sizing -> Maybe Number
                 extractPercentage = case _ of
                     PT.Percentage (PT.Percents pct) -> Just pct
                     _ -> Nothing
-                hasGrowingSide :: Side_ -> PT.Def -> Boolean
-                hasGrowingSide Width  = _.sizing >>> _.width  >>> isGrowingSide
-                hasGrowingSide Height = _.sizing >>> _.height >>> isGrowingSide
                 hasPercentageSide :: Side_ -> PT.Def -> Boolean
-                hasPercentageSide Width  = _.sizing >>> _.width  >>> isPercentageSide
-                hasPercentageSide Height = _.sizing >>> _.height >>> isPercentageSide
+                hasPercentageSide Width  = extractPercentageSide Width >>> isJust
+                hasPercentageSide Height = extractPercentageSide Height >>> isJust
                 extractPercentageSide :: Side_ -> PT.Def -> Maybe Number
                 extractPercentageSide Width  = _.sizing >>> _.width  >>> extractPercentage
                 extractPercentageSide Height = _.sizing >>> _.height >>> extractPercentage
-                childrenCount = Array.length children
-                childrenDefsBy :: (Side_ -> PT.Def -> Boolean) -> Side_ -> Array PT.Def
-                childrenDefsBy condF side
-                     =  Array.filter (condF side)
-                     $  (Tree.value >>> _.def)
-                    <$> children
+
                 growChildrenDefsBy = childrenDefsBy hasGrowingSide
                 percentageChildrenDefsBy = childrenDefsBy hasPercentageSide
+
                 totalPercentageW = foldl (+) 0.0 $ fromMaybe 0.0 <$> extractPercentageSide Width  <$> percentageChildrenDefsBy Width
                 totalPercentageH = foldl (+) 0.0 $ fromMaybe 0.0 <$> extractPercentageSide Height <$> percentageChildrenDefsBy Height
+
                 growChildrenCount = Array.length <<< growChildrenDefsBy
                 percentageChildrenCount = Array.length <<< percentageChildrenDefsBy
+
                 growChildrenByW = growChildrenCount Width
                 growChildrenByH = growChildrenCount Height
+
                 percentageChildrenByW = percentageChildrenCount Width
                 percentageChildrenByH = percentageChildrenCount Height
+
             in if growChildrenByW > 0 || growChildrenByH > 0 || percentageChildrenByW > 0 || percentageChildrenByH > 0 then
                 let
+
+                    -- the width available for growing children after accounting for fixed-size and fit-size children, including padding and gaps
                     availableWidth = case def.direction of
                         PT.LeftToRight ->
                             let knownWidth = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.width) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
@@ -146,6 +166,8 @@ layoutTree
                         PT.TopToBottom ->
                             let percentageReservedW = size.width * totalPercentageW
                             in  size.width - def.padding.right - def.padding.left - percentageReservedW
+
+                    -- the height available for growing children after accounting for fixed-size and fit-size children, including padding and gaps
                     availableHeight = case def.direction of
                         PT.LeftToRight ->
                             let percentageReservedH = size.height * totalPercentageH
@@ -154,12 +176,18 @@ layoutTree
                             let knownHeight = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
                                 percentageReservedH = size.height * totalPercentageH
                             in  size.height - knownHeight - percentageReservedH
+
+                    -- if there are growing children by the main axis, distribute available space among them, otherwise give all available space to each growing child on the secondary axis
                     growWidth = case def.direction of
                         PT.LeftToRight -> availableWidth / Int.toNumber growChildrenByW
                         PT.TopToBottom -> availableWidth
+
+                    -- if there are growing children by the main axis, distribute available space among them, otherwise give all available space to each growing child on the secondary axis
                     growHeight = case def.direction of
                         PT.LeftToRight -> availableHeight
                         PT.TopToBottom -> availableHeight / Int.toNumber growChildrenByH
+
+                    -- depending on growing algorithm, add growing size to the child; percentages are handled here as well
                     addGrowingToChild :: Tree (PT.WithDefSize a) -> Tree (PT.WithDefSize a)
                     addGrowingToChild child =
                         case Tree.value child of
@@ -183,17 +211,22 @@ layoutTree
                                             _ -> s
                                 in
                                     Tree.update (\chv -> chv { size = addHeight $ addWidth chv.size }) child
-                in Tree.break doGrowSizing <$> addGrowingToChild <$> children
+
+                in Tree.break doGrowSizing <$> addGrowingToChild <$> children -- add growing sizes to the growing children and iterate further down the tree
             else
-                Tree.break doGrowSizing <$> children
+                Tree.break doGrowSizing <$> children -- leave chidren intact when there aren't any growing or percentage-based children, but iterate further down the tree
 
         doPositioning :: PT.Pos -> PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefRect a) -- could be `WithRect` easily, but we keep `def` to be able to roll back `Layout` to original `Play`
         doPositioning pos { v, def, size } xs =
             Tree.node
                 { v, def, rect : rect pos size }
-               <$> map (map addSecondaryAxisAlignment)
+               <$> map (map addSecondaryAxisAlignment) -- adjust each child's position based on secondary axis alignment; positions are changed only on the secondary axis here
                 $ Tuple.snd
-                $ foldl foldF (withPadding (addMainAxisAlignment pos) /\ []) xs
+                $ foldl
+                    foldF -- folding function that adds offsets to every next child, starting with the provided one; positions are changed mostly on the main axis here (only padding and gap are considered for secondary axis as well)
+                    (withPadding (addMainAxisAlignment pos) /\ []) -- the provided initial offset, adjusted for padding and main axis alignment
+                    xs
+
             where
                 withPadding padPos = { x : padPos.x + def.padding.left, y : padPos.y + def.padding.top }
                 totalHorzWidth  = foldl (+) 0.0 $ Tree.value >>> _.size >>> _.width  <$> xs
