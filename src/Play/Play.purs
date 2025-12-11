@@ -24,7 +24,7 @@ module Play
     , alignH, alignV, alignLeft, alignCenter, alignRight, alignTop, alignMiddle, alignBottom
     , (~*), playProp
     , pctToNumber
-    , toJSON, fromJSON
+    , toJSON, toPrettyJSON, fromJSON
     )  where
 
 import Prelude
@@ -41,7 +41,7 @@ import Play.Types
 import Play.Types (Percents(..)) as PTX
 import Play.Layout (layoutTree) as Layout
 
-import Yoga.JSON (class ReadForeign, class WriteForeign, writeImpl, readImpl, writeJSON, readJSON, E)
+import Yoga.JSON (class ReadForeign, class WriteForeign, writeImpl, readImpl, writeJSON, writePrettyJSON, readJSON, E)
 
 -- | A layout tree containing elements of type `a` with layout definitions.
 -- | This is the primary type for building layouts before they are computed.
@@ -527,6 +527,12 @@ instance ReadForeign a => ReadForeign (Play a) where
 -- | Serialize a Play layout to JSON string
 toJSON :: forall a. WriteForeign a => Play a -> String
 toJSON = writeJSON
+
+
+-- | Serialize a Play layout to JSON string
+toPrettyJSON :: forall a. WriteForeign a => Int -> Play a -> String
+toPrettyJSON = writePrettyJSON
+
 
 -- | Deserialize a Play layout from JSON string
 fromJSON :: forall a. ReadForeign a => String -> E (Play a)

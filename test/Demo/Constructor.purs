@@ -759,15 +759,15 @@ renderColorSelect currentColor =
         ]
 
 
--- filepath: test/Demo/Constructor.purs
-
 renderCodePanel :: forall i. State -> HH.HTML i Action
 renderCodePanel state =
     let
-        codeContent = fromMaybe "-" $ Play.toCode (itemName >>> show) <$> Play.playAt state.selectedPath state.playTree
+        mbCurrentPlayTree = Play.playAt state.selectedPath state.playTree
+        codeContent = fromMaybe "-" $ Play.toCode (itemName >>> show) <$> mbCurrentPlayTree
+        jsonContent = fromMaybe "-" $ Play.toPrettyJSON 2 <$> mbCurrentPlayTree
         arrowSymbol = if state.codePanel.expanded then "▼" else "▶"
 
-        collapsedStyle = "font-family: monospace; position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: seagreen; color: white; border: none; border-radius: 28%; height: 80px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; transition: all 0.3s ease;"
+        collapsedStyle = "font-family: monospace; position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: seagreen; color: white; border: none; border-radius: 10%; padding: 10px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; transition: all 0.3s ease;"
         expandedPanelStyle = "position: fixed; bottom: 0; left: 20%; right: 50%; height: 40vh; z-index: 1000; background: #f0f0f0; border: 2px solid #ccc; border-radius: 8px 8px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);"
 
         titleStyle = "padding: 8px 15px; font-weight: bold; border-bottom: 1px solid #ccc; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;"
@@ -793,23 +793,37 @@ renderCodePanel state =
                         [ HP.style $ tabStyle (state.codePanel.tabIndex == 0)
                         , HE.onClick \_ -> SelectCodeTab 0
                         ]
-                        [ HH.text "Code" ]
+                        [ HH.text "Tree" ]
                     , HH.div
                         [ HP.style $ tabStyle (state.codePanel.tabIndex == 1)
                         , HE.onClick \_ -> SelectCodeTab 1
                         ]
-                        [ HH.text "Tree" ]
+                        [ HH.text "Code" ]
+                    , HH.div
+                        [ HP.style $ tabStyle (state.codePanel.tabIndex == 2)
+                        , HE.onClick \_ -> SelectCodeTab 2
+                        ]
+                        [ HH.text "JSON" ]
                     ]
                 , HH.div
                     [ HP.style contentStyle ]
-                    [ if state.codePanel.tabIndex == 0 then
-                        HH.textarea
-                            [ HP.value codeContent
-                            , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
-                            , HP.readOnly true
-                            ]
-                      else
-                        renderTextualTree state.selectedPath state.codePanel.collapsedNodes state.playTree
+                    [ case state.codePanel.tabIndex of
+                        0 ->  -- Tree tab
+                            renderTextualTree state.selectedPath state.codePanel.collapsedNodes state.playTree
+                        1 ->  -- Code tab
+                            HH.textarea
+                                [ HP.value codeContent
+                                , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
+                                , HP.readOnly true
+                                ]
+
+                        2 ->  -- JSON tab
+                            HH.textarea
+                                [ HP.value jsonContent
+                                , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
+                                , HP.readOnly true
+                                ]
+                        _ -> HH.text ""
                     ]
                 ]
         else
@@ -821,9 +835,9 @@ renderCodePanel state =
                 ]
                 [ HH.div
                     [ HP.style "display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;" ]
-                    [ HH.span [ HP.style "font-size: 16px; margin-bottom: 4px;" ] [ HH.text "</> Code" ]
-                    , HH.span [ HP.style "font-size: 16px;" ] [ HH.text "◈ Tree" ]
-                    ]
+                    $ (\name -> HH.span [ HP.style "font-size: 16px; margin: 2px 4px;" ] [ HH.text name ]) <$>
+                    [ "◈ Tree", "◈ Code", "◈ JSON" ]
+                    -- ]
                 ]
 
 
