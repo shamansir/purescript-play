@@ -325,11 +325,13 @@ component =
 setItemName :: String -> Item -> Item
 setItemName newName (Item mbCol _) = Item mbCol newName
 setItemName _       (AKanji kanji) = AKanji kanji
+setItemName _       Stub = Stub
 
 -- Set item color
 setItemColor :: HA.Color -> Item -> Item
 setItemColor newColor (Item _ name)  = Item (Just newColor) name
 setItemColor _        (AKanji kanji) = AKanji kanji
+setItemColor _        Stub = Stub
 
 
 isFixedSizing :: PT.Sizing -> Maybe Number
@@ -1001,31 +1003,23 @@ renderClickableItem state (path /\ { v, def, rect }) =
                     , HP.style "cursor: pointer;"
                     , HE.onClick \_ -> SelectItem path
                     ]
-                , case v of
-                    Item _ itemLabel ->
-                        HS.text
-                            [ HA.x $ rect.pos.x + 5.0
-                            , HA.y $ rect.pos.y + 7.0
-                            , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
-                            , HA.fill $ HA.Named "white"
-                            , HA.strokeWidth 0.5
-                            , HA.dominantBaseline HA.Hanging
-                            , HP.style "pointer-events: none;"
-                            , HE.onClick \_ -> SelectItem path
-                            ]
-                            [ HH.text itemLabel ]
-                    AKanji (Kanji kanji) ->
-                        HS.text
-                            [ HA.x $ rect.pos.x + 5.0
-                            , HA.y $ rect.pos.y + 7.0
-                            , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
-                            , HA.fill $ HA.Named "white"
-                            , HA.strokeWidth 0.5
-                            , HA.dominantBaseline HA.Hanging
-                            , HP.style "pointer-events: none;"
-                            , HE.onClick \_ -> SelectItem path
-                            ]
-                            [ HH.text kanji ]
+                , HS.text
+                    [ HA.x $ rect.pos.x + 5.0
+                    , HA.y $ rect.pos.y + 7.0
+                    , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
+                    , HA.fill $ HA.Named "white"
+                    , HA.strokeWidth 0.5
+                    , HA.dominantBaseline HA.Hanging
+                    , HP.style "pointer-events: none;"
+                    , HE.onClick \_ -> SelectItem path
+                    ]
+                    [ case v of
+                        Item _ itemLabel ->
+                            HH.text itemLabel
+                        AKanji (Kanji kanji) ->
+                            HH.text kanji
+                        Stub -> HH.text ""
+                    ]
                 ]
                 <> if state.showEncodedSizing then
                     [ HS.text

@@ -19,7 +19,7 @@ import Play as Play
 
 import Play.Types (WithRect)  as PT
 
-import Test.Demo.Examples (Item(..), Example, theExamples, LayedOutExample, layoutExample)
+import Test.Demo.Examples (Item(..), DemoExample, theExamples, LayedOutExample, layoutExample, Kanji(..))
 
 
 main :: Effect Unit
@@ -32,7 +32,7 @@ type Action
     = Unit
 
 
-type State = Array Example
+type State = Array DemoExample
 
 
 component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
@@ -108,5 +108,23 @@ renderOne clickAction { id, label, size, layout } =
                             ]
                             [ HH.text itemLabel ]
                         ]
-                AKanji _ ->
-                    HS.g [] []
+                AKanji (Kanji kanji) ->
+                    HS.g
+                        [ HE.onClick \_ -> clickAction ]
+                        [ HS.text
+                            [ HA.x $ rect.pos.x + 5.0
+                            , HA.y $ rect.pos.y + 7.0
+                            , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
+                            -- , HA.fontWeight $ HA.Px ?wh
+                            , HA.fill $ HA.Named "white"
+                            -- , HA.stroke $ HA.Named "black"
+                            , HA.strokeWidth 0.5
+                            , HA.dominantBaseline HA.Hanging
+                            ]
+                            [ HH.text kanji ]
+                        ]
+                Stub ->
+                    HS.g
+                        [ HE.onClick \_ -> clickAction ]
+                        [
+                        ]

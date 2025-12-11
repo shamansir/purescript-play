@@ -2,7 +2,7 @@ module Test.Demo.Examples where
 
 import Prelude
 
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (range) as Array
 import Data.Int (toNumber) as Int
 
@@ -15,11 +15,19 @@ import Yoga.JSON (class WriteForeign, writeImpl)
 
 
 data Item
-    = Item (Maybe HA.Color) String
+    = Stub
+    | Item (Maybe HA.Color) String
     | AKanji Kanji
 
 
-data Example = Example Int Play.Size String (Play Item)
+data Example a = Example Int Play.Size String (Play a)
+
+
+instance Functor Example where
+    map f (Example id size label play) = Example id size label $ f <$> play
+
+
+type DemoExample = Example Item
 
 
 type LayedOutExample =
@@ -51,33 +59,35 @@ green  = ic (HA.RGB 102 128 11) "Green" :: Item
 purple = ic (HA.RGB 94 64 157)  "Purple" :: Item
 
 
-ex :: Int -> String -> Number -> Number -> Play Item -> Example
+ex :: forall a. Int -> String -> Number -> Number -> Play a -> Example a
 ex id label w h = Example id { width : w, height : h } label
 
 
-layoutExample :: Example -> LayedOutExample
+layoutExample :: DemoExample -> LayedOutExample
 layoutExample (Example id size label play) = { id, label, size, layout : Play.layout play }
 
 
-playOf :: Example -> Play Item
+playOf :: forall a. Example a -> Play a
 playOf (Example _ _ _ play) = play
 
 
-nameOf :: Example -> String
+nameOf :: forall a. Example a -> String
 nameOf (Example _ _ name _) = name
 
 
 itemName :: Item -> String
 itemName (Item _ name) = name
 itemName (AKanji (Kanji kanji)) = kanji
+itemName Stub = ""
 
 
 colorOf :: Item -> Maybe HA.Color
 colorOf (Item mbCol _) = mbCol
 colorOf (AKanji _) = Just $ HA.RGB 100 100 255
+colorOf Stub = Just $ HA.RGBA 0 0 0 0.0
 
 
-theExamples :: Array Example
+theExamples :: Array DemoExample
 theExamples =
     [ noodleUI {- 20 -}
     , noodleHorzNodeUI {- 18 -}
@@ -108,7 +118,7 @@ theExamples =
 
 -- not all of them, but for the constructor we don't need all of them,
 -- since there's UI for configuration of these settings and they would intersect too much
-selectedExamples :: Array Example
+selectedExamples :: Array DemoExample
 selectedExamples =
     [ noodleUI {- 20 -}
     , noodleHorzNodeUI {- 18 -}
@@ -126,7 +136,7 @@ selectedExamples =
     , exFitTopBottom {- 08 -}
     , exFitTopBottomPaddingGap {- 09 -}
     , nodeGrowingExperiment {- 23 -}
-    ]
+    ] <> kanjiExamples
 
 
 menuItem :: String -> Play Item
@@ -153,7 +163,7 @@ exSingleMenuItem =
         ~* Play.width 250.0
         ~* Play.heightFit
         ~* Play.with (pure $ menuItem "Menu Item")
-    :: Example
+    :: DemoExample
 
 
 {- 01 -}
@@ -166,7 +176,7 @@ exCompleteMenu =
         ~* Play.topToBottom
         ~* Play.childGap 5.0
         ~* Play.with (menuItem <$> [ "Copy", "Paste", "Delete", "Spell Check", "Dictionary", "Comment" ])
-    :: Example
+    :: DemoExample
 
 
 {- 02 -}
@@ -186,7 +196,7 @@ exFixedNoGaps =
                 ~* Play.width 10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 03 -}
@@ -207,7 +217,7 @@ exFixedChildGap =
                 ~* Play.width  10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 04 -}
@@ -229,7 +239,7 @@ exFixedPaddingChildGap =
                 ~* Play.width  10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 05 -}
@@ -252,7 +262,7 @@ exFixedTopToBotPaddingChildGap =
                 ~* Play.width  10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 06 -}
@@ -275,7 +285,7 @@ exFit =
                 ~* Play.width  10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 07 -}
@@ -298,7 +308,7 @@ exFitPaddingGap =
                 ~* Play.width  10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 08 -}
@@ -319,7 +329,7 @@ exFitTopBottom =
                 ~* Play.width  10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 09 -}
@@ -342,7 +352,7 @@ exFitTopBottomPaddingGap =
                 ~* Play.width  10.0
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 10 -}
@@ -363,7 +373,7 @@ exFitGrowLast =
                 ~* Play.widthGrow
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 11 -}
@@ -387,7 +397,7 @@ exFitGrowMiddle =
                 ~* Play.width  200.0
                 ~* Play.height 200.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 12 -}
@@ -410,7 +420,7 @@ exFitGrowLastPaddingGap =
                 ~* Play.widthGrow
                 ~* Play.height 250.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 13 -}
@@ -436,7 +446,7 @@ exFitGrowMiddlePaddingGap =
                 ~* Play.width  200.0
                 ~* Play.height 200.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 14 -}
@@ -462,7 +472,7 @@ exFitGrowMiddlePaddingGapVert =
                 ~* Play.width  200.0
                 ~* Play.height 200.0
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 15 -}
@@ -485,7 +495,7 @@ exFitGrowLastPaddingGapToToBottom =
                 ~* Play.width 10.0
                 ~* Play.heightGrow
             ]
-    :: Example
+    :: DemoExample
 
 
 {- 16 -}
@@ -511,7 +521,7 @@ exFitGrowMiddlePaddingGapTopToBottom =
                 ~* Play.width  200.0
                 ~* Play.height 200.0
             ]
-    :: Example
+    :: DemoExample
 
 
 
@@ -538,12 +548,12 @@ exFitGrowMiddlePaddingGapTopToBottomHorz =
                 ~* Play.width  200.0
                 ~* Play.height 200.0
             ]
-    :: Example
+    :: DemoExample
 
 
 
 {- 18 -}
-noodleHorzNodeUI :: Example
+noodleHorzNodeUI :: DemoExample
 noodleHorzNodeUI =
     let
         titleWidth = 30.0
@@ -655,7 +665,7 @@ noodleHorzNodeUI =
 
 
 {- 19 -}
-noodleVertNodeUI :: Example
+noodleVertNodeUI :: DemoExample
 noodleVertNodeUI =
     let
         titleHeight = 30.0
@@ -749,7 +759,7 @@ noodleVertNodeUI =
 
 
 {- 20 -}
-noodleUI :: Example
+noodleUI :: DemoExample
 noodleUI =
     let
         topBarHeight = 30.0
@@ -828,7 +838,7 @@ noodleUI =
 
 
 {- 21 -}
-svgGraphUI :: Example
+svgGraphUI :: DemoExample
 svgGraphUI =
     let
         width = 1000.0
@@ -901,7 +911,7 @@ svgGraphUI =
 
 
 {- 22 -}
-blank :: Example
+blank :: DemoExample
 blank =
     ex 22 "Blank UI" 850.0 650.0 $
         Play.i (il "Canvas")
@@ -910,7 +920,7 @@ blank =
 
 
 {- 23 -}
-nodeGrowingExperiment :: Example
+nodeGrowingExperiment :: DemoExample
 nodeGrowingExperiment =
     ex 23 "Node Growing Experiment" 850.0 650.0 $
         Play.i (il "Canvas")
@@ -946,6 +956,21 @@ nodeGrowingExperiment =
         ]
 
 
+kanjiExamples :: Array DemoExample
+kanjiExamples =
+    [ kanjiPlaySpecToExample 100 "Kanji Layout Example 1"
+        $ toPlaySpec
+        $ LeftToRight
+            { left : Single (Kanji "日")
+            , right : Surround Full
+                { inside : Single (Kanji "小")
+                , surround : Single (Kanji "口")
+                }
+            }
+            { rate : 0.4 }
+    ]
+
+
 newtype Kanji = Kanji String
 
 
@@ -970,8 +995,20 @@ data KanjiOp
     | Surround SurroundKind { inside :: KanjiOp, surround :: KanjiOp }
 
 
-toLayout :: KanjiOp -> Play (Maybe Kanji)
-toLayout = case _ of
+kanjiPlaySpecToExample :: Int -> String -> Play (Maybe Kanji) -> DemoExample
+kanjiPlaySpecToExample id name playSpec =
+    ex id name 400.0 400.0
+        $ Play.i (il "Kanji")
+            ~* Play.width 400.0
+            ~* Play.height 400.0
+            ~* Play.with
+                [ maybe Stub AKanji
+                    <$> playSpec
+                ]
+
+
+toPlaySpec :: KanjiOp -> Play (Maybe Kanji)
+toPlaySpec = case _ of
     Single kanji ->
         Play.i (Just kanji)
             ~* Play.widthGrow
@@ -983,10 +1020,10 @@ toLayout = case _ of
             ~* Play.heightGrow
             ~* Play.leftToRight
             ~* Play.with
-                [ toLayout left
+                [ toPlaySpec left
                     ~* Play.widthPercent (Play.pct rate)
                     ~* Play.heightGrow
-                , toLayout right
+                , toPlaySpec right
                     ~* Play.widthPercent (Play.pct $ 1.0 - rate)
                     ~* Play.heightGrow
                 ]
@@ -997,18 +1034,18 @@ toLayout = case _ of
             ~* Play.heightGrow
             ~* Play.topToBottom
             ~* Play.with
-                [ toLayout top
+                [ toPlaySpec top
                     ~* Play.widthGrow
                     ~* Play.heightPercent (Play.pct rate)
-                , toLayout bottom
+                , toPlaySpec bottom
                     ~* Play.widthGrow
                     ~* Play.heightPercent (Play.pct $ 1.0 - rate)
                 ]
 
     Surround kind { inside, surround } ->
         let
-            insidePlay = toLayout inside
-            surroundPlay = toLayout surround
+            insidePlay = toPlaySpec inside
+            surroundPlay = toPlaySpec surround
         in case kind of
             Full ->
                 Play.i Nothing
@@ -1019,29 +1056,14 @@ toLayout = case _ of
                         , Play.i Nothing -- ("Surround")
                             ~* Play.widthGrow
                             ~* Play.heightGrow
-                            ~* Play.topToBottom
+                            ~* Play.alignCenter
+                            ~* Play.alignMiddle
                             ~* Play.with
-                            [ Play.i Nothing -- ("Top row")
-                                ~* Play.widthGrow
-                                ~* Play.heightPercent (Play.pct 0.2)
-                            , Play.i Nothing -- ("Middle row")
-                                ~* Play.widthGrow
-                                ~* Play.heightPercent (Play.pct 0.6)
-                                ~* Play.with
-                                [ Play.i Nothing -- ("Left column")
-                                    ~* Play.widthPercent (Play.pct 0.2)
-                                    ~* Play.heightGrow
-                                , Play.i Nothing -- ("Middle Column")
-                                    ~* Play.widthPercent (Play.pct 0.6)
-                                    ~* Play.heightGrow
-                                    ~* Play.with [ insidePlay ]
-                                , Play.i Nothing -- ("Right Column")
-                                    ~* Play.widthPercent (Play.pct 0.2)
-                                    ~* Play.heightGrow
-                                ]
-                            , Play.i Nothing -- ("Bottom row")
-                                ~* Play.widthGrow
-                                ~* Play.heightPercent (Play.pct 0.2)
+                            [ surroundPlay
+                            , Play.i Nothing -- ("Surround")
+                                ~* Play.widthPercent (Play.pct 0.4)
+                                ~* Play.heightPercent (Play.pct 0.4)
+                                ~* Play.with [ insidePlay ]
                             ]
                         ]
             _ -> insidePlay -- TODO: implement other kinds

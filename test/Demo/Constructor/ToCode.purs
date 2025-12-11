@@ -73,11 +73,27 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
             renderChildGap :: Number -> Maybe String
             renderChildGap n = if n == 0.0 then Nothing else Just $ "Play.childGap " <> show n
 
-            modifiersList = Array.catMaybes [ renderWidth def.sizing.width
+            renderHAlignment :: PT.HAlign -> Maybe String
+            renderHAlignment (PT.Horz align) =
+                case align of
+                        PT.Start -> Nothing
+                        PT.Center -> Just "Play.alignCenter"
+                        PT.End -> Just "Play.alignRight"
+
+            renderVAlignment :: PT.VAlign -> Maybe String
+            renderVAlignment (PT.Vert align) =
+                case align of
+                        PT.Start -> Nothing
+                        PT.Center -> Just "Play.alignMiddle"
+                        PT.End -> Just "Play.alignBottom"
+
+            modifiersList = Array.catMaybes [ renderDirection def.direction
+                                            , renderWidth def.sizing.width
                                             , renderHeight def.sizing.height
+                                            , renderHAlignment def.alignment.horizontal
+                                            , renderVAlignment def.alignment.vertical
                                             , renderPadding def.padding
                                             , renderChildGap def.childGap
-                                            , renderDirection def.direction
                                             , renderChildren $ Tree.children t
                                             ]
 
