@@ -125,6 +125,144 @@ spec =
               let def = (Play.toTree play # Tree.value).def
               def.direction `shouldEqual` PT.TopToBottom
 
+    describe "parseAlignment" do
+
+      describe "horizontal alignment (ALIGNH)" do
+        it "parses HA:START" do
+          parsesPlay "LR W:FIT H:FIT HA:START" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.horizontal `shouldEqual` (PT.Horz PT.Start)
+
+        it "parses HA:CENTER" do
+          parsesPlay "LR W:FIT H:FIT HA:CENTER" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.horizontal `shouldEqual` (PT.Horz PT.Center)
+
+        it "parses HA:END" do
+          parsesPlay "LR W:FIT H:FIT HA:END" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.horizontal `shouldEqual` (PT.Horz PT.End)
+
+      describe "vertical alignment (ALIGNV)" do
+        it "parses VA:START" do
+          parsesPlay "TB W:FIT H:FIT VA:START" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.vertical `shouldEqual` (PT.Vert PT.Start)
+
+        it "parses VA:CENTER" do
+          parsesPlay "TB W:FIT H:FIT VA:CENTER" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.vertical `shouldEqual` (PT.Vert PT.Center)
+
+        it "parses VA:END" do
+          parsesPlay "TB W:FIT H:FIT VA:END" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.vertical `shouldEqual` (PT.Vert PT.End)
+
+
+      describe "both alignments" do
+        it "parses both ALIGNH and ALIGNV" do
+          parsesPlay "LR W:FIT H:FIT HA:CENTER VA:END" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.horizontal `shouldEqual` (PT.Horz PT.Center)
+              def.alignment.vertical `shouldEqual` (PT.Vert PT.End)
+
+        it "parses alignment with other properties" do
+          parsesPlay "LR W:FIX(300) H:FIX(100) GAP:10 HA:END VA:CENTER" \play -> do
+              let def = (Play.toTree play # Tree.value).def
+              def.alignment.horizontal `shouldEqual` (PT.Horz PT.End)
+              def.alignment.vertical `shouldEqual` (PT.Vert PT.Center)
+              def.sizing.width `shouldEqual` PT.Fixed 300.0
+              def.childGap `shouldEqual` 10.0
+
+    describe "parsePadding" do
+
+      it "parses uniform padding" do
+        parsesPlay "LR W:FIT H:FIT PAD:(10,10,10,10)" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.padding.top `shouldEqual` 10.0
+            def.padding.right `shouldEqual` 10.0
+            def.padding.bottom `shouldEqual` 10.0
+            def.padding.left `shouldEqual` 10.0
+
+      it "parses asymmetric padding" do
+        parsesPlay "TB W:FIT H:FIT PAD:(5,10,15,20)" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.padding.top `shouldEqual` 5.0
+            def.padding.right `shouldEqual` 10.0
+            def.padding.bottom `shouldEqual` 15.0
+            def.padding.left `shouldEqual` 20.0
+
+      it "parses padding with decimal values" do
+        parsesPlay "LR W:FIT H:FIT PAD:(2.5,7.25,12.75,18.5)" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.padding.top `shouldEqual` 2.5
+            def.padding.right `shouldEqual` 7.25
+            def.padding.bottom `shouldEqual` 12.75
+            def.padding.left `shouldEqual` 18.5
+
+      it "parses zero padding" do
+        parsesPlay "TB W:FIT H:FIT PAD:(0,0,0,0)" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.padding.top `shouldEqual` 0.0
+            def.padding.right `shouldEqual` 0.0
+            def.padding.bottom `shouldEqual` 0.0
+            def.padding.left `shouldEqual` 0.0
+
+      it "parses padding with other properties" do
+        parsesPlay "LR W:FIX(300) H:FIX(100) PAD:(10,20,30,40) GAP:15" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.padding.top `shouldEqual` 10.0
+            def.padding.right `shouldEqual` 20.0
+            def.padding.bottom `shouldEqual` 30.0
+            def.padding.left `shouldEqual` 40.0
+            def.childGap `shouldEqual` 15.0
+            def.sizing.width `shouldEqual` PT.Fixed 300.0
+
+    describe "parseGap" do
+
+      it "parses gap" do
+        parsesPlay "LR W:FIT H:FIT GAP:10" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.childGap `shouldEqual` 10.0
+
+      it "parses gap with decimal value" do
+        parsesPlay "TB W:FIT H:FIT GAP:15.5" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.childGap `shouldEqual` 15.5
+
+      it "parses zero gap" do
+        parsesPlay "LR W:FIT H:FIT GAP:0" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.childGap `shouldEqual` 0.0
+
+    describe "combined properties" do
+
+      it "parses all property types together" do
+        parsesPlay "LR W:FIX(400) H:FIX(200) PAD:(10,15,20,25) GAP:12 HA:CENTER VA:END" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.direction `shouldEqual` PT.LeftToRight
+            def.sizing.width `shouldEqual` PT.Fixed 400.0
+            def.sizing.height `shouldEqual` PT.Fixed 200.0
+            def.padding.top `shouldEqual` 10.0
+            def.padding.right `shouldEqual` 15.0
+            def.padding.bottom `shouldEqual` 20.0
+            def.padding.left `shouldEqual` 25.0
+            def.childGap `shouldEqual` 12.0
+            def.alignment.horizontal `shouldEqual` (PT.Horz PT.Center)
+            def.alignment.vertical `shouldEqual` (PT.Vert PT.End)
+
+      it "parses properties in different order" do
+        parsesPlay "VA:END GAP:8 TB HA:CENTER W:GRW H:FIT PAD:(5,5,5,5)" \play -> do
+            let def = (Play.toTree play # Tree.value).def
+            def.direction `shouldEqual` PT.TopToBottom
+            def.sizing.width `shouldEqual` PT.Grow
+            def.sizing.height `shouldEqual` PT.Fit
+            def.padding.top `shouldEqual` 5.0
+            def.childGap `shouldEqual` 8.0
+            def.alignment.horizontal `shouldEqual` (PT.Horz PT.Center)
+            def.alignment.vertical `shouldEqual` (PT.Vert PT.End)
+
     describe "nested children with :< operator" do
 
       it "creates simple parent with string children (auto-converts to leaf)" do
@@ -198,6 +336,19 @@ spec =
             case children !! 0 of
               Just c1 -> (Tree.value c1).def.sizing.width `shouldEqual` PT.Percentage (PT.Percents 0.25)
               Nothing -> fail "Expected first child"
+
+      it "creates layout with alignment properties" do
+        parsesFromSpec
+          ("LR W:FIX(300) H:FIX(100) HA:CENTER VA:END" :<
+            [ leaf "W:FIX(50) H:FIX(30)"
+            , leaf "W:FIX(60) H:FIX(40)"
+            ]) \play -> do
+            let tree = Play.toTree play
+            let def = (Tree.value tree).def
+            def.alignment.horizontal `shouldEqual` (PT.Horz PT.Center)
+            def.alignment.vertical `shouldEqual` (PT.Vert PT.End)
+            let children = Tree.children tree
+            Array.length children `shouldEqual` 2
 
     describe "mixed usage" do
 
