@@ -181,11 +181,11 @@ component =
                     [ HP.style "flex: 1; padding: 10px;" ]
                     [ renderExampleSelector state
                     , renderClickablePreview state
+                    , renderCodePanel state
                     ]
                 , HH.div
-                    [ HP.style "flex: 1; position: relative;" ]
+                    [ HP.style "flex: 1;" ]
                     [ renderPropertyEditor state
-                    , renderCodePanel state
                     ]
                 ]
 
@@ -430,8 +430,8 @@ renderPropertyEditor state =
     in
     HH.div
         [ HP.style "padding: 15px; border: 1px solid #ccc; background: #f9f9f9;" ]
-        [ HH.h3_ [ HH.text "Property Editor" ]
-        , HH.div
+        [ {- HH.h3_ [ HH.text "Property Editor" ]
+        , -} HH.div
             [ HP.style "margin-bottom: 10px; display: flex; gap: 10px; align-items: center;" ]
             [ HH.button
                 [ HE.onClick \_ -> GoToRoot
@@ -516,16 +516,20 @@ renderPropertyEditor state =
                 , propertySmallInput HP.InputNumber "Left" (UpdateField <<< PaddingLeft) (show state.editing.def.padding.left)
                 ]
             ]
-        , propertyFullWidthInput HP.InputNumber "Child Gap" (UpdateField <<< ChildGap) $ show state.editing.def.childGap
+        , propertyFullWidthInput HP.InputNumber "Child Gap:" (UpdateField <<< ChildGap) $ show state.editing.def.childGap
         , HH.div
-            [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
-            [ HH.label [ HP.style "display: block; margin-bottom: 8px;" ] [ HH.text "Align children:" ]
+            [ HP.style "margin-bottom: 15px;" ]
+            [ HH.label [ HP.style "font-size: 0.9em; display: block; margin-bottom: 4px;" ] [ HH.text "Children Align:" ]
             , HH.div
-                [ HP.style "display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; align-items: center;" ]
-                [ HH.span [ HP.style "font-size: 0.85em; color: #555;" ] [ HH.text "Horizontal:" ]
-                , renderAlignmentRadio Horz "align-h" (unwrap state.editing.def.alignment.horizontal) $ UpdateField <<< AlignHorz
-                , HH.span [ HP.style "font-size: 0.85em; color: #555;" ] [ HH.text "Vertical:" ]
-                , renderAlignmentRadio Vert "align-v" (unwrap state.editing.def.alignment.vertical)   $ UpdateField <<< AlignVert
+                [ HP.style "display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" ]
+                [ HH.div_
+                    [ {- HH.label [ HP.style "font-size: 0.7em; display: block; margin-bottom: 4px;" ] [ HH.text "Horizontal:" ]
+                    , -} renderAlignmentRadio Horz "align-h" (unwrap state.editing.def.alignment.horizontal) $ UpdateField <<< AlignHorz
+                    ]
+                , HH.div_
+                    [ {- HH.label [ HP.style "font-size: 0.7em; display: block; margin-bottom: 4px;" ] [ HH.text "Vertical:" ]
+                    , -} renderAlignmentRadio Vert "align-v" (unwrap state.editing.def.alignment.vertical) $ UpdateField <<< AlignVert
+                    ]
                 ]
             ]
         , HH.div
@@ -755,14 +759,15 @@ renderColorSelect currentColor =
         ]
 
 
+-- filepath: test/Demo/Constructor.purs
+
 renderCodePanel :: forall i. State -> HH.HTML i Action
 renderCodePanel state =
     let
         codeContent = fromMaybe "-" $ Play.toCode (itemName >>> show) <$> Play.playAt state.selectedPath state.playTree
-        -- treeContent = renderTreeVisualization state.selectedPath state.collapsedNodes state.playTree
         arrowSymbol = if state.codePanel.expanded then "▼" else "▶"
 
-        collapsedStyle = "position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #f0f0f0; border-top: 2px solid #ccc; cursor: pointer;"
+        collapsedStyle = "font-family: monospace; position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: seagreen; color: white; border: none; border-radius: 28%; height: 80px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; transition: all 0.3s ease;"
         expandedPanelStyle = "position: fixed; bottom: 0; left: 20%; right: 50%; height: 40vh; z-index: 1000; background: #f0f0f0; border: 2px solid #ccc; border-radius: 8px 8px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);"
 
         titleStyle = "padding: 8px 15px; font-weight: bold; border-bottom: 1px solid #ccc; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;"
@@ -772,17 +777,17 @@ renderCodePanel state =
         contentStyle = "height: calc(100% - 80px); overflow: auto;"
         isExpanded = state.codePanel.expanded
     in
-        HH.div
-            [ HP.style $ if isExpanded then expandedPanelStyle else collapsedStyle ]
-            $ HH.div
-                [ HP.style titleStyle
-                , HE.onClick \_ -> ToggleCodePanel
-                ]
-                [ HH.span_ [ HH.text arrowSymbol ]
-                , HH.text "Code & Tree Viewer"
-                ]
-            : if isExpanded then
+        if isExpanded then
+            HH.div
+                [ HP.style expandedPanelStyle ]
                 [ HH.div
+                    [ HP.style titleStyle
+                    , HE.onClick \_ -> ToggleCodePanel
+                    ]
+                    [ HH.span_ [ HH.text arrowSymbol ]
+                    , HH.text "Code & Tree Viewer"
+                    ]
+                , HH.div
                     [ HP.style "display: flex; border-bottom: 1px solid #ccc;" ]
                     [ HH.div
                         [ HP.style $ tabStyle (state.codePanel.tabIndex == 0)
@@ -807,7 +812,19 @@ renderCodePanel state =
                         renderTextualTree state.selectedPath state.codePanel.collapsedNodes state.playTree
                     ]
                 ]
-                else []
+        else
+            -- Collapsed: circular button with icons
+            HH.button
+                [ HP.style collapsedStyle
+                , HE.onClick \_ -> ToggleCodePanel
+                , HP.title "Open Code & Tree Viewer"
+                ]
+                [ HH.div
+                    [ HP.style "display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;" ]
+                    [ HH.span [ HP.style "font-size: 16px; margin-bottom: 4px;" ] [ HH.text "</> Code" ]
+                    , HH.span [ HP.style "font-size: 16px;" ] [ HH.text "◈ Tree" ]
+                    ]
+                ]
 
 
 renderExampleSelector :: forall i. State -> HH.HTML i Action

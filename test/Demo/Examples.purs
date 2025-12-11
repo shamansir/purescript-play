@@ -11,6 +11,8 @@ import Halogen.Svg.Attributes (Color(..)) as HA
 import Play (Play, (~*))
 import Play as Play
 
+import Yoga.JSON (class WriteForeign, writeImpl)
+
 
 data Item
     = Item (Maybe HA.Color) String
@@ -26,6 +28,10 @@ type LayedOutExample =
     , size :: Play.Size
     , layout :: Play.Layout Item
     }
+
+
+instance WriteForeign Item where
+    writeImpl = itemName >>> writeImpl
 
 
 ic :: HA.Color -> String -> Item
