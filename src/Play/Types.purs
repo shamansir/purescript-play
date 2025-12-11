@@ -6,6 +6,7 @@ module Play.Types
 
 import Prelude
 
+import Data.Newtype (class Newtype)
 import Foreign (Foreign, F, fail, ForeignError(..))
 import Yoga.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl)
 
@@ -66,6 +67,8 @@ newtype HAlign = Horz Align
 newtype VAlign = Vert Align
 derive newtype instance Eq HAlign
 derive newtype instance Eq VAlign
+derive instance Newtype HAlign _
+derive instance Newtype VAlign _
 
 
 

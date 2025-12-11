@@ -8,7 +8,7 @@ import Data.String (joinWith) as String
 
 import Play (Play)
 import Play (toTree) as Play
-import Play.Types (Def, WithDef, Sizing(..), Padding, Direction(..), Percents(..)) as PT
+import Play.Types (Def, WithDef, Sizing(..), Padding, Direction(..), Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
 
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (value, children) as Tree
@@ -112,6 +112,11 @@ encodeDef def =
                 " PAD(" <> show pad.top <> ")"
             else
                 " PAD(" <> show pad.top <> "," <> show pad.left <> "," <> show pad.bottom <> "," <> show pad.right <> ")"
+    <> case def.alignment of
+        { horizontal : PT.Horz hAlign, vertical : PT.Vert vAlign } ->
+            (if hAlign == PT.Start then "" else " HA:" <> alignmentToLabel hAlign)
+            <>
+            (if vAlign == PT.Start then "" else " VA:" <> alignmentToLabel vAlign)
     where
     sizingToLabel :: PT.Sizing -> String
     sizingToLabel = case _ of
@@ -126,5 +131,10 @@ encodeDef def =
         PT.GrowMin { min } -> "GRW(>" <> show min <> ")"
         PT.FitMinMax { min, max } -> "FIT(" <> show min <> "<>" <> show max <> ")"
         -- PT.GrowMinMax { min, max } -> "GRW(" <> show min <> "<>" <> show max <> ")"
+    alignmentToLabel :: PT.Align -> String
+    alignmentToLabel = case _ of
+        PT.Start -> "START"
+        PT.Center -> "CENTER"
+        PT.End -> "END"
 
 

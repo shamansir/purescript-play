@@ -11,6 +11,7 @@ import Data.Bifunctor (lmap)
 import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.Number as Number
 import Data.Tuple.Nested ((/\), type (/\))
+import Data.Newtype (wrap, unwrap)
 
 import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody) as HA
@@ -28,7 +29,7 @@ import Data.String as String
 
 import Play (Play, (~*))
 import Play as Play
-import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect, Percents(..)) as PT
+import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect, Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
 import Play.Extra as Play
 
 -- import Test.Demo (renderOne) as Demo
@@ -53,6 +54,8 @@ data Field
     | Direction PT.Direction
     | WidthSizing PT.Sizing
     | HeightSizing PT.Sizing
+    | AlignHorz PT.Align
+    | AlignVert PT.Align
 
 
 data Action
@@ -72,6 +75,10 @@ data Action
     | SelectCodeTab Int
     | ToggleNodeCollapsed Play.ItemPath
     | ToggleShowEncodedSizing
+
+
+data Axis = Horz | Vert
+derive instance Eq Axis
 
 
 type EditingState =
@@ -262,6 +269,10 @@ component =
                 updateSelectedDef \def -> def { sizing = def.sizing { height = sizing } }
                 H.modify_ \s -> s { editing = s.editing { sizing = s.editing.sizing { height = Just sizing } } }
 
+            UpdateField (AlignHorz align) -> updateSelectedDef $ \def -> def { alignment = def.alignment { horizontal = PT.Horz align } }
+
+            UpdateField (AlignVert align) -> updateSelectedDef $ \def -> def { alignment = def.alignment { vertical   = PT.Vert align } }
+
             AddChild _ childName -> do
                 state <- H.get
                 let newChild =
@@ -392,6 +403,30 @@ renderPropertyEditor state =
             "background: #17a2b8; cursor: pointer;"
         else
             "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
+
+        -- Helper for rendering alignment radio buttons
+        renderAlignmentRadio :: forall j. Axis -> String -> PT.Align -> (PT.Align -> Action) -> HH.HTML j Action
+        renderAlignmentRadio axis groupName currentAlign updateAction =
+            HH.div
+                [ HP.style "display: flex; gap: 10px; align-items: center;" ]
+                [ renderAlignOption groupName (if axis == Horz then "Left" else "Top") PT.Start currentAlign updateAction
+                , renderAlignOption groupName (if axis == Horz then "Middle" else "Center") PT.Center currentAlign updateAction
+                , renderAlignOption groupName (if axis == Horz then "Right" else "Bottom") PT.End currentAlign updateAction
+                ]
+
+        renderAlignOption :: forall j. String -> String -> PT.Align -> PT.Align -> (PT.Align -> Action) -> HH.HTML j Action
+        renderAlignOption groupName label alignment currentAlign updateAction =
+            HH.label
+                [ HP.style "display: flex; align-items: center; gap: 3px; cursor: pointer; font-size: 0.85em;" ]
+                [ HH.input
+                    [ HP.type_ HP.InputRadio
+                    , HP.name groupName
+                    , HP.checked (currentAlign == alignment)
+                    , HE.onChecked \_ -> updateAction alignment
+                    , HP.style "margin: 0;"
+                    ]
+                , HH.text label
+                ]
     in
     HH.div
         [ HP.style "padding: 15px; border: 1px solid #ccc; background: #f9f9f9;" ]
@@ -482,6 +517,17 @@ renderPropertyEditor state =
                 ]
             ]
         , propertyFullWidthInput HP.InputNumber "Child Gap" (UpdateField <<< ChildGap) $ show state.editing.def.childGap
+        , HH.div
+            [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
+            [ HH.label [ HP.style "display: block; margin-bottom: 8px;" ] [ HH.text "Align children:" ]
+            , HH.div
+                [ HP.style "display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; align-items: center;" ]
+                [ HH.span [ HP.style "font-size: 0.85em; color: #555;" ] [ HH.text "Horizontal:" ]
+                , renderAlignmentRadio Horz "align-h" (unwrap state.editing.def.alignment.horizontal) $ UpdateField <<< AlignHorz
+                , HH.span [ HP.style "font-size: 0.85em; color: #555;" ] [ HH.text "Vertical:" ]
+                , renderAlignmentRadio Vert "align-v" (unwrap state.editing.def.alignment.vertical)   $ UpdateField <<< AlignVert
+                ]
+            ]
         , HH.div
             [ HP.style "margin-bottom: 15px; font-size: 0.9em;" ]
             [ HH.h4_ [ HH.text $ "Children (" <> show childrenCount <> "):" ]
