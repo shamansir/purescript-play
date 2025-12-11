@@ -2,10 +2,12 @@ module Play.Layout (layoutTree) where
 
 import Prelude
 
+import Debug as Debug
+
 import Data.Array (length, filter, snoc) as Array
-import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Foldable (foldl)
 import Data.Int (toNumber) as Int
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 
@@ -188,36 +190,43 @@ layoutTree
         doPositioning pos { v, def, size } xs =
             Tree.node
                 { v, def, rect : rect pos size }
-                $ Tuple.snd $ foldl foldF (withPadding (withAlignment pos) /\ []) xs
+                $ Debug.spyWith "children" (map $ Tree.value >>> _.rect)
+               <$> map (map addSecondaryAxisAlignment)
+                $ Tuple.snd
+                $ foldl foldF (withPadding (addMainAxisAlignment pos) /\ []) xs
             where
                 withPadding padPos = { x : padPos.x + def.padding.left, y : padPos.y + def.padding.top }
                 totalHorzWidth  = foldl (+) 0.0 $ Tree.value >>> _.size >>> _.width <$> xs
                 totalHorzWidthWithGaps = totalHorzWidth + (def.childGap * Int.toNumber (Array.length xs - 1))
-                maxChildWidth   = foldl max 0.0 $ Tree.value >>> _.size >>> _.width  <$> xs
+                -- maxChildWidth   = foldl max 0.0 $ Tree.value >>> _.size >>> _.width  <$> xs
                 totalVertHeight = foldl (+) 0.0 $ Tree.value >>> _.size >>> _.height <$> xs
                 totalVertHeightWithGaps = totalVertHeight + (def.childGap * Int.toNumber (Array.length xs - 1))
-                maxChildHeight  = foldl max 0.0 $ Tree.value >>> _.size >>> _.height <$> xs
-                withAlignment aliPos = case def.direction of
+                -- maxChildHeight  = foldl max 0.0 $ Tree.value >>> _.size >>> _.height <$> xs
+                availableHeight = size.height - def.padding.top  - def.padding.bottom
+                availableWidth  = size.width  - def.padding.left - def.padding.right
+                addMainAxisAlignment srcPos = case def.direction of
                     PT.LeftToRight ->
                         case def.alignment.horizontal of
-                            PT.Horz PT.Start  -> aliPos
-                            PT.Horz PT.Center -> aliPos { x = aliPos.x + (size.width - (totalHorzWidthWithGaps / 2.0)) }
-                            PT.Horz PT.End    -> aliPos { x = aliPos.x + (size.width - totalHorzWidthWithGaps) }
-                        # \nextPos ->
-                        case def.alignment.vertical of
-                            PT.Vert PT.Start  -> nextPos
-                            PT.Vert PT.Center -> nextPos { y = aliPos.y + (size.height - (maxChildHeight / 2.0)) }
-                            PT.Vert PT.End    -> nextPos { y = aliPos.y + (size.height - maxChildHeight) }
+                            PT.Horz PT.Start  -> srcPos
+                            PT.Horz PT.Center -> srcPos { x = srcPos.x + (size.width - totalHorzWidthWithGaps) / 2.0 }
+                            PT.Horz PT.End    -> srcPos { x = srcPos.x + (size.width - totalHorzWidthWithGaps) }
                     PT.TopToBottom ->
                         case def.alignment.vertical of
-                            PT.Vert PT.Start  -> aliPos
-                            PT.Vert PT.Center -> aliPos { y = aliPos.y + (size.height - (totalVertHeightWithGaps / 2.0)) }
-                            PT.Vert PT.End    -> aliPos { y = aliPos.y + (size.height - totalVertHeightWithGaps) }
-                        # \nextPos ->
+                            PT.Vert PT.Start  -> srcPos
+                            PT.Vert PT.Center -> srcPos { y = srcPos.y + (size.height - totalVertHeightWithGaps) / 2.0 }
+                            PT.Vert PT.End    -> srcPos { y = srcPos.y + (size.height - totalVertHeightWithGaps) }
+                addSecondaryAxisAlignment child = child { rect = child.rect { pos = adjustChildAlignment child.rect.size child.rect.pos } }
+                adjustChildAlignment childSize childPos = case def.direction of
+                    PT.LeftToRight ->
+                        case def.alignment.vertical of
+                            PT.Vert PT.Start  -> childPos
+                            PT.Vert PT.Center -> childPos { y = childPos.y + (availableHeight - childSize.height) / 2.0 }
+                            PT.Vert PT.End    -> childPos { y = childPos.y + (availableHeight - childSize.height) }
+                    PT.TopToBottom ->
                         case def.alignment.horizontal of
-                            PT.Horz PT.Start  -> nextPos
-                            PT.Horz PT.Center -> nextPos { x = aliPos.x + (size.width - (maxChildWidth / 2.0)) }
-                            PT.Horz PT.End    -> nextPos { x = aliPos.x + (size.width - maxChildWidth) }
+                            PT.Horz PT.Start  -> childPos
+                            PT.Horz PT.Center -> childPos { x = childPos.x + (availableWidth - childSize.width) / 2.0 }
+                            PT.Horz PT.End    -> childPos { x = childPos.x + (availableWidth - childSize.width) }
 
                 foldF
                     :: PT.Offset /\ Array (Tree (PT.WithDefRect a))
@@ -230,7 +239,7 @@ layoutTree
                         curSize = _.size $ Tree.value chTree :: PT.Size
                         -- childrenCount = Array.length $ Tree.children chTree :: Int
                         nextOffset =
-                            case def.direction of
+                            case Debug.spy "def.direction" def.direction of
                                 PT.LeftToRight ->
                                     { x : offset.x + curSize.width + def.childGap
                                     , y : offset.y
