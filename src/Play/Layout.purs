@@ -8,7 +8,13 @@ import Data.Foldable (foldl)
 import Data.Int (toNumber) as Int
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
-import Play.Types (Def, Direction(..), Offset, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, Percents(..)) as PT
+
+import Play.Types
+    ( Direction(..), Offset, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, Percents(..)
+    , Align(..), HAlign(..), VAlign(..)
+    , Def
+    ) as PT
+
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, value, children, update) as Tree
 
@@ -182,9 +188,36 @@ layoutTree
         doPositioning pos { v, def, size } xs =
             Tree.node
                 { v, def, rect : rect pos size }
-                $ Tuple.snd $ foldl foldF (withPadding pos /\ []) xs
+                $ Tuple.snd $ foldl foldF (withPadding (withAlignment pos) /\ []) xs
             where
                 withPadding padPos = { x : padPos.x + def.padding.left, y : padPos.y + def.padding.top }
+                totalHorzWidth  = foldl (+) 0.0 $ Tree.value >>> _.size >>> _.width <$> xs
+                totalHorzWidthWithGaps = totalHorzWidth + (def.childGap * Int.toNumber (Array.length xs - 1))
+                maxChildWidth   = foldl max 0.0 $ Tree.value >>> _.size >>> _.width  <$> xs
+                totalVertHeight = foldl (+) 0.0 $ Tree.value >>> _.size >>> _.height <$> xs
+                totalVertHeightWithGaps = totalVertHeight + (def.childGap * Int.toNumber (Array.length xs - 1))
+                maxChildHeight  = foldl max 0.0 $ Tree.value >>> _.size >>> _.height <$> xs
+                withAlignment aliPos = case def.direction of
+                    PT.LeftToRight ->
+                        case def.alignment.horizontal of
+                            PT.Horz PT.Start  -> aliPos
+                            PT.Horz PT.Center -> aliPos { x = aliPos.x + (size.width - (totalHorzWidthWithGaps / 2.0)) }
+                            PT.Horz PT.End    -> aliPos { x = aliPos.x + (size.width - totalHorzWidthWithGaps) }
+                        # \nextPos ->
+                        case def.alignment.vertical of
+                            PT.Vert PT.Start  -> nextPos
+                            PT.Vert PT.Center -> nextPos { y = aliPos.y + (size.height - (maxChildHeight / 2.0)) }
+                            PT.Vert PT.End    -> nextPos { y = aliPos.y + (size.height - maxChildHeight) }
+                    PT.TopToBottom ->
+                        case def.alignment.vertical of
+                            PT.Vert PT.Start  -> aliPos
+                            PT.Vert PT.Center -> aliPos { y = aliPos.y + (size.height - (totalVertHeightWithGaps / 2.0)) }
+                            PT.Vert PT.End    -> aliPos { y = aliPos.y + (size.height - totalVertHeightWithGaps) }
+                        # \nextPos ->
+                        case def.alignment.horizontal of
+                            PT.Horz PT.Start  -> nextPos
+                            PT.Horz PT.Center -> nextPos { x = aliPos.x + (size.width - (maxChildWidth / 2.0)) }
+                            PT.Horz PT.End    -> nextPos { x = aliPos.x + (size.width - maxChildWidth) }
 
                 foldF
                     :: PT.Offset /\ Array (Tree (PT.WithDefRect a))

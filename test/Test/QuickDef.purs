@@ -12,7 +12,7 @@ import Data.Traversable (traverse)
 
 import Play (Play, (~*))
 import Play as Play
-import Play.Types (Direction(..), Sizing(..), Percents(..)) as PT
+import Play.Types (Direction(..), Sizing(..), Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
 
 import Parsing (Parser, runParser, ParseError)
 import Parsing.Combinators (option, sepBy, try, (<?>))
@@ -100,6 +100,15 @@ parseDirection =
     <?> "LR | TB | → | ↓ | D:LR | D:TB | D:→ | D:↓"
 
 
+-- | Parse alignment specification like "START", "CENTER", "END", "STRETCH", "SPACEBETWEEN", "SPACEAROUND"
+parseAlignment :: Parser String PT.Align
+parseAlignment =
+    (try $ string "CENTER" $> PT.Center)
+    <|> (try $ string "START" $> PT.Start)
+    <|> (string "END" $> PT.End)
+    <?> "START | CENTER | END"
+
+
 -- | Parse a single property like "W:FIX(100)" or "H:GRW" or just "LR"
 data Property
     = WidthProp PT.Sizing
@@ -107,6 +116,8 @@ data Property
     | DirectionProp PT.Direction
     | GapProp Number
     | PaddingProp Number Number Number Number
+    | AlignHProp PT.HAlign
+    | AlignVProp PT.VAlign
 
 parseProperty :: Parser String Property
 parseProperty =
@@ -115,7 +126,9 @@ parseProperty =
     <|> try parseDirectionProp
     <|> try parseGap
     <|> try parsePadding
-    <?> "W:... | H:... | LR | TB | → | ↓ | D:... | GAP:... | PAD:..."
+    <|> try parseAlignH
+    <|> try parseAlignV
+    <?> "W:... | H:... | LR | TB | → | ↓ | D:... | GAP:... | PAD:... | HA:... | VA:..."
     where
         parseWidth = do
             _ <- string "W:"
@@ -146,6 +159,16 @@ parseProperty =
             _ <- char ')'
             pure $ PaddingProp top right bottom left
 
+        parseAlignH = do
+            _ <- string "HA:"
+            align <- parseAlignment
+            pure $ AlignHProp $ PT.Horz align
+
+        parseAlignV = do
+            _ <- string "VA:"
+            align <- parseAlignment
+            pure $ AlignVProp $ PT.Vert align
+
 
 -- | Parse a property list like "W:FIX(100) H:GRW LR"
 -- | Properties must be separated by exactly one space
@@ -163,6 +186,8 @@ applyProperties props play = foldl applyProperty play props
             DirectionProp dir -> p ~* Play.direction dir
             GapProp gap -> p ~* Play.childGap gap
             PaddingProp t r b l -> p ~* Play.padding { top: t, right: r, bottom: b, left: l }
+            AlignHProp align -> p ~* Play.alignH align
+            AlignVProp align -> p ~* Play.alignV align
 
 
 -- | Parse a simple layout specification (no children)

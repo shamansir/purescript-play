@@ -65,6 +65,7 @@ derive instance Eq Align
 newtype HAlign = Horz Align
 newtype VAlign = Vert Align
 derive newtype instance Eq HAlign
+derive newtype instance Eq VAlign
 
 
 

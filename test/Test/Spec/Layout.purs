@@ -440,6 +440,284 @@ spec =
           parentRect.size.width `shouldEqual` 110.0  -- 50 + 60
           parentRect.size.height `shouldEqual` 100.0  -- max of 70 and 100
 
+    describe "Alignment" do
+
+      describe "Horizontal Layout (LR) - Main Axis Alignment" do
+
+        it "aligns children to start (left) by default" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100)" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(60) H:FIX(50)", leaf "W:FIX(40) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Children should be left-aligned (start) by default
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 0.0
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 50.0
+            checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 110.0
+
+        it "aligns children to center on main axis" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) HA:CENTER" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(60) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child width: 110, available: 300, free: 190
+            -- Center offset: 190 / 2 = 95
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 95.0
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 145.0
+
+        it "aligns children to end (right) on main axis" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) HA:END" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(60) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child width: 110, available: 300
+            -- End offset: 300 - 110 = 190
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 190.0
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 240.0
+
+        it "spaces children evenly on main axis with space-between" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) HA:SPACEBETWEEN" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(60) H:FIX(50)", leaf "W:FIX(40) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child width: 150, available: 300, free: 150
+            -- Space between 3 children: 150 / 2 = 75
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 0.0
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 125.0  -- 50 + 75
+            checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 260.0  -- 125 + 60 + 75
+
+        it "spaces children evenly on main axis with space-around" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) HA:SPACEAROUND" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(60) H:FIX(50)", leaf "W:FIX(40) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child width: 150, available: 300, free: 150
+            -- Space around 3 children: 150 / 3 = 50, half-space: 25
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 25.0
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 125.0  -- 25 + 50 + 50
+            checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 235.0  -- 125 + 60 + 50
+
+      describe "Horizontal Layout (LR) - Cross Axis Alignment" do
+
+        it "aligns children to top (start) on cross axis by default" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100)" :<
+              [ leaf "W:FIX(50) H:FIX(30)", leaf "W:FIX(60) H:FIX(40)", leaf "W:FIX(40) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- All children should align to top by default
+            checkChild children 0 \c1 -> c1.rect.pos.y `shouldEqual` 0.0
+            checkChild children 1 \c2 -> c2.rect.pos.y `shouldEqual` 0.0
+            checkChild children 2 \c3 -> c3.rect.pos.y `shouldEqual` 0.0
+
+        it "aligns children to center on cross axis" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) VA:CENTER" :<
+              [ leaf "W:FIX(50) H:FIX(30)", leaf "W:FIX(60) H:FIX(40)", leaf "W:FIX(40) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Each child centered in 100px height
+            checkChild children 0 \c1 -> c1.rect.pos.y `shouldEqual` 35.0  -- (100 - 30) / 2
+            checkChild children 1 \c2 -> c2.rect.pos.y `shouldEqual` 30.0  -- (100 - 40) / 2
+            checkChild children 2 \c3 -> c3.rect.pos.y `shouldEqual` 25.0  -- (100 - 50) / 2
+
+        it "aligns children to bottom (end) on cross axis" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) VA:END" :<
+              [ leaf "W:FIX(50) H:FIX(30)", leaf "W:FIX(60) H:FIX(40)", leaf "W:FIX(40) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Each child bottom-aligned in 100px height
+            checkChild children 0 \c1 -> c1.rect.pos.y `shouldEqual` 70.0  -- 100 - 30
+            checkChild children 1 \c2 -> c2.rect.pos.y `shouldEqual` 60.0  -- 100 - 40
+            checkChild children 2 \c3 -> c3.rect.pos.y `shouldEqual` 50.0  -- 100 - 50
+
+      describe "Vertical Layout (TB) - Main Axis Alignment" do
+
+        it "aligns children to start (top) by default" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300)" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(50) H:FIX(60)", leaf "W:FIX(50) H:FIX(40)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Children should be top-aligned (start) by default
+            checkChild children 0 \c1 -> c1.rect.pos.y `shouldEqual` 0.0
+            checkChild children 1 \c2 -> c2.rect.pos.y `shouldEqual` 50.0
+            checkChild children 2 \c3 -> c3.rect.pos.y `shouldEqual` 110.0
+
+        it "aligns children to center on main axis" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300) VA:CENTER" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(50) H:FIX(60)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child height: 110, available: 300, free: 190
+            -- Center offset: 190 / 2 = 95
+            checkChild children 0 \c1 -> c1.rect.pos.y `shouldEqual` 95.0
+            checkChild children 1 \c2 -> c2.rect.pos.y `shouldEqual` 145.0
+
+        it "aligns children to end (bottom) on main axis" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300) VA:END" :<
+              [ leaf "W:FIX(50) H:FIX(50)", leaf "W:FIX(50) H:FIX(60)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child height: 110, available: 300
+            -- End offset: 300 - 110 = 190
+            checkChild children 0 \c1 -> c1.rect.pos.y `shouldEqual` 190.0
+            checkChild children 1 \c2 -> c2.rect.pos.y `shouldEqual` 240.0
+
+      describe "Vertical Layout (TB) - Cross Axis Alignment" do
+
+        it "aligns children to left (start) on cross axis by default" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300)" :<
+              [ leaf "W:FIX(30) H:FIX(50)", leaf "W:FIX(40) H:FIX(50)", leaf "W:FIX(50) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- All children should align to left by default
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 0.0
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 0.0
+            checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 0.0
+
+        it "aligns children to center on cross axis" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300) HA:CENTER" :<
+              [ leaf "W:FIX(30) H:FIX(50)", leaf "W:FIX(40) H:FIX(50)", leaf "W:FIX(50) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Each child centered in 100px width
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 35.0  -- (100 - 30) / 2
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 30.0  -- (100 - 40) / 2
+            checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 25.0  -- (100 - 50) / 2
+
+        it "aligns children to right (end) on cross axis" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300) HA:END" :<
+              [ leaf "W:FIX(30) H:FIX(50)", leaf "W:FIX(40) H:FIX(50)", leaf "W:FIX(50) H:FIX(50)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Each child right-aligned in 100px width
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 70.0  -- 100 - 30
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 60.0  -- 100 - 40
+            checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 50.0  -- 100 - 50
+
+      describe "Alignment with Padding" do
+
+        it "applies center alignment with padding in horizontal layout" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) PAD:(10,20,10,30) HA:CENTER VA:CENTER" :<
+              [ leaf "W:FIX(50) H:FIX(40)", leaf "W:FIX(60) H:FIX(40)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Available width: 300 - 30 (left) - 20 (right) = 250
+            -- Total child width: 110, free: 140
+            -- Center offset: 140 / 2 = 70 + left padding 30 = 100
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.x `shouldEqual` 100.0
+              -- Available height: 100 - 10 (top) - 10 (bottom) = 80
+              -- Child height: 40, offset: (80 - 40) / 2 = 20 + top padding 10 = 30
+              c1.rect.pos.y `shouldEqual` 30.0
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.x `shouldEqual` 150.0
+              c2.rect.pos.y `shouldEqual` 30.0
+
+        it "applies end alignment with padding in vertical layout" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300) PAD:(20,10,30,10) VA:END HA:END" :<
+              [ leaf "W:FIX(40) H:FIX(50)", leaf "W:FIX(40) H:FIX(60)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Available height: 300 - 20 (top) - 30 (bottom) = 250
+            -- Total child height: 110
+            -- End position: 250 - 110 + top padding 20 = 160
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.y `shouldEqual` 160.0
+              -- Available width: 100 - 10 (left) - 10 (right) = 80
+              -- Child width: 40, end position: 80 - 40 + left padding 10 = 50
+              c1.rect.pos.x `shouldEqual` 50.0
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.y `shouldEqual` 210.0
+              c2.rect.pos.x `shouldEqual` 50.0
+
+
+      describe "Alignment with Gap" do
+
+        it "applies center alignment with gap in horizontal layout" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(300) H:FIX(100) GAP:20 HA:CENTER" :<
+              [ leaf "W:FIX(50) H:FIX(40)", leaf "W:FIX(60) H:FIX(40)", leaf "W:FIX(40) H:FIX(40)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child width: 150, gaps: 2 * 20 = 40, total: 190
+            -- Free space: 300 - 190 = 110
+            -- Center offset: 110 / 2 = 55
+            checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 55.0
+            checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 125.0  -- 55 + 50 + 20
+            checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 205.0  -- 125 + 60 + 20
+
+        it "applies end alignment with gap in vertical layout" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(300) GAP:15 VA:END" :<
+              [ leaf "W:FIX(40) H:FIX(50)", leaf "W:FIX(40) H:FIX(60)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Total child height: 110, gap: 15, total: 125
+            -- End position: 300 - 125 = 175
+            checkChild children 0 \c1 -> c1.rect.pos.y `shouldEqual` 175.0
+            checkChild children 1 \c2 -> c2.rect.pos.y `shouldEqual` 240.0  -- 175 + 50 + 15
+
+      describe "Alignment with Padding and Gap" do
+
+        it "combines center alignment with both padding and gap" do
+          checkLayoutTreeFrom
+              ( "LR W:FIX(400) H:FIX(100) PAD:(10,20,10,30) GAP:15 HA:CENTER VA:CENTER" :<
+              [ leaf "W:FIX(50) H:FIX(40)", leaf "W:FIX(60) H:FIX(40)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Available width: 400 - 30 - 20 = 350
+            -- Total child width: 110, gap: 15, total: 125
+            -- Free space: 350 - 125 = 225
+            -- Center offset: 225 / 2 = 112.5 + left padding 30 = 142.5
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.x `shouldApproxEqual` 142.5
+              -- Available height: 100 - 10 - 10 = 80
+              -- Center offset: (80 - 40) / 2 + 10 = 30
+              c1.rect.pos.y `shouldEqual` 30.0
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.x `shouldApproxEqual` 207.5  -- 142.5 + 50 + 15
+              c2.rect.pos.y `shouldEqual` 30.0
+
+        it "combines end alignment with both padding and gap" do
+          checkLayoutTreeFrom
+              ( "TB W:FIX(100) H:FIX(400) PAD:(20,15,25,15) GAP:10 VA:END HA:END" :<
+              [ leaf "W:FIX(40) H:FIX(50)", leaf "W:FIX(40) H:FIX(60)", leaf "W:FIX(40) H:FIX(40)" ]) \tree -> do
+
+            let children = Tree.children tree
+            -- Available height: 400 - 20 - 25 = 355
+            -- Total child height: 150, gaps: 2 * 10 = 20, total: 170
+            -- End position: 355 - 170 + top padding 20 = 205
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.y `shouldEqual` 205.0
+              -- Available width: 100 - 15 - 15 = 70
+              -- End position: 70 - 40 + left padding 15 = 45
+              c1.rect.pos.x `shouldEqual` 45.0
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.y `shouldEqual` 265.0  -- 205 + 50 + 10
+              c2.rect.pos.x `shouldEqual` 45.0
+
+            checkChild children 2 \c3 -> do
+              c3.rect.pos.y `shouldEqual` 335.0  -- 265 + 60 + 10
+              c3.rect.pos.x `shouldEqual` 45.0
+
     describe "Edge Cases" do
 
       it "handles empty container" do
