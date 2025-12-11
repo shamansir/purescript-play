@@ -79,7 +79,7 @@ layoutTree
                         PT.FitMax fit -> min fit.max $ fitAtSide side
                         PT.FitMinMax fit -> min fit.max $ max fit.min $ fitAtSide side
                         PT.Grow -> 0.0
-                        PT.GrowMin grow -> grow.min
+                        PT.GrowMin _ -> 0.0
                         PT.None -> 0.0
 
                 size =
@@ -142,7 +142,7 @@ layoutTree
                         PT.LeftToRight ->
                             let knownWidth = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.width) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
                                 percentageReservedW = size.width * totalPercentageW
-                            in  (size.width - knownWidth - percentageReservedW) / Int.toNumber growChildrenByW
+                            in  size.width - knownWidth - percentageReservedW
                         PT.TopToBottom ->
                             let percentageReservedW = size.width * totalPercentageW
                             in  size.width - def.padding.right - def.padding.left - percentageReservedW
@@ -169,6 +169,7 @@ layoutTree
                                         case ch.def.sizing.width of
                                             PT.Grow ->                         s { width = growWidth }
                                             PT.FitGrow ->                      s { width = max s.width growWidth }
+                                            PT.GrowMin { min } ->              s { width = max growWidth min }
                                             PT.Percentage (PT.Percents pct) -> s { width = size.width * pct }
                                             -- PT.Percentage pct -> s { width = min (size.width * pct) growWidth }
                                             _ -> s
@@ -176,6 +177,7 @@ layoutTree
                                         case ch.def.sizing.height of
                                             PT.Grow ->                         s { height = growHeight }
                                             PT.FitGrow ->                      s { height = max s.height growHeight }
+                                            PT.GrowMin { min } ->              s { height = max growHeight min }
                                             PT.Percentage (PT.Percents pct) -> s { height = size.height * pct }
                                             -- PT.Percentage pct -> s { height = min (size.height * pct) growHeight }
                                             _ -> s
@@ -189,7 +191,6 @@ layoutTree
         doPositioning pos { v, def, size } xs =
             Tree.node
                 { v, def, rect : rect pos size }
-                -- $ Debug.spyWith "children" (map $ Tree.value >>> _.rect)
                <$> map (map addSecondaryAxisAlignment)
                 $ Tuple.snd
                 $ foldl foldF (withPadding (addMainAxisAlignment pos) /\ []) xs
