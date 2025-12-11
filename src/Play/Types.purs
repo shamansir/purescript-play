@@ -1,11 +1,13 @@
 module Play.Types
-    ( Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefSize, WithRect, WithDefRect, Percents(..) )
+    ( Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), Percents(..), Align(..), HAlign(..), VAlign(..)
+    , Def, WithDef, WithDefSize, WithRect, WithDefRect
+    )
     where
 
 import Prelude
 
 import Foreign (Foreign, F, fail, ForeignError(..))
-import Yoga.JSON (class ReadForeign, class WriteForeign, writeImpl, readImpl)
+import Yoga.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl)
 
 -- | Defines the layout direction for arranging child elements.
 -- |
@@ -52,6 +54,20 @@ type Padding =
     }
 
 
+-- | Alignment options within a container.
+data Align
+    = Start
+    | Center
+    | End
+
+derive instance Eq Align
+
+newtype HAlign = Horz Align
+newtype VAlign = Vert Align
+derive newtype instance Eq HAlign
+
+
+
 -- | The compiled definition from user-specified with API layout properties.
 -- | Not intented to be constructed manually.
 type Def =
@@ -61,6 +77,10 @@ type Def =
     , sizing ::               -- ^ Size constraints for width and height
         { width :: Sizing
         , height :: Sizing
+        }
+    , alignment ::         -- ^ Alignment of children within the container
+        { horizontal :: HAlign
+        , vertical :: VAlign
         }
     }
 
@@ -122,12 +142,10 @@ instance Bounded Percents where
 -------------- JSON Implementation -------------------------
 ------------------------------------------------------------
 
--- | WriteForeign instance for Direction
 instance WriteForeign Direction where
     writeImpl TopToBottom = writeImpl "top-to-bottom"
     writeImpl LeftToRight = writeImpl "left-to-right"
 
--- | ReadForeign instance for Direction
 instance ReadForeign Direction where
     readImpl f = do
         str <- (readImpl f :: F String)
@@ -139,7 +157,6 @@ instance ReadForeign Direction where
 derive newtype instance WriteForeign Percents
 derive newtype instance ReadForeign Percents
 
--- | WriteForeign instance for Sizing
 instance WriteForeign Sizing where
     writeImpl sizing = writeImpl $ case sizing of
         None ->
@@ -174,7 +191,7 @@ instance WriteForeign Sizing where
             , payload: writeImpl { min, max }
             }
 
--- | ReadForeign instance for Sizing
+
 instance ReadForeign Sizing where
     readImpl f = do
         rec <- (readImpl f :: F { stype :: String, payload :: Foreign })
@@ -219,6 +236,26 @@ instance ReadForeign Sizing where
                 fail $ ForeignError $ "Invalid sizing type: " <> rec.stype
 
 
+instance WriteForeign Align where
+    writeImpl align = writeImpl $ case align of
+        Start  -> "start"
+        Center -> "center"
+        End    -> "end"
+
+
+instance ReadForeign Align where
+    readImpl f = do
+        str <- (readImpl f :: F String)
+        case str of
+            "start"  -> pure Start
+            "center" -> pure Center
+            "end" -> pure End
+            _        -> fail $ ForeignError $ "Invalid alignment: " <> str
+
+derive newtype instance WriteForeign HAlign
+derive newtype instance ReadForeign HAlign
+derive newtype instance WriteForeign VAlign
+derive newtype instance ReadForeign VAlign
 
 
 ------------------------------------------------------------
@@ -230,6 +267,17 @@ instance Show Direction where
         TopToBottom -> "TopToBottom"
         LeftToRight -> "LeftToRight"
 
+instance Show VAlign where
+    show = case _ of
+        Vert Start   -> "Top"
+        Vert Center -> "Center"
+        Vert End    -> "Bottom"
+
+instance Show HAlign where
+    show = case _ of
+        Horz Start   -> "Left"
+        Horz Center -> "Middle"
+        Horz End  -> "Right"
 
 instance Show Sizing where
     show = case _ of

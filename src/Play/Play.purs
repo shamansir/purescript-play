@@ -21,6 +21,7 @@ module Play
     , widthFit, widthPercent, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, width, width_
     , heightFit, heightPercent, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, height, height_
     , topToBottom, leftToRight
+    , alignH, alignV, alignLeft, alignCenter, alignRight, alignTop, alignMiddle, alignBottom
     , (~*), playProp
     , pctToNumber
     , toJSON, fromJSON
@@ -33,11 +34,13 @@ import Data.Traversable (class Traversable)
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, flatten, value, children, update) as Tree
 import Yoga.Tree.Extended.Convert (showTree') as Tree
-import Play.Types (Def, Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, WithRect, Percents) as PT
+import Play.Types
+    ( Direction(..), Offset, Padding, Pos, Rect, Size, Sizing(..), Align(..), HAlign(..), VAlign(..)
+    , Def, WithDef, WithDefRect, WithDefSize, WithRect, Percents
+    ) as PT
 import Play.Types (Percents(..)) as PTX
 import Play.Layout (layoutTree) as Layout
 
-import Foreign (Foreign, F, fail, ForeignError(..))
 import Yoga.JSON (class ReadForeign, class WriteForeign, writeImpl, readImpl, writeJSON, readJSON, E)
 
 -- | A layout tree containing elements of type `a` with layout definitions.
@@ -146,6 +149,10 @@ default =
     , padding : all 0.0
     , childGap : 0.0
     , sizing : { width : PT.None, height : PT.None }
+    , alignment :
+        { horizontal : PT.Horz PT.Start
+        , vertical : PT.Vert PT.Start
+        }
     }
 
 
@@ -202,6 +209,14 @@ _height :: PT.Sizing -> PT.Def -> PT.Def
 _height upd x = x { sizing = { width : x.sizing.width, height : upd } }
 
 
+_alignmentHorz :: PT.HAlign -> PT.Def -> PT.Def
+_alignmentHorz upd x = x { alignment = { horizontal : upd, vertical : x.alignment.vertical } }
+
+
+_alignmentVert :: PT.VAlign -> PT.Def -> PT.Def
+_alignmentVert upd x = x { alignment = { horizontal : x.alignment.horizontal, vertical : upd } }
+
+
 _def :: forall a x. (x -> PT.Def -> PT.Def) -> x -> PT.WithDef a -> PT.WithDef a
 _def fn x r = r { def = fn x r.def }
 
@@ -240,6 +255,7 @@ direction = _prop _dir
 padding :: forall a. PT.Padding -> Play a -> Play a
 padding = _prop _padding
 
+
 -- | Set padding for the top side only.
 -- | Other padding values remain unchanged.
 paddingTop :: forall a. Number -> Play a -> Play a
@@ -259,6 +275,47 @@ paddingBottom = _prop \n -> \def -> def { padding = def.padding { bottom = n } }
 -- | Other padding values remain unchanged.
 paddingRight :: forall a. Number -> Play a -> Play a
 paddingRight = _prop \n -> \def -> def { padding = def.padding { right = n } }
+
+
+-- | Set horizontal alignment within a container. Use with `PT.HAlign.Horz` for clarity.
+alignH :: forall a. PT.HAlign -> Play a -> Play a
+alignH = _prop _alignmentHorz
+
+
+-- | Set vertical alignment within a container. Use with `PT.VAlign.Vert` for clarity.
+alignV :: forall a. PT.VAlign -> Play a -> Play a
+alignV = _prop _alignmentVert
+
+
+-- | Set alignment to left within a container on the horizontal axis.
+alignLeft :: forall a. Play a -> Play a
+alignLeft = alignH $ PT.Horz PT.Start
+
+
+-- | Set alignment to center within a container on the horizontal axis.
+alignCenter :: forall a. Play a -> Play a
+alignCenter = alignH $ PT.Horz PT.Center
+
+
+-- | Set alignment to right within a container on the horizontal axis.
+alignRight :: forall a. Play a -> Play a
+alignRight = alignH $ PT.Horz PT.End
+
+
+-- | Set alignment to top within a container on the vertical axis.
+alignTop :: forall a. Play a -> Play a
+alignTop = alignV $ PT.Vert PT.Start
+
+
+-- | Set alignment to middle within a container on the vertical axis.
+alignMiddle :: forall a. Play a -> Play a  -- vertically centered
+alignMiddle = alignV $ PT.Vert PT.Center
+
+
+-- | Set alignment to bottom within a container on the vertical axis.
+alignBottom :: forall a. Play a -> Play a
+alignBottom = alignV $ PT.Vert PT.End
+
 
 -- | Set the spacing between child elements.
 -- | This creates gaps between adjacent children in the layout direction.
