@@ -30,12 +30,14 @@ derive instance Eq Side_
 
 layoutTree :: forall a. Tree (PT.WithDef a) -> Tree (PT.WithDefRect a)
 layoutTree
-    =   Tree.break doFitSizing
-    >>> Tree.break doGrowSizing
-    >>> Tree.break (doPositioning { x : 0.0, y : 0.0 })
+
     -- Fit sizing: calculate sizes needed to fit children
     -- Grow sizing: allocate remaining space for growing children
     -- Positioning: using the size information, assign positions to each child; also based on alignment and direction
+
+    =   Tree.break doFitSizing
+    >>> Tree.break doGrowSizing
+    >>> Tree.break (doPositioning { x : 0.0, y : 0.0 })
     where
 
         rect :: PT.Pos -> PT.Size -> PT.Rect
@@ -274,7 +276,6 @@ layoutTree
                         curVal  = _.v    $ Tree.value chTree :: a
                         curDef  = _.def  $ Tree.value chTree :: PT.Def
                         curSize = _.size $ Tree.value chTree :: PT.Size
-                        -- childrenCount = Array.length $ Tree.children chTree :: Int
                         nextOffset =
                             case def.direction of
                                 PT.LeftToRight ->
