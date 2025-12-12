@@ -8,13 +8,8 @@ import Data.Int (toNumber) as Int
 import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
-
-import Play.Types
-    ( Direction(..), Offset, Pos, Rect, Size, Sizing(..), WithDef, WithDefRect, WithDefSize, Percents(..)
-    , Align(..), HAlign(..), VAlign(..)
-    , Def
-    ) as PT
-
+import Halogen.Svg.Attributes (a)
+import Play.Types (Align(..), Def, Direction(..), HAlign(..), Offset, Percents(..), Pos, Rect, Size, Sizing(..), VAlign(..), WithDef, WithDefRect, WithDefSize) as PT
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, value, children, update) as Tree
 
@@ -54,14 +49,19 @@ layoutTree
                 fitAtSide = case _ of
                     Width ->
                         case def.direction of
-                            PT.LeftToRight -> foldl (fitFoldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
-                            PT.TopToBottom -> foldl (fitFoldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
-                            PT.BackToFront -> foldl (fitFoldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
+                            PT.LeftToRight -> fitByWidthMain
+                            PT.TopToBottom -> fitByWidthSec
+                            PT.BackToFront -> fitByWidthSec
                     Height ->
                         case def.direction of
-                            PT.LeftToRight -> foldl (fitFoldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
-                            PT.TopToBottom -> foldl (fitFoldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
-                            PT.BackToFront -> foldl (fitFoldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
+                            PT.LeftToRight -> fitByHeightSec
+                            PT.TopToBottom -> fitByHeightMain
+                            PT.BackToFront -> fitByHeightSec
+
+                fitByWidthMain  = foldl (fitFoldFMain _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right  + (def.childGap * Int.toNumber (childrenCount - 1)))
+                fitByWidthSec   = foldl (fitFoldFSec  _.width)  0.0 childrenSizes + (def.padding.left + def.padding.right)
+                fitByHeightMain = foldl (fitFoldFMain _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom + (def.childGap * Int.toNumber (childrenCount - 1)))
+                fitByHeightSec  = foldl (fitFoldFSec  _.height) 0.0 childrenSizes + (def.padding.top  + def.padding.bottom)
 
                 -- fit folding function for main axis (sum)
                 -- first argument extracts width or height from size
@@ -163,29 +163,32 @@ layoutTree
 
                     -- the width available for growing children after accounting for fixed-size and fit-size children, including padding and gaps
                     availableWidth = case def.direction of
-                        PT.LeftToRight ->
-                            let knownWidth = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.width) <$> children) + def.padding.left + def.padding.right  + (def.childGap * (Int.toNumber $ childrenCount - 1))
-                                percentageReservedW = size.width * totalPercentageW
-                            in  size.width - knownWidth - percentageReservedW
-                        PT.TopToBottom ->
-                            let percentageReservedW = size.width * totalPercentageW
-                            in  size.width - def.padding.right - def.padding.left - percentageReservedW
-                        PT.BackToFront ->
-                            let percentageReservedW = size.width * totalPercentageW
-                            in  size.width - def.padding.right - def.padding.left - percentageReservedW
+                        PT.LeftToRight -> availableWidthMain
+                        PT.TopToBottom -> availableWidthSec
+                        PT.BackToFront -> availableWidthSec
 
                     -- the height available for growing children after accounting for fixed-size and fit-size children, including padding and gaps
                     availableHeight = case def.direction of
-                        PT.LeftToRight ->
-                            let percentageReservedH = size.height * totalPercentageH
-                            in  size.height - def.padding.top - def.padding.bottom - percentageReservedH
-                        PT.TopToBottom ->
-                            let knownHeight = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + def.padding.top  + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
-                                percentageReservedH = size.height * totalPercentageH
-                            in  size.height - knownHeight - percentageReservedH
-                        PT.BackToFront ->
-                            let percentageReservedH = size.height * totalPercentageH
-                            in  size.height - def.padding.top - def.padding.bottom - percentageReservedH
+                        PT.LeftToRight -> availableHeightSec
+                        PT.TopToBottom -> availableHeightMain
+                        PT.BackToFront -> availableHeightSec
+
+                    availableWidthMain =
+                        let knownWidth = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.width) <$> children) + paddingAndGapsByW
+                            paddingAndGapsByW = def.padding.left + def.padding.right + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                            percentageReservedW = size.width * totalPercentageW
+                        in  size.width - knownWidth - percentageReservedW
+                    availableWidthSec  =
+                        let percentageReservedW = size.width * totalPercentageW
+                        in  size.width - def.padding.right - def.padding.left - percentageReservedW
+                    availableHeightMain =
+                        let knownHeight = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + paddingAndGapsByH
+                            paddingAndGapsByH = def.padding.top + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
+                            percentageReservedH = size.height * totalPercentageH
+                        in  size.height - knownHeight - percentageReservedH
+                    availableHeightSec  =
+                        let percentageReservedH = size.height * totalPercentageH
+                        in  size.height - def.padding.top - def.padding.bottom - percentageReservedH
 
                     -- if there are growing children by the main axis, distribute available space among them, otherwise give all available space to each growing child on the secondary axis
                     growWidth = case def.direction of
@@ -268,16 +271,16 @@ layoutTree
                 addSecondaryAxisAlignment child =
                     child
                         { rect = child.rect
-                            { pos = adjustChildAlignment child.rect.size child.rect.pos }
+                            { pos = alignChildBy def.direction child.rect.size child.rect.pos }
                         }
 
                 addBothAxesAlignment child =
                     child
                         { rect = child.rect
-                            { pos = adjustBothAxes child.rect.size child.rect.pos }
+                            { pos = alignChildBy PT.BackToFront child.rect.size child.rect.pos }
                         }
 
-                adjustChildAlignment childSize childPos = case def.direction of
+                alignChildBy direction childSize childPos = case direction of
                     PT.LeftToRight ->
                         case def.alignment.vertical of
                             PT.Vert PT.Start  -> childPos
@@ -288,19 +291,10 @@ layoutTree
                             PT.Horz PT.Start  -> childPos
                             PT.Horz PT.Center -> childPos { x = childPos.x + (availableWidth - childSize.width) / 2.0 }
                             PT.Horz PT.End    -> childPos { x = childPos.x + (availableWidth - childSize.width) }
-                    PT.BackToFront -> childPos  -- handled by `addBothAxesAlignment`
-
-                -- adjust position on both axes for BackToFront
-                adjustBothAxes childSize childPos =
-                    case def.alignment.horizontal of
-                            PT.Horz PT.Start  -> childPos
-                            PT.Horz PT.Center -> childPos { x = childPos.x + (availableWidth - childSize.width) / 2.0 }
-                            PT.Horz PT.End    -> childPos { x = childPos.x + (availableWidth - childSize.width) }
-                    # \nextPos ->
-                    case def.alignment.vertical of
-                            PT.Vert PT.Start  -> nextPos
-                            PT.Vert PT.Center -> nextPos { y = nextPos.y + (availableHeight - childSize.height) / 2.0 }
-                            PT.Vert PT.End    -> nextPos { y = nextPos.y + (availableHeight - childSize.height) }
+                    PT.BackToFront
+                        -> childPos
+                        # alignChildBy PT.LeftToRight childSize
+                        # alignChildBy PT.TopToBottom childSize
 
                 foldF
                     :: PT.Offset /\ Array (Tree (PT.WithDefRect a))
