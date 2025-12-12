@@ -69,6 +69,7 @@ toCode vToString = Play.toTree >>> renderTreeWithIndent ""
             renderDirection = case _ of
                 PT.LeftToRight -> Nothing -- "leftToRight" is the default direction
                 PT.TopToBottom -> Just "Play.topToBottom"
+                PT.BackToFront -> Just "Play.backToFront"
 
             renderChildGap :: Number -> Maybe String
             renderChildGap n = if n == 0.0 then Nothing else Just $ "Play.childGap " <> show n
@@ -114,6 +115,7 @@ encodeDef def =
     case def.direction of
         PT.LeftToRight -> "→"
         PT.TopToBottom -> "↓"
+        PT.BackToFront -> "≡"
     <>
     " W:" <> sizingToLabel def.sizing.width
     <>

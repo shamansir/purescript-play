@@ -14,9 +14,11 @@ import Yoga.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl)
 -- |
 -- | - `TopToBottom`: Children are arranged vertically from top to bottom
 -- | - `LeftToRight`: Children are arranged horizontally from left to right
+-- | - `BackToFront`: Children are arranged in layers from back to front (z-axis)
 data Direction
     = TopToBottom
     | LeftToRight
+    | BackToFront
 
 
 derive instance Eq Direction
@@ -149,6 +151,7 @@ instance Bounded Percents where
 instance WriteForeign Direction where
     writeImpl TopToBottom = writeImpl "top-to-bottom"
     writeImpl LeftToRight = writeImpl "left-to-right"
+    writeImpl BackToFront = writeImpl "back-to-front"
 
 instance ReadForeign Direction where
     readImpl f = do
@@ -156,6 +159,7 @@ instance ReadForeign Direction where
         case str of
             "top-to-bottom" -> pure TopToBottom
             "left-to-right" -> pure LeftToRight
+            "back-to-front" -> pure BackToFront
             _ -> fail $ ForeignError $ "Invalid direction: " <> str
 
 derive newtype instance WriteForeign Percents
@@ -270,6 +274,7 @@ instance Show Direction where
     show = case _ of
         TopToBottom -> "TopToBottom"
         LeftToRight -> "LeftToRight"
+        BackToFront -> "BackToFront"
 
 instance Show VAlign where
     show = case _ of

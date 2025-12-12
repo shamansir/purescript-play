@@ -91,13 +91,17 @@ parseDirection :: Parser String PT.Direction
 parseDirection =
     (try $ string "D:LR" $> PT.LeftToRight)
     <|> (try $ string "D:TB" $> PT.TopToBottom)
+    <|> (try $ string "D:BF" $> PT.BackToFront)
     <|> (try $ string "D:→" $> PT.LeftToRight)
     <|> (try $ string "D:↓" $> PT.TopToBottom)
+    <|> (try $ string "D:≡" $> PT.BackToFront)
     <|> (try $ string "LR" $> PT.LeftToRight)
     <|> (try $ string "TB" $> PT.TopToBottom)
+    <|> (try $ string "BF" $> PT.BackToFront)
     <|> (try $ string "→" $> PT.LeftToRight)
     <|> (string "↓" $> PT.TopToBottom)
-    <?> "LR | TB | → | ↓ | D:LR | D:TB | D:→ | D:↓"
+    <|> (string "≡" $> PT.BackToFront)
+    <?> "LR | TB | BF |  → | ↓ | ≡ | D:LR | D:TB | D:BF | D:→ | D:↓ | D:≡" -- D:⊙
 
 
 -- | Parse alignment specification like "START", "CENTER", "END", "STRETCH", "SPACEBETWEEN", "SPACEAROUND"

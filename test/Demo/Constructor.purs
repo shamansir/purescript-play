@@ -476,11 +476,13 @@ renderPropertyEditor state =
                 [ HE.onSelectedIndexChange \idx -> case idx of
                     0 -> UpdateField $ Direction PT.LeftToRight
                     1 -> UpdateField $ Direction PT.TopToBottom
+                    2 -> UpdateField $ Direction PT.BackToFront
                     _ -> UpdateField $ Direction PT.LeftToRight
                 , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
                 ]
                 [ HH.option [ HP.selected (state.editing.def.direction == PT.LeftToRight) ] [ HH.text "→ Left to Right" ]
                 , HH.option [ HP.selected (state.editing.def.direction == PT.TopToBottom) ] [ HH.text "↓ Top to Bottom" ]
+                , HH.option [ HP.selected (state.editing.def.direction == PT.BackToFront) ] [ HH.text "≡ Back to Front" ]
                 ]
             ]
         , HH.div

@@ -20,7 +20,7 @@ module Play
     , layout, layoutToTree, layoutToTree_, flattenLayout, rollback, layoutSize
     , widthFit, widthPercent, widthGrow, widthFitGrow, widthFitMin, widthFitMinMax, widthGrowMin, width, width_
     , heightFit, heightPercent, heightGrow, heightFitGrow, heightFitMin, heightFitMinMax, heightGrowMin, height, height_
-    , topToBottom, leftToRight
+    , topToBottom, leftToRight, backToFront
     , alignH, alignV, alignLeft, alignCenter, alignRight, alignTop, alignMiddle, alignBottom
     , (~*), playProp
     , pctToNumber
@@ -237,6 +237,7 @@ _prop fn x (Play tree) = Play $ Tree.update (_def fn x) tree
 -- |
 -- | - `TopToBottom`: Stack children vertically
 -- | - `LeftToRight`: Arrange children horizontally (default)
+-- | - `BackToFront`: Stack children in layers from back to front
 -- |
 -- | Example:
 -- | ```purescript
@@ -492,6 +493,9 @@ topToBottom = direction PT.TopToBottom :: forall a. PropF a
 -- | Set layout direction to arrange children horizontally (left to right).
 -- | This is the default direction.
 leftToRight = direction PT.LeftToRight :: forall a. PropF a
+
+-- | Set layout direction to arrange children in layers from back to front.
+backToFront = direction PT.BackToFront :: forall a. PropF a
 
 
 -- | Set percentage value between 0.0 and 1.0 representing a fraction of available space.

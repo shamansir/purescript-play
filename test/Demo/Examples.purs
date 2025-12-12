@@ -1052,18 +1052,19 @@ toPlaySpec = case _ of
                     ~* Play.widthGrow
                     ~* Play.heightGrow
                     ~* Play.with
-                        [ surroundPlay
-                        , Play.i Nothing -- ("Surround")
+                        [ Play.i (Just $ Kanji "口") {- surroundPlay -}
+                            ~* Play.widthGrow
+                            ~* Play.heightGrow
+                        , Play.i Nothing
                             ~* Play.widthGrow
                             ~* Play.heightGrow
                             ~* Play.alignCenter
                             ~* Play.alignMiddle
                             ~* Play.with
-                            [ surroundPlay
-                            , Play.i Nothing -- ("Surround")
-                                ~* Play.widthPercent (Play.pct 0.4)
-                                ~* Play.heightPercent (Play.pct 0.4)
-                                ~* Play.with [ insidePlay ]
-                            ]
+                                [ insidePlay
+                                    ~* Play.widthPercent (Play.pct 0.4)
+                                    ~* Play.heightPercent (Play.pct 0.4)
+                                    ~* Play.with [ insidePlay ]
+                                ]
                         ]
             _ -> insidePlay -- TODO: implement other kinds

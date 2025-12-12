@@ -818,6 +818,366 @@ spec =
               c3.rect.pos.y `shouldEqual` 335.0  -- 265 + 60 + 10
               c3.rect.pos.x `shouldEqual` 45.0
 
+-- filepath: test/Test/Spec/Layout.purs
+
+    describe "BackToFront Direction (Layered/Stacked)" do
+
+      it "positions all children at the same location (stacked)" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(200) H:FIX(200)" :<
+            [ leaf "W:FIX(50) H:FIX(50)"
+            , leaf "W:FIX(60) H:FIX(60)"
+            , leaf "W:FIX(40) H:FIX(40)"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+          -- All children should be at the same position (0, 0)
+          checkChild children 0 \c1 -> do
+            c1.rect.pos.x `shouldEqual` 0.0
+            c1.rect.pos.y `shouldEqual` 0.0
+            c1.rect.size.width `shouldEqual` 50.0
+            c1.rect.size.height `shouldEqual` 50.0
+
+          checkChild children 1 \c2 -> do
+            c2.rect.pos.x `shouldEqual` 0.0
+            c2.rect.pos.y `shouldEqual` 0.0
+            c2.rect.size.width `shouldEqual` 60.0
+            c2.rect.size.height `shouldEqual` 60.0
+
+          checkChild children 2 \c3 -> do
+            c3.rect.pos.x `shouldEqual` 0.0
+            c3.rect.pos.y `shouldEqual` 0.0
+            c3.rect.size.width `shouldEqual` 40.0
+            c3.rect.size.height `shouldEqual` 40.0
+
+      it "fits to maximum child size on both axes" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIT H:FIT" :<
+            [ leaf "W:FIX(50) H:FIX(30)"
+            , leaf "W:FIX(80) H:FIX(60)"  -- Widest and tallest
+            , leaf "W:FIX(40) H:FIX(50)"
+            ]) \tree -> do
+
+          let parentRect = (Tree.value tree).rect
+          -- Parent should fit to max width (80) and max height (60)
+          parentRect.size.width `shouldEqual` 80.0
+          parentRect.size.height `shouldEqual` 60.0
+
+      it "gives full available space to each growing child independently" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(300) H:FIX(200)" :<
+            [ leaf "W:GRW H:GRW"
+            , leaf "W:GRW H:GRW"
+            , leaf "W:GRW H:GRW"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+          -- Each child should get the full 300x200, not divided
+          checkChild children 0 \c1 -> do
+            c1.rect.size.width `shouldEqual` 300.0
+            c1.rect.size.height `shouldEqual` 200.0
+
+          checkChild children 1 \c2 -> do
+            c2.rect.size.width `shouldEqual` 300.0
+            c2.rect.size.height `shouldEqual` 200.0
+
+          checkChild children 2 \c3 -> do
+            c3.rect.size.width `shouldEqual` 300.0
+            c3.rect.size.height `shouldEqual` 200.0
+
+      it "handles mix of grow and fixed children (each grows independently)" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(400) H:FIX(300)" :<
+            [ leaf "W:FIX(100) H:FIX(100)"
+            , leaf "W:GRW H:GRW"
+            , leaf "W:FIX(200) H:FIX(150)"
+            , leaf "W:GRW H:FIX(50)"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          checkChild children 0 \c1 -> do
+            c1.rect.size.width `shouldEqual` 100.0
+            c1.rect.size.height `shouldEqual` 100.0
+
+          checkChild children 1 \c2 -> do
+            -- Grows to fill parent completely
+            c2.rect.size.width `shouldEqual` 400.0
+            c2.rect.size.height `shouldEqual` 300.0
+
+          checkChild children 2 \c3 -> do
+            c3.rect.size.width `shouldEqual` 200.0
+            c3.rect.size.height `shouldEqual` 150.0
+
+          checkChild children 3 \c4 -> do
+            -- Grows horizontally, fixed vertically
+            c4.rect.size.width `shouldEqual` 400.0
+            c4.rect.size.height `shouldEqual` 50.0
+
+      it "handles percentage sizing (each child gets percentage of parent)" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(500) H:FIX(400)" :<
+            [ leaf "W:PCT(50%) H:PCT(50%)"
+            , leaf "W:PCT(80%) H:PCT(80%)"
+            , leaf "W:PCT(100%) H:PCT(100%)"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          checkChild children 0 \c1 -> do
+            c1.rect.size.width `shouldEqual` 250.0   -- 50% of 500
+            c1.rect.size.height `shouldEqual` 200.0  -- 50% of 400
+
+          checkChild children 1 \c2 -> do
+            c2.rect.size.width `shouldEqual` 400.0   -- 80% of 500
+            c2.rect.size.height `shouldEqual` 320.0  -- 80% of 400
+
+          checkChild children 2 \c3 -> do
+            c3.rect.size.width `shouldEqual` 500.0   -- 100% of 500
+            c3.rect.size.height `shouldEqual` 400.0  -- 100% of 400
+
+      it "applies padding to stacked children" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(300) H:FIX(200) PAD:(10,20,30,40)" :<
+            [ leaf "W:GRW H:GRW"
+            , leaf "W:GRW H:GRW"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          -- All children should be offset by left/top padding
+          checkChild children 0 \c1 -> do
+            c1.rect.pos.x `shouldEqual` 40.0  -- Left padding
+            c1.rect.pos.y `shouldEqual` 10.0  -- Top padding
+            -- Available: 300 - 40 - 20 = 240 width, 200 - 10 - 30 = 160 height
+            c1.rect.size.width `shouldEqual` 240.0
+            c1.rect.size.height `shouldEqual` 160.0
+
+          checkChild children 1 \c2 -> do
+            c2.rect.pos.x `shouldEqual` 40.0
+            c2.rect.pos.y `shouldEqual` 10.0
+            c2.rect.size.width `shouldEqual` 240.0
+            c2.rect.size.height `shouldEqual` 160.0
+
+      it "ignores gap (not applicable for stacked children)" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(300) H:FIX(200) GAP:50" :<
+            [ leaf "W:FIX(100) H:FIX(100)"
+            , leaf "W:FIX(100) H:FIX(100)"
+            , leaf "W:FIX(100) H:FIX(100)"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          -- Gap should be ignored, all at same position
+          checkChild children 0 \c1 -> c1.rect.pos.x `shouldEqual` 0.0
+          checkChild children 1 \c2 -> c2.rect.pos.x `shouldEqual` 0.0
+          checkChild children 2 \c3 -> c3.rect.pos.x `shouldEqual` 0.0
+
+      describe "BackToFront with Alignment" do
+
+        it "applies horizontal center alignment to each child independently" do
+          checkLayoutTreeFrom
+              ( "≡ W:FIX(300) H:FIX(200) HA:CENTER" :<
+              [ leaf "W:FIX(100) H:FIX(50)"
+              , leaf "W:FIX(150) H:FIX(80)"
+              , leaf "W:FIX(50) H:FIX(100)"
+              ]) \tree -> do
+
+            let children = Tree.children tree
+
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.x `shouldEqual` 100.0  -- (300 - 100) / 2
+              c1.rect.pos.y `shouldEqual` 0.0
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.x `shouldEqual` 75.0   -- (300 - 150) / 2
+              c2.rect.pos.y `shouldEqual` 0.0
+
+            checkChild children 2 \c3 -> do
+              c3.rect.pos.x `shouldEqual` 125.0  -- (300 - 50) / 2
+              c3.rect.pos.y `shouldEqual` 0.0
+
+        it "applies vertical center alignment to each child independently" do
+          checkLayoutTreeFrom
+              ( "≡ W:FIX(300) H:FIX(200) VA:CENTER" :<
+              [ leaf "W:FIX(100) H:FIX(50)"
+              , leaf "W:FIX(100) H:FIX(120)"
+              , leaf "W:FIX(100) H:FIX(80)"
+              ]) \tree -> do
+
+            let children = Tree.children tree
+
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.y `shouldEqual` 75.0   -- (200 - 50) / 2
+              c1.rect.pos.x `shouldEqual` 0.0
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.y `shouldEqual` 40.0   -- (200 - 120) / 2
+              c2.rect.pos.x `shouldEqual` 0.0
+
+            checkChild children 2 \c3 -> do
+              c3.rect.pos.y `shouldEqual` 60.0   -- (200 - 80) / 2
+              c3.rect.pos.x `shouldEqual` 0.0
+
+        it "applies both horizontal and vertical center alignment" do
+          checkLayoutTreeFrom
+              ( "≡ W:FIX(400) H:FIX(300) HA:CENTER VA:CENTER" :<
+              [ leaf "W:FIX(100) H:FIX(50)"
+              , leaf "W:FIX(200) H:FIX(150)"
+              ]) \tree -> do
+
+            let children = Tree.children tree
+
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.x `shouldEqual` 150.0  -- (400 - 100) / 2
+              c1.rect.pos.y `shouldEqual` 125.0  -- (300 - 50) / 2
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.x `shouldEqual` 100.0  -- (400 - 200) / 2
+              c2.rect.pos.y `shouldEqual` 75.0   -- (300 - 150) / 2
+
+        it "applies end alignment on both axes" do
+          checkLayoutTreeFrom
+              ( "≡ W:FIX(400) H:FIX(300) HA:END VA:END" :<
+              [ leaf "W:FIX(100) H:FIX(50)"
+              , leaf "W:FIX(200) H:FIX(100)"
+              , leaf "W:FIX(150) H:FIX(200)"
+              ]) \tree -> do
+
+            let children = Tree.children tree
+
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.x `shouldEqual` 300.0  -- 400 - 100
+              c1.rect.pos.y `shouldEqual` 250.0  -- 300 - 50
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.x `shouldEqual` 200.0  -- 400 - 200
+              c2.rect.pos.y `shouldEqual` 200.0  -- 300 - 100
+
+            checkChild children 2 \c3 -> do
+              c3.rect.pos.x `shouldEqual` 250.0  -- 400 - 150
+              c3.rect.pos.y `shouldEqual` 100.0  -- 300 - 200
+
+        it "applies alignment with padding" do
+          checkLayoutTreeFrom
+              ( "≡ W:FIX(400) H:FIX(300) PAD:(20,30,40,50) HA:CENTER VA:CENTER" :<
+              [ leaf "W:FIX(100) H:FIX(80)"
+              , leaf "W:FIX(150) H:FIX(120)"
+              ]) \tree -> do
+
+            let children = Tree.children tree
+
+            -- Available: width = 400 - 50 - 30 = 320, height = 300 - 20 - 40 = 240
+            checkChild children 0 \c1 -> do
+              c1.rect.pos.x `shouldEqual` 160.0  -- 50 + (320 - 100) / 2
+              c1.rect.pos.y `shouldEqual` 100.0  -- 20 + (240 - 80) / 2
+
+            checkChild children 1 \c2 -> do
+              c2.rect.pos.x `shouldEqual` 135.0  -- 50 + (320 - 150) / 2
+              c2.rect.pos.y `shouldEqual` 80.0   -- 20 + (240 - 120) / 2
+
+      it "handles FitGrow in BackToFront (each child fits or grows independently)" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(300) H:FIX(200)" :<
+            [ "W:FITGRW H:FITGRW" :< [ leaf "W:FIX(100) H:FIX(50)" ]
+            , "W:FITGRW H:FITGRW" :< [ leaf "W:FIX(250) H:FIX(150)" ]
+            , leaf "W:FITGRW H:FITGRW"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          checkChild children 0 \c1 -> do
+            -- Content is 100x50, available is 300x200, grows to 300x200
+            c1.rect.size.width `shouldEqual` 300.0
+            c1.rect.size.height `shouldEqual` 200.0
+
+          checkChild children 1 \c2 -> do
+            -- Content is 250x150, available is 300x200, grows to 300x200
+            c2.rect.size.width `shouldEqual` 300.0
+            c2.rect.size.height `shouldEqual` 200.0
+
+          checkChild children 2 \c3 -> do
+            -- No content, grows to full parent size
+            c3.rect.size.width `shouldEqual` 300.0
+            c3.rect.size.height `shouldEqual` 200.0
+
+      it "handles GRWMIN constraints (each child respects its own minimum)" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(500) H:FIX(400)" :<
+            [ leaf "W:GRWMIN(100) H:GRWMIN(80)"
+            , leaf "W:GRWMIN(600) H:GRWMIN(500)"   -- Exceeds parent, should use min
+            , leaf "W:GRWMIN(50) H:GRWMIN(50)"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          checkChild children 0 \c1 -> do
+            -- Grows to parent size (500x400 > 100x80 min)
+            c1.rect.size.width `shouldEqual` 500.0
+            c1.rect.size.height `shouldEqual` 400.0
+
+          checkChild children 1 \c2 -> do
+            -- Min exceeds parent, uses min (600x500)
+            c2.rect.size.width `shouldEqual` 600.0
+            c2.rect.size.height `shouldEqual` 500.0
+
+          checkChild children 2 \c3 -> do
+            -- Grows to parent size (500x400 > 50x50 min)
+            c3.rect.size.width `shouldEqual` 500.0
+            c3.rect.size.height `shouldEqual` 400.0
+
+      it "handles nested layouts with BackToFront" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(400) H:FIX(300)" :<
+            [ "→ W:FIT H:FIT" :<
+                [ leaf "W:FIX(100) H:FIX(50)"
+                , leaf "W:FIX(100) H:FIX(50)"
+                ]
+            , "↓ W:FIT H:FIT" :<
+                [ leaf "W:FIX(80) H:FIX(60)"
+                , leaf "W:FIX(80) H:FIX(60)"
+                ]
+            , leaf "W:GRW H:GRW"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          -- All three nested layouts at same position
+          checkChild children 0 \c1 -> do
+            c1.rect.pos.x `shouldEqual` 0.0
+            c1.rect.pos.y `shouldEqual` 0.0
+            -- Horizontal layout: 100 + 100 = 200
+            c1.rect.size.width `shouldEqual` 200.0
+
+          checkChild children 1 \c2 -> do
+            c2.rect.pos.x `shouldEqual` 0.0
+            c2.rect.pos.y `shouldEqual` 0.0
+            -- Vertical layout: max width 80, height 60 + 60 = 120
+            c2.rect.size.width `shouldEqual` 80.0
+            c2.rect.size.height `shouldEqual` 120.0
+
+          checkChild children 2 \c3 -> do
+            c3.rect.pos.x `shouldEqual` 0.0
+            c3.rect.pos.y `shouldEqual` 0.0
+            -- Grows to full parent
+            c3.rect.size.width `shouldEqual` 400.0
+            c3.rect.size.height `shouldEqual` 300.0
+
+      it "handles single child (behaves like normal container)" do
+        checkLayoutTreeFrom
+            ( "≡ W:FIX(300) H:FIX(200)" :<
+            [ leaf "W:GRW H:GRW"
+            ]) \tree -> do
+
+          let children = Tree.children tree
+
+          checkChild children 0 \c1 -> do
+            c1.rect.pos.x `shouldEqual` 0.0
+            c1.rect.pos.y `shouldEqual` 0.0
+            c1.rect.size.width `shouldEqual` 300.0
+            c1.rect.size.height `shouldEqual` 200.0
+
     describe "Edge Cases" do
 
       it "handles empty container" do
