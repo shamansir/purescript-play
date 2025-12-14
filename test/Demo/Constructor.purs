@@ -4,14 +4,14 @@ import Prelude
 
 import Effect (Effect)
 
-
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
-import Data.Number as Number
-import Data.Tuple.Nested ((/\), type (/\))
 import Data.Newtype (wrap, unwrap)
+import Data.Number as Number
+import Data.String as String
+import Data.Tuple.Nested ((/\), type (/\))
 
 import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody) as HA
@@ -25,18 +25,16 @@ import Halogen.VDom.Driver (runUI)
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (children, flatten, value) as Tree
 import Yoga.Tree.Extended.Path as Tree.Path
-import Data.String as String
 
 import Play (Play, (~*))
 import Play as Play
-import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect, Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
 import Play.Extra as Play
-
--- import Test.Demo (renderOne) as Demo
-import Test.Demo.Examples (Item(..), ic, itemName, nameOf, colorOf, noodleUI, playOf, selectedExamples, Kanji(..))
+import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect, Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
 
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
+import Test.Demo.Examples (Item(..), ic, itemName, nameOf, colorOf, noodleUI, playOf, selectedExamples, Kanji(..))
+import Test.Demo (renderItem) as Demo
 
 
 main :: Effect Unit
@@ -324,13 +322,13 @@ component =
 -- Set item name
 setItemName :: String -> Item -> Item
 setItemName newName (Item mbCol _) = Item mbCol newName
-setItemName _       (AKanji kanji) = AKanji kanji
+setItemName _       (AKanji kanji transform) = AKanji kanji transform
 setItemName _       Stub = Stub
 
 -- Set item color
 setItemColor :: HA.Color -> Item -> Item
 setItemColor newColor (Item _ name)  = Item (Just newColor) name
-setItemColor _        (AKanji kanji) = AKanji kanji
+setItemColor _        (AKanji kanji transform) = AKanji kanji transform
 setItemColor _        Stub = Stub
 
 
@@ -979,64 +977,47 @@ renderClickablePreview state =
 
 renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithDefRect Item) -> HH.HTML i Action
 renderClickableItem state (path /\ { v, def, rect }) =
-
-            let
-                isSelected = state.selectedPath == path
-                labelText = Play.encodeDef def
-                mbCol = colorOf v
-            in HS.g
-                [ HE.onClick \_ -> SelectItem path
-                , HP.style "pointer-events: all; cursor: pointer;"
+    let
+        isSelected = state.selectedPath == path
+        labelText = Play.encodeDef def
+        mbCol = colorOf v
+    in HS.g
+        [ HE.onClick \_ -> SelectItem path
+        , HP.style "pointer-events: all; cursor: pointer;"
+        ]
+        $ [ HS.rect
+            [ HA.x rect.pos.x
+            , HA.y rect.pos.y
+            , HA.rx 3.0
+            , HA.ry 3.0
+            , HA.width rect.size.width
+            , HA.height rect.size.height
+            , HA.fill $ case mbCol of
+                Just col -> col
+                Nothing -> HA.Named "transparent"
+            , HA.stroke $ if isSelected then HA.RGB 255 0 0 else case mbCol of
+                Just _ -> HA.Named "transparent"
+                Nothing -> HA.Named "black"
+            , HA.strokeWidth $ if isSelected then 2.0 else 0.5
+            , HP.style "cursor: pointer;"
+            , HE.onClick \_ -> SelectItem path
+            ]
+        , Demo.renderItem (SelectItem path) { v, rect }
+        ]
+        <> if state.showEncodedSizing then
+            [ HS.text
+                [ HA.x $ rect.pos.x + 5.0
+                , HA.y $ rect.pos.y + 23.0
+                , HA.fontSize $ HA.FontSizeLength $ HA.Px 10.0
+                , HA.fill $ HA.Named "white"
+                , HA.strokeWidth 0.3
+                , HA.dominantBaseline HA.Hanging
+                , HP.style "pointer-events: none; opacity: 0.8;"
+                , HE.onClick \_ -> SelectItem path
                 ]
-                $ [ HS.rect
-                    [ HA.x rect.pos.x
-                    , HA.y rect.pos.y
-                    , HA.rx 3.0
-                    , HA.ry 3.0
-                    , HA.width rect.size.width
-                    , HA.height rect.size.height
-                    , HA.fill $ case mbCol of
-                        Just col -> col
-                        Nothing -> HA.Named "transparent"
-                    , HA.stroke $ if isSelected then HA.RGB 255 0 0 else case mbCol of
-                        Just _ -> HA.Named "transparent"
-                        Nothing -> HA.Named "black"
-                    , HA.strokeWidth $ if isSelected then 2.0 else 0.5
-                    , HP.style "cursor: pointer;"
-                    , HE.onClick \_ -> SelectItem path
-                    ]
-                , HS.text
-                    [ HA.x $ rect.pos.x + 5.0
-                    , HA.y $ rect.pos.y + 7.0
-                    , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
-                    , HA.fill $ HA.Named "white"
-                    , HA.strokeWidth 0.5
-                    , HA.dominantBaseline HA.Hanging
-                    , HP.style "pointer-events: none;"
-                    , HE.onClick \_ -> SelectItem path
-                    ]
-                    [ case v of
-                        Item _ itemLabel ->
-                            HH.text itemLabel
-                        AKanji (Kanji kanji) ->
-                            HH.text kanji
-                        Stub -> HH.text ""
-                    ]
-                ]
-                <> if state.showEncodedSizing then
-                    [ HS.text
-                        [ HA.x $ rect.pos.x + 5.0
-                        , HA.y $ rect.pos.y + 23.0
-                        , HA.fontSize $ HA.FontSizeLength $ HA.Px 10.0
-                        , HA.fill $ HA.Named "white"
-                        , HA.strokeWidth 0.3
-                        , HA.dominantBaseline HA.Hanging
-                        , HP.style "pointer-events: none; opacity: 0.8;"
-                        , HE.onClick \_ -> SelectItem path
-                        ]
-                        [ HH.text labelText ]
-                    ]
-                   else []
+                [ HH.text labelText ]
+            ]
+            else []
 
 
 renderTextualTree :: forall i. Play.ItemPath -> Array Play.ItemPath -> Play Item -> HH.HTML i Action
