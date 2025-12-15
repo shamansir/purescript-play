@@ -31,10 +31,12 @@ import Play as Play
 import Play.Extra as Play
 import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect, Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
 
+import Test.Demo as Demo
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
-import Test.Demo.Examples (Item(..), ic, itemName, nameOf, colorOf, noodleUI, playOf, selectedExamples, Kanji(..))
-import Test.Demo (renderItem) as Demo
+import Test.Demo.Examples (selectedExamples)
+import Test.Demo.Examples.Noodle (noodleUI)
+import Test.Demo.Examples.Types (Item(..), Kanji(..), ic, itemColor, itemName, nameOf, playOf)
 
 
 main :: Effect Unit
@@ -99,7 +101,7 @@ type CodePanelState =
 
 
 type State =
-    { playTree :: Play Item
+    { playTree :: Play (Item Unit)
     , exampleName :: Maybe String
     , selectedPath :: Play.ItemPath
     , editing :: EditingState
@@ -144,7 +146,7 @@ component =
             let
                 mbItem = Play.itemAt path tree
                 mbDef = Play.defAt path tree
-                mbColor = mbItem >>= colorOf
+                mbColor = mbItem >>= itemColor
             in
                 { name : fromMaybe "?" (itemName <$> mbItem)
                 , def : fromMaybe Play.default mbDef
@@ -320,14 +322,14 @@ component =
 
 
 -- Set item name
-setItemName :: String -> Item -> Item
-setItemName newName (Item mbCol _) = Item mbCol newName
+setItemName :: forall x. String -> Item x -> Item x
+setItemName newName (Item item v) = Item item { label = newName } v
 setItemName _       (AKanji kanji transform) = AKanji kanji transform
 setItemName _       Stub = Stub
 
 -- Set item color
-setItemColor :: HA.Color -> Item -> Item
-setItemColor newColor (Item _ name)  = Item (Just newColor) name
+setItemColor :: forall x. HA.Color -> Item x -> Item x
+setItemColor newColor (Item item v) = Item item { bgColor = Just newColor } v
 setItemColor _        (AKanji kanji transform) = AKanji kanji transform
 setItemColor _        Stub = Stub
 
@@ -975,12 +977,12 @@ renderClickablePreview state =
         ]
 
 
-renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithDefRect Item) -> HH.HTML i Action
+renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithDefRect (Item Unit)) -> HH.HTML i Action
 renderClickableItem state (path /\ { v, def, rect }) =
     let
         isSelected = state.selectedPath == path
         labelText = Play.encodeDef def
-        mbCol = colorOf v
+        mbCol = itemColor v
     in HS.g
         [ HE.onClick \_ -> SelectItem path
         , HP.style "pointer-events: all; cursor: pointer;"
@@ -1020,7 +1022,7 @@ renderClickableItem state (path /\ { v, def, rect }) =
             else []
 
 
-renderTextualTree :: forall i. Play.ItemPath -> Array Play.ItemPath -> Play Item -> HH.HTML i Action
+renderTextualTree :: forall i. Play.ItemPath -> Array Play.ItemPath -> Play (Item Unit) -> HH.HTML i Action
 renderTextualTree selectedPath collapsedNodes playTree =
   let
     tree = Play.toTree playTree
@@ -1036,7 +1038,7 @@ renderTextualTreeNode
      . Play.ItemPath
     -> Play.ItemPath
     -> Array Play.ItemPath
-    -> Tree (PT.WithDef Item)
+    -> Tree (PT.WithDef (Item Unit))
     -> HH.HTML i Action
 renderTextualTreeNode currentPath selectedPath collapsedNodes tree =
   let

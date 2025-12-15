@@ -19,7 +19,8 @@ import Play as Play
 
 import Play.Types (WithRect)  as PT
 
-import Test.Demo.Examples (Item(..), DemoExample, theExamples, LayedOutExample, layoutExample, Kanji(..))
+import Test.Demo.Examples.Types (Item(..), DemoExample, LayedOutExample, layoutExample, Kanji(..))
+import Test.Demo.Examples (theExamples)
 
 
 main :: Effect Unit
@@ -32,7 +33,7 @@ type Action
     = Unit
 
 
-type State = Array DemoExample
+type State = Array (DemoExample Unit)
 
 
 component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
@@ -60,7 +61,7 @@ component =
         handleAction = const $ pure unit
 
 
-renderExample :: forall i o. o -> LayedOutExample -> HH.HTML i o
+renderExample :: forall i o x. o -> LayedOutExample x -> HH.HTML i o
 renderExample clickAction { id, label, size, layout } =
     HH.div
         [ HP.style "margin: 5px 10px;" ]
@@ -76,10 +77,10 @@ renderExample clickAction { id, label, size, layout } =
         ]
 
 
-renderItem :: forall i o. o -> PT.WithRect Item -> HH.HTML i o
+renderItem :: forall i o x. o -> PT.WithRect (Item x) -> HH.HTML i o
 renderItem clickAction { v, rect } =
     case v of
-        Item _ itemLabel ->
+        Item item _ ->
             HS.text
                 [ HA.x $ rect.pos.x + 5.0
                 , HA.y $ rect.pos.y + 7.0
@@ -90,7 +91,7 @@ renderItem clickAction { v, rect } =
                 , HP.style "pointer-events: none;"
                 , HE.onClick \_ -> clickAction
                 ]
-                [ HH.text itemLabel
+                [ HH.text item.label
                 ]
         AKanji (Kanji kanji) transform ->
                 let
@@ -120,16 +121,17 @@ renderItem clickAction { v, rect } =
                 centerY = rect.size.height / 2.0
                 -- let fontSize = (min rect.size.width rect.size.height) * 0.8
                 in HS.g
-                    [ HA.transform [ HA.Translate offsetX offsetY ] ]
+                    [ {- HA.transform [ HA.Translate offsetX offsetY ] -} ]
                     $ pure
                     $ HS.text
-                        [ HA.x centerX
-                        , HA.y centerY
+                        [ HA.x $ offsetX + centerX
+                        , HA.y $ offsetY + centerY
                         , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
                         , HA.fill $ HA.Named "black"
                         , HA.strokeWidth 0.5
                         , HA.textAnchor HA.AnchorMiddle
                         , HA.dominantBaseline HA.BaselineMiddle
+                        -- , HA.transformOrigin ?wh
                         , HA.transform
                             [ HA.Translate centerX centerY
                             , HA.Scale scaleX scaleY
