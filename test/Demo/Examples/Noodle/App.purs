@@ -31,39 +31,6 @@ data NoodleUI
     | DocumentationAndInfo
 
 
-instance IsItem NoodleUI where
-    itemName = case _ of
-        NBackground              -> "background"
-        TopBar                   -> "top bar"
-        MiddleSection            -> "middle"
-        PatchesBar               -> "Patches bar"
-        Library                  -> "Library"
-        Nodes                    -> "Nodes"
-        SidePanels               -> "Side Panels"
-        SidePanelSwitches        -> "side panels switches"
-        SidePanel n              -> show n <> " :: Side Panel"
-        SidePanelButton n        -> show n <> "SP button"
-        StatusBar                -> "status bar"
-        StatusBarSections        -> "status bar sections"
-        StatusBarSection n       -> show n <> "SB section"
-        DocumentationAndInfo     -> "documentation + info"
-    itemColor = case _ of
-        NBackground              -> Nothing
-        TopBar                   -> Just $ HA.Named "blue"
-        MiddleSection            -> Just $ HA.Named "darkgray"
-        PatchesBar               -> Just $ HA.RGB 135 154 57
-        Library                  -> Just $ HA.RGB 22 79 74
-        Nodes                    -> Just $ HA.RGB 146 191 219
-        SidePanels               -> Just $ HA.Named "orange"
-        SidePanelSwitches        -> Just $ HA.RGB 236 139 73
-        SidePanel _              -> Just $ HA.RGB 49 113 178
-        SidePanelButton _        -> Just $ HA.Named "green"
-        StatusBar                -> Just $ HA.Named "black"
-        StatusBarSections        -> Just $ HA.Named "skyblue"
-        StatusBarSection _       -> Just $ HA.RGB 113 50 13
-        DocumentationAndInfo     -> Just $ HA.Named "gray"
-
-
 {- 20 -}
 noodleUI :: Example NoodleUI
 noodleUI =
@@ -141,5 +108,39 @@ noodleUI =
                     ~* Play.with sbSections
                 ]
             ]
+
+
+
+instance IsItem NoodleUI where
+    itemName = case _ of
+        NBackground              -> "background"
+        TopBar                   -> "top bar"
+        MiddleSection            -> "middle"
+        PatchesBar               -> "Patches bar"
+        Library                  -> "Library"
+        Nodes                    -> "Nodes"
+        SidePanels               -> "Side Panels"
+        SidePanelSwitches        -> "side panels switches"
+        SidePanel n              -> show n <> " :: Side Panel"
+        SidePanelButton n        -> show n <> "SP button"
+        StatusBar                -> "status bar"
+        StatusBarSections        -> "status bar sections"
+        StatusBarSection n       -> show n <> "SB section"
+        DocumentationAndInfo     -> "documentation + info"
+    itemColor = case _ of
+        NBackground              -> Nothing
+        TopBar                   -> Just $ HA.Named "blue"
+        MiddleSection            -> Just $ HA.Named "darkgray"
+        PatchesBar               -> Just $ HA.RGB 135 154 57
+        Library                  -> Just $ HA.RGB 22 79 74
+        Nodes                    -> Just $ HA.RGB 146 191 219
+        SidePanels               -> Just $ HA.Named "orange"
+        SidePanelSwitches        -> Just $ HA.RGB 236 139 73
+        SidePanel _              -> Just $ HA.RGB 49 113 178
+        SidePanelButton _        -> Just $ HA.Named "green"
+        StatusBar                -> Just $ HA.Named "black"
+        StatusBarSections        -> Just $ HA.Named "skyblue"
+        StatusBarSection _       -> Just $ HA.RGB 113 50 13
+        DocumentationAndInfo     -> Just $ HA.Named "gray"
 
 

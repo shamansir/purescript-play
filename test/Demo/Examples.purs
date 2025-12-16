@@ -22,8 +22,9 @@ data ExItem
     | Noodle Noodle.NoodleUI
     | NoodleNode Noodle.NodeUI
     | NoodleGrowEx Noodle.NodeGrowExp
-    | SvgTree Unit
-    | FromClay Unit
+    | SvgTree SvgTree.GraphUI
+    | ClayMenu FromClay.ClayMenu
+    | ClayColors FromClay.ClayColors
     | Kanji Kanji.KanjiItem
 
 
@@ -47,7 +48,7 @@ theExamples =
         ]
     )
     <>
-    ( liftEx SvgTree <$>
+    ( liftEx' SvgTree <$>
         [ SvgTree.svgGraphUI {- 21 -}
         ]
     )
@@ -57,10 +58,14 @@ theExamples =
         ]
     )
     <>
-    ( liftEx FromClay <$>
+    ( liftEx' ClayMenu <$>
         [ FromClay.exSingleMenuItem {- 00 -}
         , FromClay.exCompleteMenu {- 01 -}
-        , FromClay.exFixedNoGaps {- 02 -}
+        ]
+    )
+    <>
+    ( liftEx' ClayColors <$>
+        [ FromClay.exFixedNoGaps {- 02 -}
         , FromClay.exFixedChildGap {- 03 -}
         , FromClay.exFixedPaddingChildGap {- 04 -}
         , FromClay.exFixedTopToBotPaddingChildGap {- 05 -}
@@ -96,7 +101,7 @@ selectedExamples =
         ]
     )
     <>
-    ( liftEx SvgTree <$>
+    ( liftEx' SvgTree <$>
         [ SvgTree.svgGraphUI {- 21 -}
         ]
     )
@@ -106,10 +111,14 @@ selectedExamples =
         ]
     )
     <>
-    ( liftEx FromClay <$>
+    ( liftEx' ClayMenu <$>
         [ FromClay.exSingleMenuItem {- 00 -}
         , FromClay.exCompleteMenu {- 01 -}
-        , FromClay.exFixedNoGaps {- 02 -}
+        ]
+    )
+    <>
+    ( liftEx' ClayColors <$>
+        [ FromClay.exFixedNoGaps {- 02 -}
         , FromClay.exFixedChildGap {- 03 -}
         , FromClay.exFixedPaddingChildGap {- 04 -}
         , FromClay.exFixedTopToBotPaddingChildGap {- 05 -}
@@ -155,7 +164,9 @@ instance RenderItem ExItem where
                 Nothing
             NoodleGrowEx _ ->
                 Nothing
-            FromClay _ ->
+            ClayMenu _ ->
+                Nothing
+            ClayColors _ ->
                 Nothing
             SvgTree _ ->
                 Nothing

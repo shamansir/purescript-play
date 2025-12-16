@@ -38,52 +38,6 @@ data NodeUI
     | CollapseButton
 
 
-instance IsItem NodeUI where
-    itemName = case _ of
-        Background         -> "background"
-        TitleAndPaddings   -> "title + paddings"
-        TitlePadding       -> "padding"
-        Title              -> "title"
-        InletsBodyOutlets  -> "inlets + body + outlets" -- "" @ vert
-        BodyBg             -> "body background"
-        BodyWrap           -> "body wrap"
-        BodyContent        -> "body content"
-        BodyGrowMid        -> "grow mid"
-        Inlets             -> "inlets"
-        Outlets            -> "outlets"
-        Inlet _            -> ""
-        InletName n        -> show n <> " inlet"
-        InletConnector _   -> "con"
-        Outlet _           -> ""
-        OutletName n       -> show n <> " outlet"
-        OutletConnector _  -> "con"
-        Buttons            -> "buttons"
-        RemoveButton       -> "[x] remove button"
-        CollapseButton     -> "(*) collapse button"
-
-    itemColor = case _ of
-        Background         -> Just $ HA.Named "blue"
-        TitleAndPaddings   -> Just $ HA.Named "magenta" -- HA.RGB 79 27 57 @ vert
-        TitlePadding       -> Just $ HA.RGB 32 94 166
-        Title              -> Just $ HA.Named "black"
-        InletsBodyOutlets  -> Just $ HA.RGB 49 35 78
-        BodyBg             -> Just $ HA.Named "lightgray"
-        BodyWrap           -> Just $ HA.RGB 48 96 96
-        BodyContent        -> Just $ HA.RGB 90 189 172
-        BodyGrowMid        -> Just $ HA.RGB 90 128 172
-        Inlets             -> Just $ HA.RGB 79 27 57
-        Outlets            -> Just $ HA.RGB 79 27 57 -- "magenta" @ vert
-        Inlet _            -> Just $ HA.Named "transparent"
-        InletName _        -> Just $ HA.RGB 175 48 41
-        InletConnector _   -> Just $ HA.RGB 83 105 7
-        Outlet _           -> Just $ HA.Named "transparent"
-        OutletName _       -> Just $ HA.RGB 175 48 41
-        OutletConnector _  -> Just $ HA.RGB 83 105 7
-        Buttons            -> Just $ HA.RGB 90 90 90
-        RemoveButton       -> Just $ HA.RGB 128 0 0
-        CollapseButton     -> Just $ HA.RGB 0 128 0
-
-
 {- 18 -}
 noodleHorzNodeUI :: Example NodeUI
 noodleHorzNodeUI =
@@ -288,5 +242,53 @@ noodleVertNodeUI =
                         ~* Play.with outlets
                     ]
             ]
+
+
+
+
+instance IsItem NodeUI where
+    itemName = case _ of
+        Background         -> "background"
+        TitleAndPaddings   -> "title + paddings"
+        TitlePadding       -> "padding"
+        Title              -> "title"
+        InletsBodyOutlets  -> "inlets + body + outlets" -- "" @ vert
+        BodyBg             -> "body background"
+        BodyWrap           -> "body wrap"
+        BodyContent        -> "body content"
+        BodyGrowMid        -> "grow mid"
+        Inlets             -> "inlets"
+        Outlets            -> "outlets"
+        Inlet _            -> ""
+        InletName n        -> show n <> " inlet"
+        InletConnector _   -> "con"
+        Outlet _           -> ""
+        OutletName n       -> show n <> " outlet"
+        OutletConnector _  -> "con"
+        Buttons            -> "buttons"
+        RemoveButton       -> "[x] remove button"
+        CollapseButton     -> "(*) collapse button"
+
+    itemColor = case _ of
+        Background         -> Just $ HA.Named "blue"
+        TitleAndPaddings   -> Just $ HA.Named "magenta" -- HA.RGB 79 27 57 @ vert
+        TitlePadding       -> Just $ HA.RGB 32 94 166
+        Title              -> Just $ HA.Named "black"
+        InletsBodyOutlets  -> Just $ HA.RGB 49 35 78
+        BodyBg             -> Just $ HA.Named "lightgray"
+        BodyWrap           -> Just $ HA.RGB 48 96 96
+        BodyContent        -> Just $ HA.RGB 90 189 172
+        BodyGrowMid        -> Just $ HA.RGB 90 128 172
+        Inlets             -> Just $ HA.RGB 79 27 57
+        Outlets            -> Just $ HA.RGB 79 27 57 -- "magenta" @ vert
+        Inlet _            -> Just $ HA.Named "transparent"
+        InletName _        -> Just $ HA.RGB 175 48 41
+        InletConnector _   -> Just $ HA.RGB 83 105 7
+        Outlet _           -> Just $ HA.Named "transparent"
+        OutletName _       -> Just $ HA.RGB 175 48 41
+        OutletConnector _  -> Just $ HA.RGB 83 105 7
+        Buttons            -> Just $ HA.RGB 90 90 90
+        RemoveButton       -> Just $ HA.RGB 128 0 0
+        CollapseButton     -> Just $ HA.RGB 0 128 0
 
 
