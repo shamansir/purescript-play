@@ -34,7 +34,7 @@ import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRec
 import Test.Demo as Demo
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
-import Test.Demo.Examples (selectedExamples, ExItem(..), liftEx)
+import Test.Demo.Examples (selectedExamples, ExItem(..), liftEx, liftEx')
 import Test.Demo.Examples.Noodle (noodleUI)
 import Test.Demo.Examples.Types (class IsItem, Item(..), ic, itemColor, itemName, nameOf, playOf, nextItem)
 
@@ -156,7 +156,7 @@ component =
 
         initialState _ =
             let
-                tree = playOf $ liftEx Noodle $ noodleUI
+                tree = playOf $ liftEx' Noodle $ noodleUI
             in
                 { playTree: tree
                 , selectedPath: []

@@ -14,8 +14,6 @@ import Play as Play
 import Play.Types (WithRect) as PT
 
 
-
-
 data Item x
     = Stub
     | Item { label :: String, bgColor :: Maybe HA.Color } x

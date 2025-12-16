@@ -7,7 +7,7 @@ import Data.Maybe (Maybe(..))
 import Play ((~*))
 import Play as Play
 
-import Test.Demo.Examples.Types (DemoExample, ex, il, class IsItem, class RenderItem, class NextItem, renderItem)
+import Test.Demo.Examples.Types (Example, DemoExample, ex, il, class IsItem, class RenderItem, class NextItem, renderItem, toItem)
 
 import Test.Demo.Examples.Noodle as Noodle
 import Test.Demo.Examples.FromClay as FromClay
@@ -17,7 +17,9 @@ import Test.Demo.Examples.Kanji (KanjiItem, kanjiExamples) as Kanji
 
 data ExItem
     = Basic Unit
-    | Noodle Unit
+    | Noodle Noodle.NoodleUI
+    | NoodleNode Noodle.NodeUI
+    | NoodleGrowEx Noodle.NodeGrowExp
     | FromClay Unit
     | SvgTree Unit
     | Kanji Kanji.KanjiItem
@@ -27,11 +29,18 @@ liftEx :: forall x. (x -> ExItem) -> DemoExample x -> DemoExample ExItem
 liftEx = map <<< map
 
 
+liftEx' :: forall x. IsItem x => (x -> ExItem) -> Example x -> DemoExample ExItem
+liftEx' f = liftEx f <<< map toItem
+
+
 theExamples :: Array (DemoExample ExItem)
 theExamples =
-    ( liftEx Noodle <$>
-        [ Noodle.noodleUI {- 20 -}
-        , Noodle.noodleHorzNodeUI {- 18 -}
+    ( liftEx' Noodle <$>
+        [ Noodle.noodleUI {- 20 -}        ]
+    )
+    <>
+    ( liftEx' NoodleNode <$>
+        [ Noodle.noodleHorzNodeUI {- 18 -}
         , Noodle.noodleVertNodeUI {- 19 -}
         ]
     )
@@ -74,11 +83,19 @@ theExamples =
 -- since there's UI for configuration of these settings and they would intersect too much
 selectedExamples :: Array (DemoExample ExItem)
 selectedExamples =
-    ( liftEx Noodle <$>
+    ( liftEx' Noodle <$>
         [ Noodle.noodleUI {- 20 -}
-        , Noodle.noodleHorzNodeUI {- 18 -}
+        ]
+    )
+    <>
+    ( liftEx' NoodleNode <$>
+        [ Noodle.noodleHorzNodeUI {- 18 -}
         , Noodle.noodleVertNodeUI {- 19 -}
-        , SvgTree.svgGraphUI {- 21 -}
+        ]
+    )
+    <>
+    ( liftEx SvgTree <$>
+        [ SvgTree.svgGraphUI {- 21 -}
         ]
     )
     <>
@@ -101,7 +118,7 @@ selectedExamples =
         ]
     )
     <>
-    ( liftEx Noodle <$>
+    ( liftEx' NoodleGrowEx <$>
         [  Noodle.nodeGrowingExperiment {- 23 -}
         ]
     )
@@ -131,6 +148,10 @@ instance RenderItem ExItem where
             Basic _ ->
                 Nothing
             Noodle _ ->
+                Nothing
+            NoodleNode _ ->
+                Nothing
+            NoodleGrowEx _ ->
                 Nothing
             FromClay _ ->
                 Nothing
