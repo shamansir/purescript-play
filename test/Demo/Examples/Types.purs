@@ -7,9 +7,11 @@ import Data.Maybe (Maybe(..))
 import Yoga.JSON (class WriteForeign, writeImpl)
 
 import Halogen.Svg.Attributes (Color(..)) as HA
+import Halogen.HTML as HH
 
 import Play (Play)
 import Play as Play
+import Play.Types (WithRect) as PT
 
 
 
@@ -17,12 +19,25 @@ import Play as Play
 data Item x
     = Stub
     | Item { label :: String, bgColor :: Maybe HA.Color } x
-    | AKanji Kanji Transform -- FIXME: remove, store in `x`
+
+
+instance Functor Item where
+    map f = case _ of
+        Stub        -> Stub
+        Item item x -> Item item $ f x
 
 
 class IsItem x where
-    itemName :: x -> String
+    itemName  :: x -> String
     itemColor :: x -> Maybe HA.Color
+
+
+class NextItem x where
+    nextItem :: String -> x
+
+
+class RenderItem x where
+    renderItem :: forall i a. a -> PT.WithRect x -> Maybe (HH.HTML i a)
 
 
 data Example a = Example Int Play.Size String (Play a)
@@ -43,15 +58,20 @@ type LayedOutExample x =
     }
 
 
+defaultColor = HA.RGB 128 128 128 :: HA.Color
+
+
 instance IsItem (Item x) where
     itemName = case _ of
         Stub          -> "Stub"
         Item { label } _ -> label
-        AKanji (Kanji kanji) _ -> kanji
     itemColor = case _ of
         Stub            -> Just $ HA.RGBA 0 0 0 0.0
         Item { bgColor } _ -> bgColor
-        AKanji _ _       -> Just $ HA.RGBA 0 0 0 0.0
+
+
+instance NextItem x => NextItem (Item x) where
+    nextItem name = Item { label: name, bgColor: Just defaultColor } $ nextItem name
 
 
 instance WriteForeign (Item x) where
@@ -70,12 +90,16 @@ il :: String -> Item Unit
 il label = Item { label, bgColor: Nothing } unit
 
 
+toItem :: forall x. IsItem x => x -> Item x
+toItem x = Item { label: itemName x, bgColor: itemColor x } x
+
+
 blue   = ic (HA.RGB 32 94 166)  "Blue"   :: Item Unit
 pink   = ic (HA.Named "pink")   "Pink"   :: Item Unit
 red    = ic (HA.RGB 209 77 65)  "Red"    :: Item Unit
 -- red    = ic (HA.RGB 175 48 41)    "Red"    :: Item Unit
 yellow = ic (HA.RGB 208 162 21) "Yellow" :: Item Unit
-green  = ic (HA.RGB 102 128 11) "Green" :: Item Unit
+green  = ic (HA.RGB 102 128 11) "Green"  :: Item Unit
 purple = ic (HA.RGB 94 64 157)  "Purple" :: Item Unit
 
 
@@ -105,13 +129,5 @@ nameOf (Example _ _ name _) = name
 -- colorOf (Item mbCol _) = mbCol
 -- colorOf (AKanji _ _) = Just $ HA.RGBA 0 0 0 0.0 -- HA.RGB 100 100 255
 -- colorOf Stub = Just $ HA.RGBA 0 0 0 0.0
-
-
-type Transform = { scaleX :: Number, scaleY :: Number, offsetX :: Number, offsetY :: Number }
-
-noTransform = { scaleX : 1.0, scaleY : 1.0, offsetX : 0.0, offsetY : 0.0 } :: Transform
-
-
-newtype Kanji = Kanji String
 
 

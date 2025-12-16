@@ -34,9 +34,9 @@ import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRec
 import Test.Demo as Demo
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
-import Test.Demo.Examples (selectedExamples)
+import Test.Demo.Examples (selectedExamples, ExItem(..), liftEx)
 import Test.Demo.Examples.Noodle (noodleUI)
-import Test.Demo.Examples.Types (Item(..), Kanji(..), ic, itemColor, itemName, nameOf, playOf)
+import Test.Demo.Examples.Types (class IsItem, Item(..), ic, itemColor, itemName, nameOf, playOf, nextItem)
 
 
 main :: Effect Unit
@@ -101,17 +101,13 @@ type CodePanelState =
 
 
 type State =
-    { playTree :: Play (Item Unit)
+    { playTree :: Play (Item ExItem)
     , exampleName :: Maybe String
     , selectedPath :: Play.ItemPath
     , editing :: EditingState
     , codePanel :: CodePanelState
     , showEncodedSizing :: Boolean
     }
-
-
--- Helper functions for default values
-defaultColor = HA.RGB 128 128 128 :: HA.Color
 
 
 defaultSizeValue = 100.0 :: Number
@@ -160,7 +156,7 @@ component =
 
         initialState _ =
             let
-                tree = playOf noodleUI
+                tree = playOf $ liftEx Noodle $ noodleUI
             in
                 { playTree: tree
                 , selectedPath: []
@@ -276,7 +272,7 @@ component =
             AddChild _ childName -> do
                 state <- H.get
                 let newChild =
-                        Play.i (ic defaultColor childName)
+                        Play.i (nextItem childName)
                             ~* Play.width defaultSizeValue
                             ~* Play.height defaultSizeValue
                     updatedTree = Play.addChildAt state.selectedPath newChild state.playTree
@@ -324,13 +320,11 @@ component =
 -- Set item name
 setItemName :: forall x. String -> Item x -> Item x
 setItemName newName (Item item v) = Item item { label = newName } v
-setItemName _       (AKanji kanji transform) = AKanji kanji transform
 setItemName _       Stub = Stub
 
 -- Set item color
 setItemColor :: forall x. HA.Color -> Item x -> Item x
 setItemColor newColor (Item item v) = Item item { bgColor = Just newColor } v
-setItemColor _        (AKanji kanji transform) = AKanji kanji transform
 setItemColor _        Stub = Stub
 
 
@@ -977,7 +971,7 @@ renderClickablePreview state =
         ]
 
 
-renderClickableItem :: forall i. State -> (Play.ItemPath /\ PT.WithDefRect (Item Unit)) -> HH.HTML i Action
+renderClickableItem :: forall i item. State -> (Play.ItemPath /\ PT.WithDefRect (Item ExItem)) -> HH.HTML i Action
 renderClickableItem state (path /\ { v, def, rect }) =
     let
         isSelected = state.selectedPath == path
@@ -1022,7 +1016,7 @@ renderClickableItem state (path /\ { v, def, rect }) =
             else []
 
 
-renderTextualTree :: forall i. Play.ItemPath -> Array Play.ItemPath -> Play (Item Unit) -> HH.HTML i Action
+renderTextualTree :: forall i item. IsItem item => Play.ItemPath -> Array Play.ItemPath -> Play item -> HH.HTML i Action
 renderTextualTree selectedPath collapsedNodes playTree =
   let
     tree = Play.toTree playTree
@@ -1034,11 +1028,12 @@ renderTextualTree selectedPath collapsedNodes playTree =
 
 
 renderTextualTreeNode
-    :: forall i
-     . Play.ItemPath
+    :: forall i item
+     . IsItem item
+    => Play.ItemPath
     -> Play.ItemPath
     -> Array Play.ItemPath
-    -> Tree (PT.WithDef (Item Unit))
+    -> Tree (PT.WithDef item)
     -> HH.HTML i Action
 renderTextualTreeNode currentPath selectedPath collapsedNodes tree =
   let

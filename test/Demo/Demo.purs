@@ -19,7 +19,8 @@ import Play as Play
 
 import Play.Types (WithRect)  as PT
 
-import Test.Demo.Examples.Types (Item(..), DemoExample, LayedOutExample, layoutExample, Kanji(..))
+import Test.Demo.Examples.Types (Item(..), class RenderItem, renderItem, DemoExample, LayedOutExample, layoutExample) as ET
+import Test.Demo.Examples (ExItem, theExamples) as ET
 import Test.Demo.Examples (theExamples)
 
 
@@ -33,7 +34,7 @@ type Action
     = Unit
 
 
-type State = Array (DemoExample Unit)
+type State = Array (ET.DemoExample ET.ExItem)
 
 
 component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
@@ -54,14 +55,14 @@ component =
                 [ HH.div
                     [  ]
                      $  renderExample unit
-                    <$> layoutExample
+                    <$> ET.layoutExample
                     <$> examples
                 ]
 
         handleAction = const $ pure unit
 
 
-renderExample :: forall i o x. o -> LayedOutExample x -> HH.HTML i o
+renderExample :: forall i o x. ET.RenderItem x => o -> ET.LayedOutExample x -> HH.HTML i o
 renderExample clickAction { id, label, size, layout } =
     HH.div
         [ HP.style "margin: 5px 10px;" ]
@@ -77,70 +78,27 @@ renderExample clickAction { id, label, size, layout } =
         ]
 
 
-renderItem :: forall i o x. o -> PT.WithRect (Item x) -> HH.HTML i o
+renderItem :: forall i o x. ET.RenderItem x => o -> PT.WithRect (ET.Item x) -> HH.HTML i o
 renderItem clickAction { v, rect } =
     case v of
-        Item item _ ->
-            HS.text
-                [ HA.x $ rect.pos.x + 5.0
-                , HA.y $ rect.pos.y + 7.0
-                , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
-                , HA.fill $ HA.Named "white"
-                , HA.strokeWidth 0.5
-                , HA.dominantBaseline HA.Hanging
-                , HP.style "pointer-events: none;"
-                , HE.onClick \_ -> clickAction
-                ]
-                [ HH.text item.label
-                ]
-        AKanji (Kanji kanji) transform ->
-                let
-                    -- Helper to render text centered in rect
-                -- Calculate aspect ratio of the container
-                aspectRatio = rect.size.width / rect.size.height
-
-                -- Base font size to fill the smaller dimension (80% for padding)
-                baseFontSize = (min rect.size.width rect.size.height) * 0.8
-
-                -- Calculate scale factors for non-square containers
-                -- If width > height (wide rect), we stretch horizontally
-                -- If height > width (tall rect), we stretch vertically
-                scaleX = if aspectRatio > 1.0
-                    then aspectRatio * transform.scaleX   -- Wider container: stretch horizontally
-                    else transform.scaleX          -- Square or taller: no horizontal stretch
-
-                scaleY = if aspectRatio < 1.0
-                    then (1.0 / aspectRatio) * transform.scaleY  -- Taller container: stretch vertically
-                    else transform.scaleY                -- Square or wider: no vertical stretch
-
-                offsetX = rect.pos.x + transform.offsetX
-                offsetY = rect.pos.y + transform.offsetY
-
-                -- Center point for the transform
-                centerX = rect.size.width  / 2.0
-                centerY = rect.size.height / 2.0
-                -- let fontSize = (min rect.size.width rect.size.height) * 0.8
-                in HS.g
-                    [ {- HA.transform [ HA.Translate offsetX offsetY ] -} ]
-                    $ pure
-                    $ HS.text
-                        [ HA.x $ offsetX + centerX
-                        , HA.y $ offsetY + centerY
-                        , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
-                        , HA.fill $ HA.Named "black"
+        ET.Item item x ->
+            case ET.renderItem clickAction { v: x, rect } of
+                Just html -> html
+                Nothing   ->
+                    HS.text
+                        [ HA.x $ rect.pos.x + 5.0
+                        , HA.y $ rect.pos.y + 7.0
+                        , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
+                        , HA.fill $ HA.Named "white"
                         , HA.strokeWidth 0.5
-                        , HA.textAnchor HA.AnchorMiddle
-                        , HA.dominantBaseline HA.BaselineMiddle
-                        -- , HA.transformOrigin ?wh
-                        , HA.transform
-                            [ HA.Translate centerX centerY
-                            , HA.Scale scaleX scaleY
-                            , HA.Translate (-centerX) (-centerY)
-                            ]
+                        , HA.dominantBaseline HA.Hanging
                         , HP.style "pointer-events: none;"
                         , HE.onClick \_ -> clickAction
                         ]
-                        [ HH.text kanji ]
+                        [ HH.text item.label
+                        ]
+        -- AKanji (Kanji kanji) transform ->
+
 
             --
             -- HS.text
@@ -166,7 +124,7 @@ renderItem clickAction { v, rect } =
             -- -- HH.text kanji
 
             --
-        Stub -> HH.text ""
+        ET.Stub -> HH.text ""
 
 
 
