@@ -9,7 +9,9 @@ import Play as Play
 
 import Test.Demo.Examples.Types (Example, DemoExample, ex, il, class IsItem, class RenderItem, class NextItem, renderItem, toItem)
 
-import Test.Demo.Examples.Noodle as Noodle
+import Test.Demo.Examples.Noodle.App as Noodle
+import Test.Demo.Examples.Noodle.Node as Noodle
+import Test.Demo.Examples.Noodle.Experiment as Noodle
 import Test.Demo.Examples.FromClay as FromClay
 import Test.Demo.Examples.SvgTree as SvgTree
 import Test.Demo.Examples.Kanji (KanjiItem, kanjiExamples) as Kanji
@@ -20,8 +22,8 @@ data ExItem
     | Noodle Noodle.NoodleUI
     | NoodleNode Noodle.NodeUI
     | NoodleGrowEx Noodle.NodeGrowExp
-    | FromClay Unit
     | SvgTree Unit
+    | FromClay Unit
     | Kanji Kanji.KanjiItem
 
 
