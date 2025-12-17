@@ -19,7 +19,7 @@ import Play as Play
 
 import Play.Types (WithRect)  as PT
 
-import Test.Demo.Examples.Types (Item(..), class RenderItem, renderItem, DemoExample, LayedOutExample, layoutExample) as ET
+import Test.Demo.Examples.Types (class RenderItem, renderItem, class IsItem, Example, LayedOutExample, layoutExample, itemName) as ET
 import Test.Demo.Examples (ExItem, theExamples) as ET
 import Test.Demo.Examples (theExamples)
 
@@ -34,7 +34,7 @@ type Action
     = Unit
 
 
-type State = Array (ET.DemoExample ET.ExItem)
+type State = Array (ET.Example ET.ExItem)
 
 
 component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
@@ -62,7 +62,7 @@ component =
         handleAction = const $ pure unit
 
 
-renderExample :: forall i o x. ET.RenderItem x => o -> ET.LayedOutExample x -> HH.HTML i o
+renderExample :: forall i o x. ET.RenderItem x => ET.IsItem x => o -> ET.LayedOutExample x -> HH.HTML i o
 renderExample clickAction { id, label, size, layout } =
     HH.div
         [ HP.style "margin: 5px 10px;" ]
@@ -78,25 +78,23 @@ renderExample clickAction { id, label, size, layout } =
         ]
 
 
-renderItem :: forall i o x. ET.RenderItem x => o -> PT.WithRect (ET.Item x) -> HH.HTML i o
+renderItem :: forall i o x. ET.RenderItem x => ET.IsItem x => o -> PT.WithRect x -> HH.HTML i o
 renderItem clickAction { v, rect } =
-    case v of
-        ET.Item item x ->
-            case ET.renderItem clickAction { v: x, rect } of
-                Just html -> html
-                Nothing   ->
-                    HS.text
-                        [ HA.x $ rect.pos.x + 5.0
-                        , HA.y $ rect.pos.y + 7.0
-                        , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
-                        , HA.fill $ HA.Named "white"
-                        , HA.strokeWidth 0.5
-                        , HA.dominantBaseline HA.Hanging
-                        , HP.style "pointer-events: none;"
-                        , HE.onClick \_ -> clickAction
-                        ]
-                        [ HH.text item.label
-                        ]
+    case ET.renderItem clickAction { v, rect } of
+        Just html -> html
+        Nothing   ->
+            HS.text
+                [ HA.x $ rect.pos.x + 5.0
+                , HA.y $ rect.pos.y + 7.0
+                , HA.fontSize $ HA.FontSizeLength $ HA.Px 14.0
+                , HA.fill $ HA.Named "white"
+                , HA.strokeWidth 0.5
+                , HA.dominantBaseline HA.Hanging
+                , HP.style "pointer-events: none;"
+                , HE.onClick \_ -> clickAction
+                ]
+                [ HH.text $ ET.itemName v
+                ]
         -- AKanji (Kanji kanji) transform ->
 
 
@@ -124,7 +122,7 @@ renderItem clickAction { v, rect } =
             -- -- HH.text kanji
 
             --
-        ET.Stub -> HH.text ""
+        -- ET.Stub -> HH.text ""
 
 
 

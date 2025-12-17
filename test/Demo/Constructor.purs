@@ -25,6 +25,7 @@ import Halogen.VDom.Driver (runUI)
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (children, flatten, value) as Tree
 import Yoga.Tree.Extended.Path as Tree.Path
+import Yoga.JSON (class WriteForeign, writeImpl)
 
 import Play (Play, (~*))
 import Play as Play
@@ -34,9 +35,9 @@ import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRec
 import Test.Demo as Demo
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
-import Test.Demo.Examples (selectedExamples, ExItem(..), liftEx, liftEx')
-import Test.Demo.Examples.Noodle (noodleUI)
-import Test.Demo.Examples.Types (class IsItem, Item(..), ic, itemColor, itemName, nameOf, playOf, nextItem)
+import Test.Demo.Examples (selectedExamples, ExItem(..))
+import Test.Demo.Examples.Noodle.App (noodleUI)
+import Test.Demo.Examples.Types (class IsItem, itemColor, itemName, nameOf, playOf, nextItem, class RenderItem, renderItem, class NextItem)
 
 
 main :: Effect Unit
@@ -100,8 +101,21 @@ type CodePanelState =
     }
 
 
+type PropChanges =
+    { name :: String
+    , mbColor :: Maybe HA.Color
+    }
+
+
+newtype ItemWithChanges x =
+    IWC
+        { item :: x
+        , changes :: PropChanges
+        }
+
+
 type State =
-    { playTree :: Play (Item ExItem)
+    { playTree :: Play (ItemWithChanges ExItem)
     , exampleName :: Maybe String
     , selectedPath :: Play.ItemPath
     , editing :: EditingState
@@ -138,6 +152,7 @@ component =
             let updatedTree = Play.updateDefAt state.selectedPath modifyDef state.playTree
             H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { def = modifyDef s.editing.def } }
 
+        loadEditState :: Play.ItemPath -> Play (ItemWithChanges ExItem) -> EditingState
         loadEditState path tree =
             let
                 mbItem = Play.itemAt path tree
@@ -154,9 +169,10 @@ component =
                 , childName: ""
                 }
 
+        initialState :: _ -> State
         initialState _ =
             let
-                tree = playOf $ liftEx' Noodle $ noodleUI
+                tree = playOf $ initChanges <$> Noodle <$> noodleUI
             in
                 { playTree: tree
                 , selectedPath: []
@@ -289,7 +305,7 @@ component =
             SelectExample exampleIndex -> do
                 case Array.index selectedExamples exampleIndex of
                     Just example -> do
-                        let tree = playOf example
+                        let tree = initChanges <$> playOf example
                         H.modify_ _
                             { playTree = tree
                             , selectedPath = []
@@ -318,15 +334,12 @@ component =
 
 
 -- Set item name
-setItemName :: forall x. String -> Item x -> Item x
-setItemName newName (Item item v) = Item item { label = newName } v
-setItemName _       Stub = Stub
+setItemName :: forall x. String -> ItemWithChanges x -> ItemWithChanges x
+setItemName newName (IWC { item, changes }) = IWC { item, changes : changes { name = newName } }
 
 -- Set item color
-setItemColor :: forall x. HA.Color -> Item x -> Item x
-setItemColor newColor (Item item v) = Item item { bgColor = Just newColor } v
-setItemColor _        Stub = Stub
-
+setItemColor :: forall x. HA.Color -> ItemWithChanges x -> ItemWithChanges x
+setItemColor newColor (IWC { item, changes }) = IWC { item, changes : changes { mbColor = Just newColor } }
 
 isFixedSizing :: PT.Sizing -> Maybe Number
 isFixedSizing = case _ of
@@ -971,7 +984,7 @@ renderClickablePreview state =
         ]
 
 
-renderClickableItem :: forall i item. State -> (Play.ItemPath /\ PT.WithDefRect (Item ExItem)) -> HH.HTML i Action
+renderClickableItem :: forall i item. RenderItem item => State -> (Play.ItemPath /\ PT.WithDefRect (ItemWithChanges item)) -> HH.HTML i Action
 renderClickableItem state (path /\ { v, def, rect }) =
     let
         isSelected = state.selectedPath == path
@@ -1085,3 +1098,35 @@ renderTextualTreeNode currentPath selectedPath collapsedNodes tree =
           ]
       ] <> childrenNodes
 
+
+initChanges :: forall x. IsItem x => x -> ItemWithChanges x
+initChanges item =
+    IWC
+        { item : item
+        , changes :
+            { name : itemName item
+            , mbColor : itemColor item
+            }
+        }
+
+
+instance IsItem (ItemWithChanges x) where
+    itemName  (IWC { changes }) = changes.name
+    itemColor (IWC { changes }) = changes.mbColor
+
+
+instance (IsItem x, NextItem x) => NextItem (ItemWithChanges x) where
+    nextItem = nextItem >>> initChanges
+
+
+instance RenderItem x => RenderItem (ItemWithChanges x) where
+    renderItem action { v, rect } =
+        case v of
+            IWC { item, changes } ->
+                renderItem action { v : item, rect }
+        -- Demo.renderItem action { v: v.changes, rect }
+
+
+instance WriteForeign (ItemWithChanges x) where
+    writeImpl (IWC { changes }) = writeImpl $ changes.name
+    -- itemName >>> writeImpl

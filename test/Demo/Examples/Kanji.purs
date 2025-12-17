@@ -16,7 +16,7 @@ import Halogen.Svg.Elements as HS
 import Play (Play, (~*))
 import Play as Play
 
-import Test.Demo.Examples.Types (class IsItem, DemoExample, Item, ex, il, toItem, class RenderItem)
+import Test.Demo.Examples.Types (Example, class IsItem, ex, class RenderItem)
 
 
 type Transform = { scaleX :: Number, scaleY :: Number, offsetX :: Number, offsetY :: Number }
@@ -47,7 +47,7 @@ instance IsItem KanjiItem where
         Source _   -> Just $ HA.RGBA 0 0 0 0.0 -- transparent
 
 
-kanjiExamples :: Array (DemoExample KanjiItem)
+kanjiExamples :: Array (Example KanjiItem)
 kanjiExamples =
     -- https://kanjiheatmap.com/?open=%E6%97%A5 日
     [ kanjiPlaySpecToExample 100 "Kanji 日" (Kanji "日")
@@ -182,14 +182,14 @@ data KanjiOp
     | Surround SurroundKind { inside :: KanjiOp, surround :: KanjiOp }
 
 
-kanjiPlaySpecToExample :: Int -> String -> Kanji -> Play KanjiItem -> DemoExample KanjiItem
+kanjiPlaySpecToExample :: Int -> String -> Kanji -> Play KanjiItem -> Example KanjiItem
 kanjiPlaySpecToExample id name kanji playSpec =
     ex id name 400.0 400.0
-        $ Play.i (toItem $ Source kanji)
+        $ Play.i (Source kanji)
             ~* Play.width 400.0
             ~* Play.height 400.0
             ~* Play.with
-                [ toItem <$> playSpec
+                [ playSpec
                 ]
 
 

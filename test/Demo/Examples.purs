@@ -3,22 +3,19 @@ module Test.Demo.Examples where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-
 import Play ((~*))
 import Play as Play
-
-import Test.Demo.Examples.Types (Example, DemoExample, ex, il, class IsItem, class RenderItem, class NextItem, renderItem, toItem)
-
-import Test.Demo.Examples.Noodle.App as Noodle
-import Test.Demo.Examples.Noodle.Node as Noodle
-import Test.Demo.Examples.Noodle.Experiment as Noodle
 import Test.Demo.Examples.FromClay as FromClay
+import Test.Demo.Examples.Kanji as Kanji
+import Test.Demo.Examples.Noodle.App as Noodle
+import Test.Demo.Examples.Noodle.Experiment as Noodle
+import Test.Demo.Examples.Noodle.Node as Noodle
 import Test.Demo.Examples.SvgTree as SvgTree
-import Test.Demo.Examples.Kanji (KanjiItem, kanjiExamples) as Kanji
+import Test.Demo.Examples.Types (class IsItem, class NextItem, class RenderItem, Example, ex, itemColor, itemName, renderItem)
 
 
 data ExItem
-    = Basic Unit
+    = Basic String
     | Noodle Noodle.NoodleUI
     | NoodleNode Noodle.NodeUI
     | NoodleGrowEx Noodle.NodeGrowExp
@@ -28,43 +25,36 @@ data ExItem
     | Kanji Kanji.KanjiItem
 
 
-liftEx :: forall x. (x -> ExItem) -> DemoExample x -> DemoExample ExItem
-liftEx = map <<< map
-
-
-liftEx' :: forall x. IsItem x => (x -> ExItem) -> Example x -> DemoExample ExItem
-liftEx' f = liftEx f <<< map toItem
-
-
-theExamples :: Array (DemoExample ExItem)
+theExamples :: Array (Example ExItem)
 theExamples =
-    ( liftEx' Noodle <$>
-        [ Noodle.noodleUI {- 20 -}        ]
+    ( map Noodle <$>
+        [ Noodle.noodleUI {- 20 -}
+        ]
     )
     <>
-    ( liftEx' NoodleNode <$>
+    ( map NoodleNode <$>
         [ Noodle.noodleHorzNodeUI {- 18 -}
         , Noodle.noodleVertNodeUI {- 19 -}
         ]
     )
     <>
-    ( liftEx' SvgTree <$>
+    ( map SvgTree <$>
         [ SvgTree.svgGraphUI {- 21 -}
         ]
     )
     <>
-    ( liftEx Basic <$>
+    ( map (const $ Basic "Canvas") <$>
         [ blank {- 22 -}
         ]
     )
     <>
-    ( liftEx' ClayMenu <$>
+    ( map ClayMenu <$>
         [ FromClay.exSingleMenuItem {- 00 -}
         , FromClay.exCompleteMenu {- 01 -}
         ]
     )
     <>
-    ( liftEx' ClayColors <$>
+    ( map ClayColors <$>
         [ FromClay.exFixedNoGaps {- 02 -}
         , FromClay.exFixedChildGap {- 03 -}
         , FromClay.exFixedPaddingChildGap {- 04 -}
@@ -88,36 +78,36 @@ theExamples =
 
 -- not all of them, but for the constructor we don't need all of them,
 -- since there's UI for configuration of these settings and they would intersect too much
-selectedExamples :: Array (DemoExample ExItem)
+selectedExamples :: Array (Example ExItem)
 selectedExamples =
-    ( liftEx' Noodle <$>
+    ( map Noodle <$>
         [ Noodle.noodleUI {- 20 -}
         ]
     )
     <>
-    ( liftEx' NoodleNode <$>
+    ( map NoodleNode <$>
         [ Noodle.noodleHorzNodeUI {- 18 -}
         , Noodle.noodleVertNodeUI {- 19 -}
         ]
     )
     <>
-    ( liftEx' SvgTree <$>
+    ( map SvgTree <$>
         [ SvgTree.svgGraphUI {- 21 -}
         ]
     )
     <>
-    ( liftEx Basic <$>
+    ( map (const $ Basic "Canvas") <$>
         [ blank {- 22 -}
         ]
     )
     <>
-    ( liftEx' ClayMenu <$>
+    ( map ClayMenu <$>
         [ FromClay.exSingleMenuItem {- 00 -}
         , FromClay.exCompleteMenu {- 01 -}
         ]
     )
     <>
-    ( liftEx' ClayColors <$>
+    ( map ClayColors <$>
         [ FromClay.exFixedNoGaps {- 02 -}
         , FromClay.exFixedChildGap {- 03 -}
         , FromClay.exFixedPaddingChildGap {- 04 -}
@@ -129,34 +119,55 @@ selectedExamples =
         ]
     )
     <>
-    ( liftEx' NoodleGrowEx <$>
+    ( map NoodleGrowEx <$>
         [  Noodle.nodeGrowingExperiment {- 23 -}
         ]
     )
     <>
-    ( liftEx Kanji <$>
+    ( map Kanji <$>
         Kanji.kanjiExamples
     )
 
 
 
 {- 22 -}
-blank :: DemoExample Unit
+blank :: Example Unit
 blank =
     ex 22 "Blank UI" 850.0 650.0 $
-        Play.i (il "Canvas")
+        Play.i unit -- (il "Canvas")
         ~* Play.width  800.0
         ~* Play.height 600.0
 
 
+instance IsItem ExItem where
+    itemName = case _ of
+        Basic name       -> name
+        Noodle nui       -> itemName nui
+        NoodleNode nui   -> itemName nui
+        NoodleGrowEx gex -> itemName gex
+        SvgTree svgTree  -> itemName svgTree
+        ClayMenu cmenu   -> itemName cmenu
+        ClayColors ccolors -> itemName ccolors
+        Kanji kanjiItem  -> itemName kanjiItem
+    itemColor = case _ of
+        Basic _            -> Nothing
+        Noodle nui         -> itemColor nui
+        NoodleNode nui     -> itemColor nui
+        NoodleGrowEx gex   -> itemColor gex
+        SvgTree svgTree    -> itemColor svgTree
+        ClayMenu cmenu     -> itemColor cmenu
+        ClayColors ccolors -> itemColor ccolors
+        Kanji kanjiItem    -> itemColor kanjiItem
+
+
 instance NextItem ExItem where
-    nextItem _ = Basic unit
+    nextItem = Basic
 
 
 instance RenderItem ExItem where
     renderItem clickAction { v, rect } =
         case v of
-            Basic _ ->
+            Basic _->
                 Nothing
             Noodle _ ->
                 Nothing

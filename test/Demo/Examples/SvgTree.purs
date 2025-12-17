@@ -9,7 +9,7 @@ import Halogen.Svg.Attributes (Color(..)) as HA
 import Play ((~*))
 import Play as Play
 
-import Test.Demo.Examples.Types (class IsItem, Example, ex, ic, il)
+import Test.Demo.Examples.Types (class IsItem, Example, ex)
 
 
 data GraphUI
