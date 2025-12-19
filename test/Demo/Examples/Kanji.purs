@@ -25,6 +25,8 @@ type Config =
     , partHasStroke :: Boolean
     , sourceOpacity :: Number
     , fontProportion :: Number
+    , sourceColor :: String
+    , sourceSelectedColor :: String
     }
 
 
@@ -36,6 +38,8 @@ config =
     , partHasStroke : false
     , sourceOpacity : 1.0
     , fontProportion : 0.9
+    , sourceSelectedColor : "chocolate" -- burlywood, aquamarine, aqua, bisque, aquamarine, brown, burlywood, cadetblue, aliceblue, antiquewhite
+    , sourceColor : "burlywood"
     } :: Config
 
 
@@ -205,9 +209,9 @@ kanjiExamples =
                         TopToBottom
                             { top    : Single (KanjiP "日")
                             , bottom : Single (KanjiP "一")
-                            } { rate : 0.45 }
+                            } { rate : 0.65 }
                     } { rate : 0.45 }
-                } { rate : 0.35 }
+                } { rate : 0.18 }
             } { rate : 0.35 }
     , "府" /\
         Surround FromUpperLeft
@@ -217,7 +221,7 @@ kanjiExamples =
                 , right : Single (KanjiP "寸")
                 } { rate : 0.27 }
             }
-            { rateX : 0.3, rateY : 0.3 }
+            { rateX : 0.26, rateY : 0.26 }
     , "咽" /\
         LeftToRight
             { left  : Single (KanjiP "口")
@@ -378,7 +382,7 @@ toPlaySpecAt posKey = case _ of
 
 
 instance RenderItem KanjiItem where
-    renderItem clickAction { v, rect } = case v of
+    renderItem clickAction { isSelected } { v, rect } = case v of
         Root -> Nothing
         Stub -> Nothing
         OpRoot opKey -> Just $
@@ -454,11 +458,11 @@ instance RenderItem KanjiItem where
 
                 $ pure
                 $ HS.text
-                    [ HP.style "mix-blend-mode: exclusion;" -- "soft-light, lighten;"
+                    [ HP.style $ if isSelected then "mix-blend-mode: exclusion;" else ""
                     , HA.x $ offsetX + centerX
                     , HA.y $ offsetY + centerY
                     , HA.fontSize $ HA.FontSizeLength $ HA.Px fontSize
-                    , HA.fill $ HA.Named "burlywood" -- aquamarine, aqua, bisque, aquamarine, brown, burlywood, cadetblue, aliceblue, antiquewhite
+                    , HA.fill $ HA.Named $ if isSelected then config.sourceSelectedColor else config.sourceColor
                     , HA.fillOpacity config.sourceOpacity
                     -- , HA.strokeWidth 0.5
                     -- , HA.stroke $ HA.Named "black"

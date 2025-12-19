@@ -23,8 +23,14 @@ class NextItem x where
     nextItem :: String -> x
 
 
+type RenderFlags =
+    { isSelected :: Boolean
+    , isDemo     :: Boolean
+    }
+
+
 class RenderItem x where
-    renderItem :: forall i a. a -> PT.WithRect x -> Maybe (HH.HTML i a)
+    renderItem :: forall i a. a -> RenderFlags -> PT.WithRect x -> Maybe (HH.HTML i a)
 
 
 data Example a = Example Int Play.Size String (Play a)

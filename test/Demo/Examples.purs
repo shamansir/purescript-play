@@ -165,7 +165,7 @@ instance NextItem ExItem where
 
 
 instance RenderItem ExItem where
-    renderItem clickAction { v, rect } =
+    renderItem clickAction flags { v, rect } =
         case v of
             Basic _->
                 Nothing
@@ -182,4 +182,4 @@ instance RenderItem ExItem where
             SvgTree _ ->
                 Nothing
             Kanji kanjiItem ->
-                renderItem clickAction { v: kanjiItem, rect }
+                renderItem clickAction flags { v: kanjiItem, rect }

@@ -77,6 +77,7 @@ data Action
     | SelectCodeTab Int
     | ToggleNodeCollapsed Play.ItemPath
     | ToggleShowEncodedSizing
+    | TogglePropertiesCollapsed
 
 
 data Axis = Horz | Vert
@@ -122,6 +123,7 @@ type State =
     , editing :: EditingState
     , codePanel :: CodePanelState
     , showEncodedSizing :: Boolean
+    , propertiesCollapsed :: Boolean
     }
 
 
@@ -192,6 +194,7 @@ component =
                              , collapsedNodes: []
                              }
                 , showEncodedSizing: false
+                , propertiesCollapsed : false
                 }
 
         render :: State -> _
@@ -204,12 +207,15 @@ component =
                     , renderClickablePreview state
                     , renderCodePanel state
                     ]
-                , HH.div
-                    [ HP.style "flex: 1;" ]
-                    [ case state.mbSelectedPath of
-                        Nothing -> HH.text "No item selected."
-                        Just _  -> renderPropertyEditor state
-                    ]
+                , case state.mbSelectedPath of
+                    Nothing ->
+                        HH.div
+                            [ HP.style "flex: 0.05; padding: 38px 10px;" ]
+                            []
+                    Just _ ->
+                        HH.div
+                            [ HP.style $ if state.propertiesCollapsed then "flex: 0.05; padding: 8px 10px;" else "flex: 1;" ]
+                            [ renderPropertyEditor state ]
                 ]
 
         handleAction = case _ of
@@ -350,6 +356,9 @@ component =
             ToggleShowEncodedSizing ->
                 H.modify_ \s -> s { showEncodedSizing = not s.showEncodedSizing }
 
+            TogglePropertiesCollapsed ->
+                H.modify_ \s -> s { propertiesCollapsed = not s.propertiesCollapsed }
+
 
 -- Set item name
 setItemName :: forall x. String -> ItemWithChanges x -> ItemWithChanges x
@@ -403,26 +412,22 @@ renderPropertyEditor state =
                     ]
                 ]
         hasPreviousSibling :: State -> Boolean
-        hasPreviousSibling st =
-            case st.mbSelectedPath of
-                Nothing -> false
-                Just selectedPath ->
-                    case Array.unsnoc selectedPath of
-                        Nothing -> false
-                        Just { last: currentIndex } -> currentIndex > 0
+        hasPreviousSibling st = do
+            selectedPath <- st.mbSelectedPath
+            { last: currentIndex } <- Array.unsnoc selectedPath
+            pure $ currentIndex > 0
+
+            # fromMaybe false
 
         hasNextSibling :: State -> Boolean
-        hasNextSibling st =
-            case st.mbSelectedPath of
-                Nothing -> false
-                Just selectedPath ->
-                    case Array.unsnoc selectedPath of
-                        Nothing -> false
-                        Just { init: parentPath, last: currentIndex } ->
-                            let
-                                mbParentTree = Play.playAt parentPath st.playTree
-                                siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
-                            in currentIndex < siblingCount - 1
+        hasNextSibling st = do
+            selectedPath <- st.mbSelectedPath
+            { init: parentPath, last: currentIndex } <- Array.unsnoc selectedPath
+            parentTree <- Play.playAt parentPath st.playTree
+            let siblingCount = Array.length $ Tree.children $ Play.toTree parentTree
+            pure $ currentIndex < siblingCount - 1
+
+            # fromMaybe false
 
         weAreAtRoot = maybe false (_ == []) state.mbSelectedPath
 
@@ -443,6 +448,9 @@ renderPropertyEditor state =
             "background: #17a2b8; cursor: pointer;"
         else
             "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
+
+        expandCollapseButtonStyle =
+            "position: absolute; right: 10px; padding: 0 4px; color: white; border: none; border-radius: 3px; background: cornflowerblue; cursor: pointer; font-size: 10px;"
 
         -- Helper for rendering alignment radio buttons
         renderAlignmentRadio :: forall j. Axis -> String -> PT.Align -> (PT.Align -> Action) -> HH.HTML j Action
@@ -467,13 +475,27 @@ renderPropertyEditor state =
                     ]
                 , HH.text label
                 ]
-    in
+    in if state.propertiesCollapsed then
+        HH.div
+            [ HP.style "padding: 15px;" ]
+            [ HH.button
+                [ HE.onClick \_ -> TogglePropertiesCollapsed
+                , HP.style expandCollapseButtonStyle
+                ]
+                [ HH.text "<<" ]
+            ]
+    else
     HH.div
         [ HP.style "padding: 15px; border: 1px solid #ccc; background: #f9f9f9;" ]
         [ {- HH.h3_ [ HH.text "Property Editor" ]
         , -} HH.div
             [ HP.style "margin-bottom: 10px; display: flex; gap: 10px; align-items: center;" ]
             [ HH.button
+                [ HE.onClick \_ -> TogglePropertiesCollapsed
+                , HP.style expandCollapseButtonStyle
+                ]
+                [ HH.text ">>" ]
+            , HH.button
                 [ HE.onClick \_ -> GoToRoot
                 , HP.style rootButtonStyle
                 , HP.disabled weAreAtRoot
@@ -623,13 +645,10 @@ renderSizingRadio
     -> HH.HTML i Action
 renderSizingRadio radioName editingState fromEditingState currentSizing updateAction =
     let
-        -- Get the stored sizing from editing state, or use current sizing as fallback
         editingSizing = fromMaybe currentSizing (fromEditingState editingState)
 
-        -- Base style for all radio options
         baseRadioStyle = "margin: 4px 0; display: flex; align-items: center; gap: 5px; min-height: 24px;"
 
-        -- Simple radio option without inputs
         simpleRadioOption label sizing =
             HH.div
                 [ HP.style baseRadioStyle ]
@@ -816,13 +835,11 @@ renderCodePanel state =
 
         tabStyle isActive = "padding: 8px 16px; cursor: pointer; border-bottom: " <> (if isActive then "2px solid #007bff" else "1px solid #ccc") <> "; background: " <> (if isActive then "#fff" else "#f8f8f8") <> ";"
 
-        -- Updated content style to accommodate navigation bar
         contentStyle = "height: calc(100% - 120px); overflow: auto;"
         contentWithoutNavStyle = "height: calc(100% - 80px); overflow: auto;"
 
         isExpanded = state.codePanel.expanded
 
-        -- Helper functions for navigation state
         hasPreviousSibling =
             case state.mbSelectedPath of
                 Nothing -> false
@@ -1035,6 +1052,7 @@ renderClickableItem state (path /\ { v, def, rect }) =
         isSelected = maybe false (_ == path) state.mbSelectedPath
         labelText = Play.encodeDef def
         mbCol = itemColor v
+        renderFlags = { isSelected, isDemo : false }
     in HS.g
         [ HE.onClick \_ -> SelectItem path
         , HP.style "pointer-events: all; cursor: pointer;"
@@ -1056,7 +1074,7 @@ renderClickableItem state (path /\ { v, def, rect }) =
             , HP.style "cursor: pointer;"
             , HE.onClick \_ -> SelectItem path
             ]
-        , Demo.renderItem (SelectItem path) { v, rect }
+        , Demo.renderItem (SelectItem path) renderFlags { v, rect }
         ]
         <> if state.showEncodedSizing then
             [ HS.text
@@ -1165,13 +1183,10 @@ instance (IsItem x, NextItem x) => NextItem (ItemWithChanges x) where
 
 
 instance RenderItem x => RenderItem (ItemWithChanges x) where
-    renderItem action { v, rect } =
+    renderItem action flags { v, rect } =
         case v of
             IWC { item, changes } ->
-                renderItem action { v : item, rect }
-        -- Demo.renderItem action { v: v.changes, rect }
-
+                renderItem action flags { v : item, rect }
 
 instance WriteForeign (ItemWithChanges x) where
     writeImpl (IWC { changes }) = writeImpl $ changes.name
-    -- itemName >>> writeImpl
