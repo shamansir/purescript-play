@@ -21,6 +21,28 @@ import Play as Play
 import Test.Demo.Examples.Types (Example, class IsItem, ex, class RenderItem)
 
 
+type Config =
+    { showSource :: Boolean
+    , showOpSymbol :: Boolean
+    , showPart :: Boolean
+    , showPartRect :: Boolean
+    , partHasStroke :: Boolean
+    , sourceOpacity :: Number
+    , fontProportion :: Number
+    }
+
+
+config =
+    { showSource : true
+    , showOpSymbol : true
+    , showPart : true
+    , showPartRect : true
+    , partHasStroke : false
+    , sourceOpacity : 1.0
+    , fontProportion : 0.9
+    } :: Config
+
+
 newtype Kanji = Kanji String
 
 newtype KanjiPart = KanjiP String
@@ -52,121 +74,69 @@ instance IsItem KanjiItem where
 
 kanjiExamples :: Array (Example KanjiItem)
 kanjiExamples =
-    -- https://kanjiheatmap.com/?open=%E6%97%A5 日
-    [ kanjiPlaySpecToExample 100 "Kanji 日" (Kanji "日")
-        $ toPlaySpec
-        $ Single (KanjiP "日")
-    -- https://kanjiheatmap.com/?open=%E4%BC%91 休
-    , kanjiPlaySpecToExample 101 "Kanji 休" (Kanji "休")
-        $ toPlaySpec
-        $ LeftToRight
+    mapWithIndex
+        (\i (kanji /\ kanjiSpec) ->
+            kanjiPlaySpecToExample
+                (200 + i)
+                ("Kanji Example " <> kanji)
+                (Kanji kanji)
+                $ toPlaySpec kanjiSpec
+        )
+    [ "日" /\ Single (KanjiP "日")
+    , "休" /\
+        LeftToRight
             { left :  Single (KanjiP "亻")
             , right : Single (KanjiP "木")
             } { rate : 0.27 }
-    -- https://kanjiheatmap.com/?open=%E6%96%B0 新
-    -- https://kanjiheatmap.com/?open=%E6%8D%BA 捺
-    -- https://kanjiheatmap.com/?open=%E6%9F%93 染
-    -- 寂遜隙綜督燎繭数
-    , kanjiPlaySpecToExample 102 "Kanji 新" (Kanji "新")
-        $ toPlaySpec
-        $ LeftToRight
+    , "新" /\
+        LeftToRight
             { left  : TopToBottom
                 { top    : Single (KanjiP "立")
                 , bottom : Single (KanjiP "木")
                 } { rate : 0.45 }
             , right : Single (KanjiP "斤")
             } { rate : 0.53 }
-    -- https://kanjiheatmap.com/?open=%E5%AE%89 安
-    , kanjiPlaySpecToExample 103 "Kanji 安" (Kanji "安")
-        $ toPlaySpec
-        $ TopToBottom
+    , "安" /\
+        TopToBottom
             { top    : Single (KanjiP "宀")
             , bottom : Single (KanjiP "女")
             } { rate : 0.36 }
-    -- https://kanjiheatmap.com/?open=%E6%81%8B 恋
-    , kanjiPlaySpecToExample 104 "Kanji 恋" (Kanji "恋")
-        $ toPlaySpec
-        $ TopToBottom
+    , "恋" /\
+        TopToBottom
             { top    : Single (KanjiP "亦")
             , bottom : Single (KanjiP "心")
             } { rate : 0.55 }
-    -- https://kanjiheatmap.com/?open=%E9%81%93 道
-    , kanjiPlaySpecToExample 106 "Kanji 道" (Kanji "道")
-        $ toPlaySpec
-        $ Surround FromLowerLeft
+    , "道" /\
+        Surround FromLowerLeft
             { surround : Single (KanjiP "辶")
             , inside   : Single (KanjiP "首")
             } { rateX : 0.3, rateY : 0.3 }
-    -- https://kanjiheatmap.com/?open=%E9%96%93 間
-    , kanjiPlaySpecToExample 107 "Kanji 間" (Kanji "間")
-        $ toPlaySpec
-        $ Surround FromAbove
+    , "間" /\
+        Surround FromAbove
             { surround : Single (KanjiP "門")
             , inside   : Single (KanjiP "日")
             } { rateX : 0.4, rateY : 0.46 }
-    -- https://kanjiheatmap.com/?open=%E5%9B%BD 国
-    , kanjiPlaySpecToExample 108 "Kanji 国" (Kanji "国")
-        $ toPlaySpec
-        $ Surround Full
+    , "国" /\
+        Surround Full
             { surround : Single (KanjiP "囗")
             , inside : Single (KanjiP "玉")
             }
             { rateX : 0.37, rateY : 0.37 }
-    -- https://kanjiheatmap.com/?open=%E8%A1%93 術
-    , kanjiPlaySpecToExample 109 "Kanji 術" (Kanji "術")
-        $ toPlaySpec
-        $ Surround Inbetween
+    , "術" /\
+        Surround Inbetween
             { surround : Single (KanjiP "行")
             , inside   : Single (KanjiP "朮")
             } { rateX : 0.55, rateY : 0.0 }
-    -- https://kanjiheatmap.com/?open=%E5%8C%BA 区
-    , kanjiPlaySpecToExample 110 "Kanji 区" (Kanji "区")
-        $ toPlaySpec
-        $ Surround FromLeft
+    , "区" /\
+        Surround FromLeft
             { surround : Single (KanjiP "匚")
             , inside : Single (KanjiP "乂")
             }
             { rateX : 0.22, rateY : 0.34 }
     ]
 
-    {-
-    , kanjiPlaySpecToExample 100 "Kanji Layout Example 1"
-        $ toPlaySpec
-        $ LeftToRight
-            { left : Single (Kanji "日") -- ⺝
-            , right : Surround Full
-                { inside : Single (Kanji "小")
-                , surround : Single (Kanji "⼞")
-                }
-            }
-            { rate : 0.4 }
-    -}
-
-
--- https://kanjiheatmap.com/?open=%E7%B5%84 組
--- https://kanjiheatmap.com/?open=%E7%A6%8F 福
--- https://kanjiheatmap.com/?open=%E6%B9%AF 湯
--- https://kanjiheatmap.com/?open=%E5%AE%B3 害
--- https://kanjiheatmap.com/?open=%E6%AE%BA 殺
--- https://kanjiheatmap.com/?open=%E5%BA%9C 府
--- https://kanjiheatmap.com/?open=%E8%BC%AA 輪
--- https://kanjiheatmap.com/?open=%E9%99%B8 陸
--- https://kanjiheatmap.com/?open=%E6%9C%9F 期
--- https://kanjiheatmap.com/?open=%E7%BF%92 習
--- https://kanjiheatmap.com/?open=%E5%92%BD 咽
--- https://kanjiheatmap.com/?open=%E5%80%8B 個
--- https://kanjiheatmap.com/?open=%E4%BD%86 但
--- https://kanjiheatmap.com/?open=%E6%9F%9A 柚
--- https://kanjiheatmap.com/?open=%E6%99%82 時
--- https://kanjiheatmap.com/?open=%E5%94%B1 唱
--- https://kanjiheatmap.com/?open=%E6%97%AC 旬
--- https://kanjiheatmap.com/?open=%E6%9A%96 暖
--- https://kanjiheatmap.com/?open=%E6%99%B6 晶
--- https://kanjiheatmap.com/?open=%E9%99%BD 陽
--- https://kanjiheatmap.com/?open=%E5%9B%9E 回
--- https://kanjiheatmap.com/?open=%E5%9B%BA 固
--- https://kanjiheatmap.com/?open=%E5%A3%87 壇
--- https://kanjiheatmap.com/?open=%E6%A4%8B 椋
+    -- https://kanjiheatmap.com/
+    -- 染 寂 遜 隙 綜 督 燎 繭 数 捺 組 湯 福 害 殺 府 輪 陸 期 習 咽 個 但 柚 時 唱 旬 暖 晶 陽 回 固 壇 椋
 
 
 data SurroundKind
@@ -316,7 +286,7 @@ instance RenderItem KanjiItem where
                 offsetY = rect.pos.y
                 centerX = rect.size.width  / 2.0
                 centerY = rect.size.height / 2.0
-            in HS.text
+            in if config.showOpSymbol then HS.text
                 [ HA.x $ offsetX + 4.0
                 , HA.y $ offsetY + 4.0 -- + centerY -- rect.pos.y + 4.0
                 , HA.fontSize $ HA.FontSizeLength $ HA.Px 25.0
@@ -327,10 +297,11 @@ instance RenderItem KanjiItem where
                 , HE.onClick \_ -> clickAction
                 ]
                 [ HH.text $ opKeyToSymbol opKey ]
+            else HH.text ""
         AKanji (KanjiP kanjiP) posKey -> Just $
             let
 
-            baseFontSize = (min rect.size.width rect.size.height) * 0.9
+            baseFontSize = (min rect.size.width rect.size.height) * config.fontProportion
 
             offsetX = rect.pos.x-- + transform.offsetX
             offsetY = rect.pos.y-- + transform.offsetY
@@ -339,30 +310,34 @@ instance RenderItem KanjiItem where
             centerY = rect.size.height / 2.0
             in HS.g
                 [  ]
-                [ HS.rect
-                    [ HP.style "mix-blend-mode: lighten;" -- "mix-blend-mode: soft-light;"
-                    , HA.x rect.pos.x
-                    , HA.y rect.pos.y
-                    , HA.width rect.size.width
-                    , HA.height rect.size.height
-                    -- , HA.fill $ HA.RGBA 100 149 237 0.1 -- cornflowerblue with transparency
-                    , HA.fill $ colorByPos posKey
-                    , HA.stroke $ HA.Named "cornflowerblue"
-                    , HA.strokeWidth 1.0
-                    ]
-                , HS.text
-                    [ HA.x $ offsetX + centerX
-                    , HA.y $ offsetY + centerY
-                    , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
-                    , HA.fill $ HA.Named "white"
-                    , HA.strokeWidth 0.5
-                    , HA.stroke $ HA.Named "black"
-                    , HA.textAnchor HA.AnchorMiddle
-                    , HA.dominantBaseline HA.BaselineMiddle
-                    , HP.style "pointer-events: none;"
-                    , HE.onClick \_ -> clickAction
-                    ]
-                    [ HH.text kanjiP ]
+                [ if config.showPartRect
+                    then HS.rect
+                        [ HP.style "mix-blend-mode: lighten;" -- "mix-blend-mode: soft-light;"
+                        , HA.x rect.pos.x
+                        , HA.y rect.pos.y
+                        , HA.width rect.size.width
+                        , HA.height rect.size.height
+                        -- , HA.fill $ HA.RGBA 100 149 237 0.1 -- cornflowerblue with transparency
+                        , HA.fill $ colorByPos posKey
+                        , HA.stroke $ HA.Named "cornflowerblue"
+                        , HA.strokeWidth 1.0
+                        ]
+                    else HH.text ""
+                , if config.showPart
+                    then HS.text
+                        [ HA.x $ offsetX + centerX
+                        , HA.y $ offsetY + centerY
+                        , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
+                        , HA.fill $ HA.Named "white"
+                        , HA.strokeWidth 0.5
+                        , HA.stroke $ if config.partHasStroke then HA.Named "black" else HA.RGBA 0 0 0 0.0
+                        , HA.textAnchor HA.AnchorMiddle
+                        , HA.dominantBaseline HA.BaselineMiddle
+                        , HP.style "pointer-events: none;"
+                        , HE.onClick \_ -> clickAction
+                        ]
+                        [ HH.text kanjiP ]
+                    else HH.text ""
                 ]
         Source (Kanji kanji) -> Just $
             let
@@ -374,7 +349,7 @@ instance RenderItem KanjiItem where
                 centerY = rect.size.height / 2.0
 
                 fontSize = (min rect.size.width rect.size.height)
-            in HS.g []
+            in if config.showSource then HS.g []
 
                 $ pure
                 $ HS.text
@@ -383,6 +358,7 @@ instance RenderItem KanjiItem where
                     , HA.y $ offsetY + centerY
                     , HA.fontSize $ HA.FontSizeLength $ HA.Px fontSize
                     , HA.fill $ HA.Named "burlywood" -- aquamarine, aqua, bisque, aquamarine, brown, burlywood, cadetblue, aliceblue, antiquewhite
+                    , HA.fillOpacity config.sourceOpacity
                     -- , HA.strokeWidth 0.5
                     -- , HA.stroke $ HA.Named "black"
                     , HA.textAnchor HA.AnchorMiddle
@@ -390,7 +366,8 @@ instance RenderItem KanjiItem where
                     , HP.style "pointer-events: none;"
                     , HE.onClick \_ -> clickAction
                     ]
-                    [ HH.text kanji ]-- TODO
+                    [ HH.text kanji ]
+            else HH.text ""
 
 
 colorByPos :: KanjiPosKey -> HA.Color
