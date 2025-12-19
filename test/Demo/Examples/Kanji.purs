@@ -5,6 +5,8 @@ import Prelude
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (uncurry) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
+import Data.FunctorWithIndex (mapWithIndex)
+
 
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
@@ -44,7 +46,7 @@ instance IsItem KanjiItem where
         Root       -> Just $ HA.RGBA 0 0 0 0.0 -- transparent
         Stub       -> Just $ HA.RGBA 0 0 0 0.0 -- transparent
         OpRoot _   -> Just $ HA.RGBA 0 0 0 0.0 -- transparent
-        AKanji _ _ -> Just $ HA.RGBA 100 149 237 1.0 -- cornflowerblue
+        AKanji _ _ -> Just $ HA.RGBA 100 149 237 0.1 -- cornflowerblue
         Source _   -> Just $ HA.RGBA 0 0 0 0.0 -- transparent
 
 
@@ -60,66 +62,71 @@ kanjiExamples =
         $ LeftToRight
             { left :  Single (KanjiP "亻")
             , right : Single (KanjiP "木")
-            } { rate : 0.25 }
+            } { rate : 0.27 }
     -- https://kanjiheatmap.com/?open=%E6%96%B0 新
+    -- https://kanjiheatmap.com/?open=%E6%8D%BA 捺
+    -- https://kanjiheatmap.com/?open=%E6%9F%93 染
+    -- 寂遜隙綜督燎繭数
     , kanjiPlaySpecToExample 102 "Kanji 新" (Kanji "新")
         $ toPlaySpec
         $ LeftToRight
-            { left : TopToBottom
-                { top : Single (KanjiP "立")
-                , bottom : Single (KanjiP "⺬")
-                } { rate : 0.4 }
+            { left  : TopToBottom
+                { top    : Single (KanjiP "立")
+                , bottom : Single (KanjiP "木")
+                } { rate : 0.45 }
             , right : Single (KanjiP "斤")
-            } { rate : 0.4 }
+            } { rate : 0.53 }
     -- https://kanjiheatmap.com/?open=%E5%AE%89 安
     , kanjiPlaySpecToExample 103 "Kanji 安" (Kanji "安")
         $ toPlaySpec
         $ TopToBottom
-            { top : Single (KanjiP "宀")
+            { top    : Single (KanjiP "宀")
             , bottom : Single (KanjiP "女")
-            } { rate : 0.4 }
+            } { rate : 0.36 }
     -- https://kanjiheatmap.com/?open=%E6%81%8B 恋
     , kanjiPlaySpecToExample 104 "Kanji 恋" (Kanji "恋")
         $ toPlaySpec
-        $ Surround Full
-            { inside : Single (KanjiP "夂")
-            , surround : Single (KanjiP "心")
-            }
-    -- https://kanjiheatmap.com/?open=%E9%81%93 道
-    , kanjiPlaySpecToExample 105 "Kanji 道" (Kanji "道")
-        $ toPlaySpec
-        $ LeftToRight
-            { left : Single (KanjiP "辶")
-            , right : Single (KanjiP "首")
-            } { rate : 0.4 }
-    -- https://kanjiheatmap.com/?open=%E9%96%93 間
-    , kanjiPlaySpecToExample 106 "Kanji 間" (Kanji "間")
-        $ toPlaySpec
         $ TopToBottom
-            { top : Single (KanjiP "門")
-            , bottom : Single (KanjiP "日")
-            } { rate : 0.4 }
-    -- https://kanjiheatmap.com/?open=%E5%9B%BD 国
-    , kanjiPlaySpecToExample 107 "Kanji 国" (Kanji "国")
+            { top    : Single (KanjiP "亦")
+            , bottom : Single (KanjiP "心")
+            } { rate : 0.55 }
+    -- https://kanjiheatmap.com/?open=%E9%81%93 道
+    , kanjiPlaySpecToExample 106 "Kanji 道" (Kanji "道")
         $ toPlaySpec
-        $ Surround Full
-            { inside : Single (KanjiP "玉")
-            , surround : Single (KanjiP "囗")
-            }
-    -- https://kanjiheatmap.com/?open=%E8%A1%93 術
-    , kanjiPlaySpecToExample 108 "Kanji 術" (Kanji "術")
-        $ toPlaySpec
-        $ LeftToRight
-            { left : Single (KanjiP "行")
-            , right : Single (KanjiP "朮")
-            } { rate : 0.4 }
-    -- https://kanjiheatmap.com/?open=%E5%8C%BA 区
-    , kanjiPlaySpecToExample 109 "Kanji 区" (Kanji "区")
+        $ Surround FromLowerLeft
+            { surround : Single (KanjiP "辶")
+            , inside   : Single (KanjiP "首")
+            } { rateX : 0.3, rateY : 0.3 }
+    -- https://kanjiheatmap.com/?open=%E9%96%93 間
+    , kanjiPlaySpecToExample 107 "Kanji 間" (Kanji "間")
         $ toPlaySpec
         $ Surround FromAbove
-            { inside : Single (KanjiP "乂")
-            , surround : Single (KanjiP "匚")
+            { surround : Single (KanjiP "門")
+            , inside   : Single (KanjiP "日")
+            } { rateX : 0.4, rateY : 0.46 }
+    -- https://kanjiheatmap.com/?open=%E5%9B%BD 国
+    , kanjiPlaySpecToExample 108 "Kanji 国" (Kanji "国")
+        $ toPlaySpec
+        $ Surround Full
+            { surround : Single (KanjiP "囗")
+            , inside : Single (KanjiP "玉")
             }
+            { rateX : 0.37, rateY : 0.37 }
+    -- https://kanjiheatmap.com/?open=%E8%A1%93 術
+    , kanjiPlaySpecToExample 109 "Kanji 術" (Kanji "術")
+        $ toPlaySpec
+        $ Surround Inbetween
+            { surround : Single (KanjiP "行")
+            , inside   : Single (KanjiP "朮")
+            } { rateX : 0.55, rateY : 0.0 }
+    -- https://kanjiheatmap.com/?open=%E5%8C%BA 区
+    , kanjiPlaySpecToExample 110 "Kanji 区" (Kanji "区")
+        $ toPlaySpec
+        $ Surround FromLeft
+            { surround : Single (KanjiP "匚")
+            , inside : Single (KanjiP "乂")
+            }
+            { rateX : 0.22, rateY : 0.34 }
     ]
 
     {-
@@ -171,6 +178,7 @@ data SurroundKind
     | FromUpperLeft
     | FromUpperRight
     | FromLowerLeft
+    | Inbetween
     -- | FromLowerRight
 
 
@@ -178,9 +186,7 @@ data KanjiOp
     = Single KanjiPart
     | LeftToRight { left :: KanjiOp, right :: KanjiOp } { rate :: Number }
     | TopToBottom { top :: KanjiOp, bottom :: KanjiOp } { rate :: Number }
-    -- | LeftToMiddleAndRight { left :: KanjiOp, middle :: KanjiOp, right :: KanjiOp } { rateA :: Number, rateB :: Number }
-    -- | AboveToMiddleAndBelow { above :: KanjiOp, middle :: KanjiOp, below :: KanjiOp } { rateA :: Number, rateB :: Number }
-    | Surround SurroundKind { inside :: KanjiOp, surround :: KanjiOp }
+    | Surround SurroundKind { inside :: KanjiOp, surround :: KanjiOp } { rateX :: Number, rateY :: Number }
 
 
 data KanjiOpKey
@@ -255,13 +261,12 @@ toPlaySpecAt posKey = case _ of
                     ~* Play.heightPercent (Play.pct $ 1.0 - rate)
                 ]
 
-    Surround kind { inside, surround } ->
+    Surround kind { inside, surround } { rateX, rateY } ->
         let
             insidePlay = toPlaySpecAt (KInside kind) inside
             surroundPlay = toPlaySpecAt (KSurround kind) surround
-        in case kind of
-            Full ->
-                Play.i (OpRoot (OpSurround Full))
+            construct alignHorz alignVert =
+                Play.i (OpRoot $ OpSurround kind)
                     ~* Play.widthGrow
                     ~* Play.heightGrow
                     ~* Play.backToFront
@@ -270,79 +275,95 @@ toPlaySpecAt posKey = case _ of
                         , Play.i Stub
                             ~* Play.widthGrow
                             ~* Play.heightGrow
-                            ~* Play.alignCenter
-                            ~* Play.alignMiddle
+                            ~* alignHorz
+                            ~* alignVert
                             ~* Play.with
-                                [ Play.i (OpRoot (OpSurroundInside Full))
-                                    ~* Play.widthPercent (Play.pct 0.4)
-                                    ~* Play.heightPercent (Play.pct 0.4)
+                                [ Play.i (OpRoot $ OpSurroundInside kind)
+                                    ~* Play.widthPercent  (Play.pct $ 1.0 - rateX)
+                                    ~* Play.heightPercent (Play.pct $ 1.0 - rateY)
                                     ~* Play.with [ insidePlay ]
                                 ]
                         ]
-            _ -> insidePlay -- TODO: implement other kinds
+        in case kind of
+            Full ->
+                construct     Play.alignCenter    Play.alignMiddle
+            FromAbove ->
+                construct     Play.alignCenter    Play.alignBottom
+            FromLeft ->
+                construct     Play.alignRight     Play.alignMiddle
+            FromRight ->
+                construct     Play.alignLeft      Play.alignMiddle
+            FromBelow ->
+                construct     Play.alignCenter    Play.alignTop
+            FromUpperLeft ->
+                construct     Play.alignRight     Play.alignBottom
+            FromUpperRight ->
+                construct     Play.alignLeft      Play.alignBottom
+            FromLowerLeft ->
+                construct     Play.alignRight     Play.alignTop
+            Inbetween ->
+                construct     Play.alignCenter    Play.alignTop -- same as `FromBelow`
+            -- _ -> insidePlay
 
 
 instance RenderItem KanjiItem where
     renderItem clickAction { v, rect } = case v of
         Root -> Nothing
         Stub -> Nothing
-        OpRoot _ -> Nothing
+        OpRoot opKey -> Just $
+            let
+                offsetX = rect.pos.x
+                offsetY = rect.pos.y
+                centerX = rect.size.width  / 2.0
+                centerY = rect.size.height / 2.0
+            in HS.text
+                [ HA.x $ offsetX + 4.0
+                , HA.y $ offsetY + 4.0 -- + centerY -- rect.pos.y + 4.0
+                , HA.fontSize $ HA.FontSizeLength $ HA.Px 25.0
+                , HA.fill $ HA.Named "red"
+                , HA.strokeWidth 1.0
+                , HA.dominantBaseline HA.Hanging
+                , HP.style "pointer-events: none;"
+                , HE.onClick \_ -> clickAction
+                ]
+                [ HH.text $ opKeyToSymbol opKey ]
         AKanji (KanjiP kanjiP) posKey -> Just $
             let
-                -- Helper to render text centered in rect
-            -- Calculate aspect ratio of the container
-            aspectRatio = rect.size.width / rect.size.height
 
-            -- Base font size to fill the smaller dimension (80% for padding)
-            baseFontSize = (min rect.size.width rect.size.height) * 0.8
-
-            -- Calculate scale factors for non-square containers
-            -- If width > height (wide rect), we stretch horizontally
-            -- If height > width (tall rect), we stretch vertically
-            -- scaleX = if aspectRatio > 1.0
-            --     then aspectRatio * transform.scaleX   -- Wider container: stretch horizontally
-            --     else transform.scaleX          -- Square or taller: no horizontal stretch
-
-            -- scaleY = if aspectRatio < 1.0
-            --     then (1.0 / aspectRatio) * transform.scaleY  -- Taller container: stretch vertically
-            --     else transform.scaleY                -- Square or wider: no vertical stretch
+            baseFontSize = (min rect.size.width rect.size.height) * 0.9
 
             offsetX = rect.pos.x-- + transform.offsetX
             offsetY = rect.pos.y-- + transform.offsetY
 
             centerX = rect.size.width  / 2.0
             centerY = rect.size.height / 2.0
-            -- let fontSize = (min rect.size.width rect.size.height) * 0.8
             in HS.g
-                [ {- HA.transform [ HA.Translate offsetX offsetY ] -} ]
-                $ pure
-                $ HS.rect
-                    [ HA.x rect.pos.x
+                [  ]
+                [ HS.rect
+                    [ HP.style "mix-blend-mode: lighten;" -- "mix-blend-mode: soft-light;"
+                    , HA.x rect.pos.x
                     , HA.y rect.pos.y
                     , HA.width rect.size.width
                     , HA.height rect.size.height
-                    , HA.fill $ HA.RGBA 100 149 237 0.1 -- cornflowerblue with transparency
+                    -- , HA.fill $ HA.RGBA 100 149 237 0.1 -- cornflowerblue with transparency
+                    , HA.fill $ colorByPos posKey
                     , HA.stroke $ HA.Named "cornflowerblue"
                     , HA.strokeWidth 1.0
                     ]
-                {- $ HS.text
+                , HS.text
                     [ HA.x $ offsetX + centerX
                     , HA.y $ offsetY + centerY
                     , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
-                    , HA.fill $ HA.Named "black"
+                    , HA.fill $ HA.Named "white"
                     , HA.strokeWidth 0.5
+                    , HA.stroke $ HA.Named "black"
                     , HA.textAnchor HA.AnchorMiddle
                     , HA.dominantBaseline HA.BaselineMiddle
-                    -- , HA.transformOrigin ?wh
-                    , HA.transform
-                        [ HA.Translate centerX centerY
-                        , HA.Scale scaleX scaleY
-                        , HA.Translate (-centerX) (-centerY)
-                        ]
                     , HP.style "pointer-events: none;"
                     , HE.onClick \_ -> clickAction
                     ]
-                    [ HH.text kanjiP ] -}
+                    [ HH.text kanjiP ]
+                ]
         Source (Kanji kanji) -> Just $
             let
                 offsetX = rect.pos.x
@@ -354,27 +375,33 @@ instance RenderItem KanjiItem where
 
                 fontSize = (min rect.size.width rect.size.height)
             in HS.g []
-                -- [ HA.transform [ HA.Translate offsetX offsetY ] ]
+
                 $ pure
                 $ HS.text
-                    [ HA.x $ offsetX + centerX
+                    [ HP.style "mix-blend-mode: exclusion;" -- "soft-light, lighten;"
+                    , HA.x $ offsetX + centerX
                     , HA.y $ offsetY + centerY
                     , HA.fontSize $ HA.FontSizeLength $ HA.Px fontSize
-                    , HA.fill $ HA.Named "black"
-                    , HA.strokeWidth 0.5
+                    , HA.fill $ HA.Named "burlywood" -- aquamarine, aqua, bisque, aquamarine, brown, burlywood, cadetblue, aliceblue, antiquewhite
+                    -- , HA.strokeWidth 0.5
+                    -- , HA.stroke $ HA.Named "black"
                     , HA.textAnchor HA.AnchorMiddle
                     , HA.dominantBaseline HA.BaselineMiddle
-                    -- , HA.transformOrigin ?wh
-                    {-
-                    , HA.transform
-                        [ HA.Translate centerX centerY
-                        , HA.Scale scaleX scaleY
-                        , HA.Translate (-centerX) (-centerY)
-                        ] -}
                     , HP.style "pointer-events: none;"
                     , HE.onClick \_ -> clickAction
                     ]
                     [ HH.text kanji ]-- TODO
+
+
+colorByPos :: KanjiPosKey -> HA.Color
+colorByPos = let opacity = 0.2 in case _ of
+    KSingle               -> HA.RGBA 100 149 237 opacity -- cornflowerblue
+    KLeft                 -> HA.RGBA 255 228 196 opacity -- bisque
+    KRight                -> HA.RGBA 255 222 173 opacity -- navajowhite
+    KTop                  -> HA.RGBA 244 164 96 opacity -- sandybrown
+    KBottom               -> HA.RGBA 95 158 160 opacity -- cadetblue
+    KInside _             -> HA.RGBA 34 139 34 opacity -- forestgreen
+    KSurround _           -> HA.RGBA 128 0 128 opacity -- purple
 
 
 opKeyToSymbol :: KanjiOpKey -> String
@@ -391,5 +418,6 @@ opKeyToSymbol = case _ of
         FromUpperLeft   -> "⿸"
         FromUpperRight  -> "⿹"
         FromLowerLeft   -> "⿺"
+        Inbetween       -> "⿲"
         -- FromLowerRight  -> "⿼"
     OpSurroundInside _ -> "⬡"
