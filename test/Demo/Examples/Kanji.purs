@@ -2,22 +2,18 @@ module Test.Demo.Examples.Kanji where
 
 import Prelude
 
+import Data.FunctorWithIndex (mapWithIndex)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (uncurry) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
-import Data.FunctorWithIndex (mapWithIndex)
-
-
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Svg.Attributes (Color(..)) as HA
 import Halogen.Svg.Attributes as HA
 import Halogen.Svg.Elements as HS
-
 import Play (Play, (~*))
 import Play as Play
-
 import Test.Demo.Examples.Types (Example, class IsItem, ex, class RenderItem)
 
 
@@ -85,14 +81,14 @@ kanjiExamples =
     [ "日" /\ Single (KanjiP "日")
     , "休" /\
         LeftToRight
-            { left :  Single (KanjiP "亻")
+            { left :  Single (KanjiP "亻") -- 人
             , right : Single (KanjiP "木")
             } { rate : 0.27 }
     , "新" /\
         LeftToRight
             { left  : TopToBottom
                 { top    : Single (KanjiP "立")
-                , bottom : Single (KanjiP "木")
+                , bottom : Single (KanjiP "木") -- 小
                 } { rate : 0.45 }
             , right : Single (KanjiP "斤")
             } { rate : 0.53 }
@@ -133,6 +129,104 @@ kanjiExamples =
             , inside : Single (KanjiP "乂")
             }
             { rateX : 0.22, rateY : 0.34 }
+    , "染" /\
+        TopToBottom
+            { top    : LeftToRight
+                { left  : Single (KanjiP "氵") -- 水
+                , right : Single (KanjiP "九")
+                } { rate : 0.35 }
+            , bottom : Single (KanjiP "木")
+            } { rate : 0.5 }
+    , "寂" /\
+        TopToBottom
+            { top    : Single (KanjiP "宀")
+            , bottom : LeftToRight
+                { left  : TopToBottom
+                    { top    : Single (KanjiP "上")
+                    , bottom : Single (KanjiP "小")
+                    } { rate : 0.38 }
+                , right : Single (KanjiP "又")
+                } { rate : 0.53 }
+            } { rate : 0.33 }
+    , "遜" /\
+        Surround FromLowerLeft
+            { surround : Single (KanjiP "辶")
+            , inside   : LeftToRight
+                { left  : Single (KanjiP "子")
+                , right : TopToBottom
+                    { top    : Single (KanjiP "幺")
+                    , bottom : Single (KanjiP "小")
+                    } { rate : 0.45 }
+                } { rate : 0.53 }
+            } { rateX : 0.3, rateY : 0.3 }
+    , "隙" /\
+        LeftToRight
+            { left  : Single (KanjiP "阝")
+            , right : TopToBottom
+                { top    : Single (KanjiP "小")
+                , bottom : TopToBottom
+                    { top    : Single (KanjiP "日")
+                    , bottom : Single (KanjiP "小")
+                    } { rate : 0.55 }
+                } { rate : 0.25 }
+            } { rate : 0.4 }
+    , "督" /\
+        TopToBottom
+            { top    : LeftToRight
+                { left  : TopToBottom
+                    { top    : Single (KanjiP "上")
+                    , bottom : Single (KanjiP "小")
+                    } { rate : 0.45 }
+                , right : Single (KanjiP "又")
+                } { rate : 0.53 }
+            , bottom : Single (KanjiP "目")
+            } { rate : 0.5 }
+    , "殺" /\
+        LeftToRight
+            { left  : TopToBottom
+                { top    : Single (KanjiP "乂")
+                , bottom : Single (KanjiP "木")
+                } { rate : 0.4 }
+            , right : Single (KanjiP "殳")
+            } { rate : 0.5 }
+    , "壇" /\
+        LeftToRight
+            { left  : Single (KanjiP "土")
+            , right : TopToBottom
+                { top    : Single (KanjiP "亠")
+                , bottom : TopToBottom
+                    { top    : -- Single (KanjiP "回")
+                        Surround Full
+                            { surround : Single (KanjiP "囗")
+                            , inside : Single (KanjiP "囗")
+                            }
+                            { rateX : 0.37, rateY : 0.37 }
+                    , bottom : -- Single (KanjiP "旦")
+                        TopToBottom
+                            { top    : Single (KanjiP "日")
+                            , bottom : Single (KanjiP "一")
+                            } { rate : 0.45 }
+                    } { rate : 0.45 }
+                } { rate : 0.35 }
+            } { rate : 0.35 }
+    , "府" /\
+        Surround FromUpperLeft
+            { surround : Single (KanjiP "广")
+            , inside : LeftToRight
+                { left :  Single (KanjiP "亻") -- 人
+                , right : Single (KanjiP "寸")
+                } { rate : 0.27 }
+            }
+            { rateX : 0.3, rateY : 0.3 }
+    , "咽" /\
+        LeftToRight
+            { left  : Single (KanjiP "口")
+            , right : Surround Full
+                { surround : Single (KanjiP "囗")
+                , inside : Single (KanjiP "大")
+                }
+                { rateX : 0.37, rateY : 0.37 }
+            } { rate : 0.35 }
     ]
 
     -- https://kanjiheatmap.com/
@@ -154,9 +248,16 @@ data SurroundKind
 
 data KanjiOp
     = Single KanjiPart
-    | LeftToRight { left :: KanjiOp, right :: KanjiOp } { rate :: Number }
-    | TopToBottom { top :: KanjiOp, bottom :: KanjiOp } { rate :: Number }
-    | Surround SurroundKind { inside :: KanjiOp, surround :: KanjiOp } { rateX :: Number, rateY :: Number }
+    | LeftToRight
+        { left :: KanjiOp, right :: KanjiOp }
+        { rate :: Number }
+    | TopToBottom
+        { top :: KanjiOp, bottom :: KanjiOp }
+        { rate :: Number }
+    | Surround
+        SurroundKind
+        { inside :: KanjiOp, surround :: KanjiOp }
+        { rateX :: Number, rateY :: Number }
 
 
 data KanjiOpKey
