@@ -62,6 +62,7 @@ data Field
 data Action
     = Skip
     | SelectItem Play.ItemPath
+    | DeselectAll
     | GoToRoot
     | GoToPreviousSibling
     | GoToNextSibling
@@ -117,7 +118,7 @@ newtype ItemWithChanges x =
 type State =
     { playTree :: Play (ItemWithChanges ExItem)
     , exampleName :: Maybe String
-    , selectedPath :: Play.ItemPath
+    , mbSelectedPath :: Maybe Play.ItemPath
     , editing :: EditingState
     , codePanel :: CodePanelState
     , showEncodedSizing :: Boolean
@@ -137,20 +138,28 @@ component =
         , eval: H.mkEval $ H.defaultEval { handleAction = handleAction }
         }
     where
+        whenJust :: forall hm a. Applicative hm => Maybe a -> (a -> hm Unit) -> hm Unit
+        whenJust mb f = case mb of
+            Just x  -> f x
+            Nothing -> pure unit
+
         updateSelectedName newName = do
             state <- H.get
-            let updatedTree = Play.updateAt state.selectedPath (setItemName newName) state.playTree
-            H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { name = newName } }
+            whenJust state.mbSelectedPath \selectedPath -> do
+                let updatedTree = Play.updateAt selectedPath (setItemName newName) state.playTree
+                H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { name = newName } }
 
         updateSelectedColor color = do
             state <- H.get
-            let updatedTree = Play.updateAt state.selectedPath (setItemColor color) state.playTree
-            H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { color = Just color } }
+            whenJust state.mbSelectedPath \selectedPath -> do
+                let updatedTree = Play.updateAt selectedPath (setItemColor color) state.playTree
+                H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { color = Just color } }
 
         updateSelectedDef modifyDef = do
             state <- H.get
-            let updatedTree = Play.updateDefAt state.selectedPath modifyDef state.playTree
-            H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { def = modifyDef s.editing.def } }
+            whenJust state.mbSelectedPath \selectedPath -> do
+                let updatedTree = Play.updateDefAt selectedPath modifyDef state.playTree
+                H.modify_ \s -> s { playTree = updatedTree, editing = s.editing { def = modifyDef s.editing.def } }
 
         loadEditState :: Play.ItemPath -> Play (ItemWithChanges ExItem) -> EditingState
         loadEditState path tree =
@@ -175,7 +184,7 @@ component =
                 tree = playOf $ initChanges <$> Noodle <$> noodleUI
             in
                 { playTree: tree
-                , selectedPath: []
+                , mbSelectedPath: Just []
                 , editing: loadEditState [] tree
                 , exampleName : Just $ nameOf noodleUI
                 , codePanel: { expanded: false
@@ -197,7 +206,9 @@ component =
                     ]
                 , HH.div
                     [ HP.style "flex: 1;" ]
-                    [ renderPropertyEditor state
+                    [ case state.mbSelectedPath of
+                        Nothing -> HH.text "No item selected."
+                        Just _  -> renderPropertyEditor state
                     ]
                 ]
 
@@ -205,47 +216,52 @@ component =
             Skip -> pure unit
 
             SelectItem path -> do
-                state <- H.get
-                H.modify_ _
-                    { selectedPath = path
-                    , editing = loadEditState path state.playTree
-                    }
+                H.modify_ \s ->
+                    s
+                        { mbSelectedPath = Just path
+                        , editing = loadEditState path s.playTree
+                        }
 
             GoToRoot ->
                 H.modify_ \s ->
                     s
-                        { selectedPath = []
+                        { mbSelectedPath = Just []
                         , editing = loadEditState [] s.playTree
                         }
 
+            DeselectAll ->
+                H.modify_ _ { mbSelectedPath = Nothing }
+
             GoToPreviousSibling -> do
                 state <- H.get
-                case Array.unsnoc state.selectedPath of
-                    Nothing -> pure unit  -- At root, no siblings
-                    Just { init: parentPath, last: currentIndex } ->
-                        if currentIndex > 0 then
-                            let newPath = Array.snoc parentPath (currentIndex - 1)
-                            in H.modify_ _
-                                { selectedPath = newPath
-                                , editing = loadEditState newPath state.playTree
-                                }
-                        else pure unit
+                whenJust state.mbSelectedPath \selectedPath ->
+                    case Array.unsnoc selectedPath of
+                        Nothing -> pure unit  -- At root, no siblings
+                        Just { init: parentPath, last: currentIndex } ->
+                            if currentIndex > 0 then
+                                let newPath = Array.snoc parentPath (currentIndex - 1)
+                                in H.modify_ _
+                                    { mbSelectedPath = Just newPath
+                                    , editing = loadEditState newPath state.playTree
+                                    }
+                            else pure unit
 
             GoToNextSibling -> do
                 state <- H.get
-                case Array.unsnoc state.selectedPath of
-                    Nothing -> pure unit  -- At root, no siblings
-                    Just { init: parentPath, last: currentIndex } -> do
-                        let
-                            mbParentTree = Play.playAt parentPath state.playTree
-                            siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
-                        if currentIndex < siblingCount - 1 then
-                            let newPath = Array.snoc parentPath (currentIndex + 1)
-                            in H.modify_ _
-                                { selectedPath = newPath
-                                , editing = loadEditState newPath state.playTree
-                                }
-                        else pure unit
+                whenJust state.mbSelectedPath \selectedPath ->
+                    case Array.unsnoc selectedPath of
+                        Nothing -> pure unit  -- At root, no siblings
+                        Just { init: parentPath, last: currentIndex } -> do
+                            let
+                                mbParentTree = Play.playAt parentPath state.playTree
+                                siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
+                            if currentIndex < siblingCount - 1 then
+                                let newPath = Array.snoc parentPath (currentIndex + 1)
+                                in H.modify_ _
+                                    { mbSelectedPath = Just newPath
+                                    , editing = loadEditState newPath state.playTree
+                                    }
+                            else pure unit
 
             UpdateName newName -> updateSelectedName newName
 
@@ -287,17 +303,19 @@ component =
 
             AddChild _ childName -> do
                 state <- H.get
-                let newChild =
-                        Play.i (nextItem childName)
-                            ~* Play.width defaultSizeValue
-                            ~* Play.height defaultSizeValue
-                    updatedTree = Play.addChildAt state.selectedPath newChild state.playTree
-                H.modify_ _ { playTree = updatedTree }
+                whenJust state.mbSelectedPath \selectedPath -> do
+                    let newChild =
+                            Play.i (nextItem childName)
+                                ~* Play.width defaultSizeValue
+                                ~* Play.height defaultSizeValue
+                        updatedTree = Play.addChildAt selectedPath newChild state.playTree
+                    H.modify_ _ { playTree = updatedTree }
 
             RemoveChild childIndex -> do
                 state <- H.get
-                let updatedTree = Play.removeChildAt state.selectedPath childIndex state.playTree
-                H.modify_ _ { playTree = updatedTree }
+                whenJust state.mbSelectedPath \selectedPath -> do
+                    let updatedTree = Play.removeChildAt selectedPath childIndex state.playTree
+                    H.modify_ _ { playTree = updatedTree }
 
             UpdateChildName newName ->
                 H.modify_ \s -> s { editing = s.editing { childName = newName } }
@@ -308,7 +326,7 @@ component =
                         let tree = initChanges <$> playOf example
                         H.modify_ _
                             { playTree = tree
-                            , selectedPath = []
+                            , mbSelectedPath = Just []
                             , editing = loadEditState [] tree
                             , exampleName = Just $ nameOf example
                             }
@@ -351,11 +369,13 @@ isFixedSizing = case _ of
 renderPropertyEditor :: forall i. State -> HH.HTML i Action
 renderPropertyEditor state =
     let
-        mbCurrentTree = Play.playAt state.selectedPath state.playTree
+        mbCurrentTree = state.mbSelectedPath >>= \selectedPath -> Play.playAt selectedPath state.playTree
         children = fromMaybe [] $ Tree.children <$> Play.toTree <$> mbCurrentTree
         childrenCount = Array.length children
         childName idx =
-            let mbName = itemName <$> Play.itemAt (Array.snoc state.selectedPath idx) state.playTree
+            let
+                selectedPath = fromMaybe [] state.mbSelectedPath
+                mbName = itemName <$> Play.itemAt (Array.snoc selectedPath idx) state.playTree
                 mbNonEmptyName = mbName >>= \n -> if n == "" then Nothing else Just n
             in show idx <> ". " <> (fromMaybe "<?>" mbNonEmptyName)
         nextChildName =
@@ -384,31 +404,42 @@ renderPropertyEditor state =
                 ]
         hasPreviousSibling :: State -> Boolean
         hasPreviousSibling st =
-            case Array.unsnoc st.selectedPath of
+            case st.mbSelectedPath of
                 Nothing -> false
-                Just { last: currentIndex } -> currentIndex > 0
+                Just selectedPath ->
+                    case Array.unsnoc selectedPath of
+                        Nothing -> false
+                        Just { last: currentIndex } -> currentIndex > 0
 
         hasNextSibling :: State -> Boolean
         hasNextSibling st =
-            case Array.unsnoc st.selectedPath of
+            case st.mbSelectedPath of
                 Nothing -> false
-                Just { init: parentPath, last: currentIndex } ->
-                    let
-                        mbParentTree = Play.playAt parentPath st.playTree
-                        siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
-                    in currentIndex < siblingCount - 1
+                Just selectedPath ->
+                    case Array.unsnoc selectedPath of
+                        Nothing -> false
+                        Just { init: parentPath, last: currentIndex } ->
+                            let
+                                mbParentTree = Play.playAt parentPath st.playTree
+                                siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
+                            in currentIndex < siblingCount - 1
 
-        rootButtonStyle = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if state.selectedPath == [] then
+        weAreAtRoot = maybe false (_ == []) state.mbSelectedPath
+
+        rootButtonDisabled = maybe true (_ == []) state.mbSelectedPath
+        parentButtonDisabled = rootButtonDisabled
+
+        rootButtonStyle = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if rootButtonDisabled then
             "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
         else
             "background: #007bff; cursor: pointer;"
 
-        parentButtonStyle = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if state.selectedPath == [] then
+        parentButtonStyle = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if parentButtonDisabled then
             "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
         else
             "background: #c9ae4bff; cursor: pointer;"
 
-        siblingButtonStyle enabled = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if enabled then
+        siblingButtonStyle isEnabled = "padding: 5px 10px; color: white; border: none; border-radius: 3px; " <> if isEnabled then
             "background: #17a2b8; cursor: pointer;"
         else
             "background: #6c757d; cursor: not-allowed; opacity: 0.6;"
@@ -445,13 +476,13 @@ renderPropertyEditor state =
             [ HH.button
                 [ HE.onClick \_ -> GoToRoot
                 , HP.style rootButtonStyle
-                , HP.disabled (state.selectedPath == [])
+                , HP.disabled weAreAtRoot
                 ]
                 [ HH.text "← Root" ]
             , HH.button
-                [ HE.onClick \_ -> SelectItem $ Array.dropEnd 1 state.selectedPath
+                [ HE.onClick \_ -> maybe GoToRoot (Array.dropEnd 1 >>> SelectItem) state.mbSelectedPath
                 , HP.style parentButtonStyle
-                , HP.disabled (state.selectedPath == [])
+                , HP.disabled weAreAtRoot
                 ]
                 [ HH.text "← Parent" ]
             , HH.button
@@ -468,7 +499,7 @@ renderPropertyEditor state =
                 [ HH.text ">>" ]
             , HH.span
                 [ HP.style "color: #666; font-size: 0.9em;" ]
-                [ HH.text $ "Path: " <> show state.selectedPath ]
+                [ HH.text $ "Path: " <> maybe "-" show state.mbSelectedPath ]
             ]
         , propertyFullWidthInput HP.InputText "Item Name:" UpdateName state.editing.name
         , HH.div
@@ -552,7 +583,7 @@ renderPropertyEditor state =
                         [ HP.style "display: flex; align-items: center; gap: 10px; margin: 5px 0;" ]
                         [ HH.span_ [ HH.text $ childName i ]
                         , HH.button
-                            [ HE.onClick \_ -> SelectItem $ Array.snoc state.selectedPath i
+                            [ HE.onClick \_ -> maybe GoToRoot (\selPath -> SelectItem $ Array.snoc selPath i) state.mbSelectedPath
                             , HP.style "padding: 2px 8px; background: #35ac45; color: white; border: none; border-radius: 3px; cursor: pointer;"
                             ]
                             [ HH.text "Go" ]
@@ -773,7 +804,7 @@ renderColorSelect currentColor =
 renderCodePanel :: forall i. State -> HH.HTML i Action
 renderCodePanel state =
     let
-        mbCurrentPlayTree = Play.playAt state.selectedPath state.playTree
+        mbCurrentPlayTree = state.mbSelectedPath >>= \selPath -> Play.playAt selPath state.playTree
         codeContent = fromMaybe "-" $ Play.toCode (itemName >>> show) <$> mbCurrentPlayTree
         jsonContent = fromMaybe "-" $ Play.toPrettyJSON 2 <$> mbCurrentPlayTree
         arrowSymbol = if state.codePanel.expanded then "▼" else "▶"
@@ -793,24 +824,31 @@ renderCodePanel state =
 
         -- Helper functions for navigation state
         hasPreviousSibling =
-            case Array.unsnoc state.selectedPath of
+            case state.mbSelectedPath of
                 Nothing -> false
-                Just { last: currentIndex } -> currentIndex > 0
+                Just selectedPath ->
+                    case Array.unsnoc selectedPath of
+                        Nothing -> false
+                        Just { last: currentIndex } -> currentIndex > 0
 
         hasNextSibling =
-            case Array.unsnoc state.selectedPath of
+            case state.mbSelectedPath of
                 Nothing -> false
-                Just { init: parentPath, last: currentIndex } ->
-                    let
-                        mbParentTree = Play.playAt parentPath state.playTree
-                        siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
-                    in currentIndex < siblingCount - 1
+                Just selectedPath ->
+                    case Array.unsnoc selectedPath of
+                        Nothing -> false
+                        Just { init: parentPath, last: currentIndex } ->
+                            let
+                                mbParentTree = Play.playAt parentPath state.playTree
+                                siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
+                            in currentIndex < siblingCount - 1
 
-        isAtRoot = state.selectedPath == []
+        isAtRoot = maybe false (_ == []) state.mbSelectedPath
 
         -- Compact navigation button style
         navButtonStyle enabled = "padding: 3px 8px; font-size: 11px; color: white; border: none; border-radius: 3px; cursor: " <>
             (if enabled then "pointer; background: #007bff;" else "not-allowed; background: #6c757d; opacity: 0.6;")
+        deselectButtonStyle = "padding: 3px 8px; font-size: 11px; color: white; border: none; border-radius: 3px; cursor: pointer; background: #aa7baa;"
 
         -- Render navigation bar
         renderNavBar =
@@ -824,7 +862,7 @@ renderCodePanel state =
                     ]
                     [ HH.text "⌂" ]
                 , HH.button
-                    [ HE.onClick \_ -> SelectItem $ Array.dropEnd 1 state.selectedPath
+                    [ HE.onClick \_ -> maybe GoToRoot (Array.dropEnd 1 >>> SelectItem) state.mbSelectedPath
                     , HP.style $ navButtonStyle (not isAtRoot)
                     , HP.disabled isAtRoot
                     , HP.title "Go to parent"
@@ -844,9 +882,15 @@ renderCodePanel state =
                     , HP.title "Next sibling"
                     ]
                     [ HH.text "→" ]
+                , HH.button
+                    [ HE.onClick \_ -> DeselectAll
+                    , HP.style deselectButtonStyle
+                    , HP.title "Deselect"
+                    ]
+                    [ HH.text "x" ]
                 , HH.span
                     [ HP.style "margin-left: auto; color: #666; font-size: 10px; font-family: monospace;" ]
-                    [ HH.text $ "Path: " <> show state.selectedPath ]
+                    [ HH.text $ "Path: " <> maybe "-" show state.mbSelectedPath ]
                 ]
     in
         if isExpanded then
@@ -881,7 +925,8 @@ renderCodePanel state =
                     0 ->  -- Tree tab (no navigation bar)
                         HH.div
                             [ HP.style contentWithoutNavStyle ]
-                            [ renderTextualTree state.selectedPath state.codePanel.collapsedNodes state.playTree ]
+                            [ renderTextualTree (fromMaybe [] state.mbSelectedPath) state.codePanel.collapsedNodes state.playTree
+                            ]
 
                     1 ->  -- Code tab (with navigation bar)
                         HH.div
@@ -987,7 +1032,7 @@ renderClickablePreview state =
 renderClickableItem :: forall i item. RenderItem item => State -> (Play.ItemPath /\ PT.WithDefRect (ItemWithChanges item)) -> HH.HTML i Action
 renderClickableItem state (path /\ { v, def, rect }) =
     let
-        isSelected = state.selectedPath == path
+        isSelected = maybe false (_ == path) state.mbSelectedPath
         labelText = Play.encodeDef def
         mbCol = itemColor v
     in HS.g
