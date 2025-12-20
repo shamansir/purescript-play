@@ -78,6 +78,9 @@ data Action
     | ToggleNodeCollapsed Play.ItemPath
     | ToggleShowEncodedSizing
     | TogglePropertiesCollapsed
+    | ZoomIn
+    | ZoomOut
+    | ZoomReset
 
 
 data Axis = Horz | Vert
@@ -124,6 +127,7 @@ type State =
     , codePanel :: CodePanelState
     , showEncodedSizing :: Boolean
     , propertiesCollapsed :: Boolean
+    , zoom :: Number
     }
 
 
@@ -195,6 +199,7 @@ component =
                              }
                 , showEncodedSizing: false
                 , propertiesCollapsed : false
+                , zoom : 1.0
                 }
 
         render :: State -> _
@@ -359,6 +364,15 @@ component =
             TogglePropertiesCollapsed ->
                 H.modify_ \s -> s { propertiesCollapsed = not s.propertiesCollapsed }
 
+            ZoomIn ->
+                H.modify_ \s -> s { zoom = min 3.0 (s.zoom + 0.1) }
+
+            ZoomOut ->
+                H.modify_ \s -> s { zoom = max 0.1 (s.zoom - 0.1) }
+
+            ZoomReset ->
+                H.modify_ \s -> s { zoom = 1.0 }
+
 
 -- Set item name
 setItemName :: forall x. String -> ItemWithChanges x -> ItemWithChanges x
@@ -411,23 +425,6 @@ renderPropertyEditor state =
                     , HP.style "width: 100%; padding: 5px; margin-top: 5px;"
                     ]
                 ]
-        hasPreviousSibling :: State -> Boolean
-        hasPreviousSibling st = do
-            selectedPath <- st.mbSelectedPath
-            { last: currentIndex } <- Array.unsnoc selectedPath
-            pure $ currentIndex > 0
-
-            # fromMaybe false
-
-        hasNextSibling :: State -> Boolean
-        hasNextSibling st = do
-            selectedPath <- st.mbSelectedPath
-            { init: parentPath, last: currentIndex } <- Array.unsnoc selectedPath
-            parentTree <- Play.playAt parentPath st.playTree
-            let siblingCount = Array.length $ Tree.children $ Play.toTree parentTree
-            pure $ currentIndex < siblingCount - 1
-
-            # fromMaybe false
 
         weAreAtRoot = maybe false (_ == []) state.mbSelectedPath
 
@@ -512,13 +509,13 @@ renderPropertyEditor state =
                 , HP.style $ siblingButtonStyle $ hasPreviousSibling state
                 , HP.disabled (not $ hasPreviousSibling state)
                 ]
-                [ HH.text "<<" ]
+                [ HH.text "↤" ]
             , HH.button
                 [ HE.onClick \_ -> GoToNextSibling
                 , HP.style $ siblingButtonStyle $ hasNextSibling state
                 , HP.disabled (not $ hasNextSibling state)
                 ]
-                [ HH.text ">>" ]
+                [ HH.text "↦" ]
             , HH.span
                 [ HP.style "color: #666; font-size: 0.9em;" ]
                 [ HH.text $ "Path: " <> maybe "-" show state.mbSelectedPath ]
@@ -840,27 +837,10 @@ renderCodePanel state =
 
         isExpanded = state.codePanel.expanded
 
-        hasPreviousSibling =
-            case state.mbSelectedPath of
-                Nothing -> false
-                Just selectedPath ->
-                    case Array.unsnoc selectedPath of
-                        Nothing -> false
-                        Just { last: currentIndex } -> currentIndex > 0
-
-        hasNextSibling =
-            case state.mbSelectedPath of
-                Nothing -> false
-                Just selectedPath ->
-                    case Array.unsnoc selectedPath of
-                        Nothing -> false
-                        Just { init: parentPath, last: currentIndex } ->
-                            let
-                                mbParentTree = Play.playAt parentPath state.playTree
-                                siblingCount = fromMaybe 0 $ Array.length <$> Tree.children <$> Play.toTree <$> mbParentTree
-                            in currentIndex < siblingCount - 1
-
         isAtRoot = maybe false (_ == []) state.mbSelectedPath
+
+        hasPreviousSibling' = hasPreviousSibling state
+        hasNextSibling' = hasNextSibling state
 
         -- Compact navigation button style
         navButtonStyle enabled = "padding: 3px 8px; font-size: 11px; color: white; border: none; border-radius: 3px; cursor: " <>
@@ -887,15 +867,15 @@ renderCodePanel state =
                     [ HH.text "↑" ]
                 , HH.button
                     [ HE.onClick \_ -> GoToPreviousSibling
-                    , HP.style $ navButtonStyle hasPreviousSibling
-                    , HP.disabled (not hasPreviousSibling)
+                    , HP.style $ navButtonStyle hasPreviousSibling'
+                    , HP.disabled $ not hasPreviousSibling'
                     , HP.title "Previous sibling"
                     ]
                     [ HH.text "←" ]
                 , HH.button
                     [ HE.onClick \_ -> GoToNextSibling
-                    , HP.style $ navButtonStyle hasNextSibling
-                    , HP.disabled (not hasNextSibling)
+                    , HP.style $ navButtonStyle hasNextSibling'
+                    , HP.disabled $ not hasNextSibling'
                     , HP.title "Next sibling"
                     ]
                     [ HH.text "→" ]
@@ -1015,6 +995,15 @@ renderClickablePreview state =
         layout = Play.layout state.playTree
         layoutTree = Play.layoutToTree_ layout
         size = Play.layoutSize layout
+
+        -- zoomedSize =
+        --     { width: size.width * state.zoom
+        --     , height: size.height * state.zoom
+        --     }
+
+        -- zoomPercentage = show (Number.round (state.zoom * 100.0)) <> "%"
+
+        -- zoomButtonStyle = "padding: 4px 8px; margin-left: 6px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 14px; user-select: none;"
     in
     HH.div_
         [ HH.div
@@ -1022,27 +1011,61 @@ renderClickablePreview state =
             [ HH.h3
                 [ HP.style "margin: 0;" ]
                 [ HH.text $ fromMaybe "Interactive Preview" state.exampleName ]
-            , HH.label
-                [ HP.style "display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;" ]
-                [ HH.input
-                    [ HP.type_ HP.InputCheckbox
-                    , HP.checked state.showEncodedSizing
-                    , HE.onChecked \_ -> ToggleShowEncodedSizing
+            , HH.div
+                [ HP.style "display: flex; align-items: center; gap: 10px;" ]
+                [ HH.label
+                    [ HP.style "display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;" ]
+                    [ HH.input
+                        [ HP.type_ HP.InputCheckbox
+                        , HP.checked state.showEncodedSizing
+                        , HE.onChecked \_ -> ToggleShowEncodedSizing
+                        ]
+                    , HH.text "Show encoded sizing"
                     ]
-                , HH.text "Show encoded sizing"
+                {-
+                , HH.div
+                    [ HP.style "display: flex; align-items: center; gap: 4px;" ]
+                    [ HH.span
+                        [ HP.style "font-size: 12px; color: #666; min-width: 45px; text-align: center; font-family: monospace;" ]
+                        [ HH.text zoomPercentage ]
+                    , HH.button
+                        [ HE.onClick \_ -> ZoomOut
+                        , HP.style zoomButtonStyle
+                        , HP.title "Zoom out"
+                        , HP.disabled (state.zoom <= 0.1)
+                        ]
+                        [ HH.text "−" ]
+                    , HH.button
+                        [ HE.onClick \_ -> ZoomReset
+                        , HP.style zoomButtonStyle
+                        , HP.title "Reset zoom (100%)"
+                        ]
+                        [ HH.text "⊙" ]
+                    , HH.button
+                        [ HE.onClick \_ -> ZoomIn
+                        , HP.style zoomButtonStyle
+                        , HP.title "Zoom in"
+                        , HP.disabled (state.zoom >= 3.0)
+                        ]
+                        [ HH.text "+" ]
+                    ]
+                -}
                 ]
             ]
-        , HS.svg
-            [ HA.width size.width
-            , HA.height size.height
-            , HP.style "border: 1px solid #ccc;"
+        , HH.div
+            [] -- [ HP.style $ "border: 1px solid #ccc;" ]
+            [ HS.svg
+                [ HA.width size.width
+                , HA.height size.height
+                -- , HA.viewBox 0.0 0.0 zoomedSize.width zoomedSize.height
+                ]
+                $ renderClickableItem state <$>
+                    (Tree.flatten
+                        $ map (lmap Tree.Path.toArray)
+                        $ Tree.Path.fill
+                        $ layoutTree
+                    )
             ]
-            $ renderClickableItem state <$>
-                (Tree.flatten
-                    $ map (lmap Tree.Path.toArray)
-                    $ Tree.Path.fill
-                    $ layoutTree
-                )
         ]
 
 
@@ -1171,6 +1194,26 @@ initChanges item =
             , mbColor : itemColor item
             }
         }
+
+
+hasPreviousSibling :: State -> Boolean
+hasPreviousSibling st = do
+    selectedPath <- st.mbSelectedPath
+    { last: currentIndex } <- Array.unsnoc selectedPath
+    pure $ currentIndex > 0
+
+    # fromMaybe false
+
+
+hasNextSibling :: State -> Boolean
+hasNextSibling st = do
+    selectedPath <- st.mbSelectedPath
+    { init: parentPath, last: currentIndex } <- Array.unsnoc selectedPath
+    parentTree <- Play.playAt parentPath st.playTree
+    let siblingCount = Array.length $ Tree.children $ Play.toTree parentTree
+    pure $ currentIndex < siblingCount - 1
+
+    # fromMaybe false
 
 
 instance IsItem (ItemWithChanges x) where
