@@ -178,6 +178,8 @@ layoutTree
                             paddingAndGapsByW = def.padding.left + def.padding.right + (def.childGap * (Int.toNumber $ childrenCount - 1))
                             percentageReservedW = size.width * totalPercentageW
                         in  size.width - knownWidth - percentageReservedW
+                    -- On secondary axis, percentage-sized children don't compete with grow children;
+                    -- each gets sized independently from the parent, so no percentage reservation needed
                     availableWidthSec  =
                         size.width - def.padding.right - def.padding.left
                     availableHeightMain =
@@ -185,6 +187,8 @@ layoutTree
                             paddingAndGapsByH = def.padding.top + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
                             percentageReservedH = size.height * totalPercentageH
                         in  size.height - knownHeight - percentageReservedH
+                    -- On secondary axis, percentage-sized children don't compete with grow children;
+                    -- each gets sized independently from the parent, so no percentage reservation needed
                     availableHeightSec  =
                         size.height - def.padding.top - def.padding.bottom
 
