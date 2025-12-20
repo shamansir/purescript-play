@@ -239,8 +239,7 @@ layoutTree
                             <$> Tree.break (doPositioning (withPadding pos))
                             <$> xs
                     _ -> -- both LeftToRight and TopToBottom
-                        map (map addSecondaryAxisAlignment) -- adjust each child's position based on secondary axis alignment; positions are changed only on the secondary axis here
-                        $ Tuple.snd
+                        Tuple.snd
                         $ foldl
                             foldF -- folding function that adds offsets to every next child, starting with the provided one; positions are changed mostly on the main axis here (only padding and gap are considered for secondary axis as well)
                             (withPadding (addMainAxisAlignment pos) /\ []) -- the provided initial offset, adjusted for padding and main axis alignment
@@ -267,12 +266,6 @@ layoutTree
                             PT.Vert PT.Center -> srcPos { y = srcPos.y + (availableHeight - totalVertHeightWithGaps) / 2.0 }
                             PT.Vert PT.End    -> srcPos { y = srcPos.y + (availableHeight - totalVertHeightWithGaps) }
                     PT.BackToFront -> srcPos
-
-                addSecondaryAxisAlignment child =
-                    child
-                        { rect = child.rect
-                            { pos = alignChildBy def.direction child.rect.size child.rect.pos }
-                        }
 
                 addBothAxesAlignment child =
                     child
@@ -305,6 +298,8 @@ layoutTree
                         curVal  = _.v    $ Tree.value chTree :: a
                         curDef  = _.def  $ Tree.value chTree :: PT.Def
                         curSize = _.size $ Tree.value chTree :: PT.Size
+                        -- Apply secondary axis alignment to the offset before recursively positioning
+                        alignedOffset = alignChildBy def.direction curSize offset
                         nextOffset =
                             case def.direction of
                                 PT.LeftToRight ->
@@ -321,6 +316,6 @@ layoutTree
                         nextNode :: Tree (PT.WithDefRect a)
                         nextNode =
                             (Tree.node { v : curVal, def : curDef, size : curSize } $ Tree.children chTree)
-                                # Tree.break (doPositioning offset)
+                                # Tree.break (doPositioning alignedOffset)
                     in nextOffset
                         /\ Array.snoc prev nextNode
