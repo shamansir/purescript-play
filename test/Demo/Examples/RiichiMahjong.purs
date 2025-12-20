@@ -3,6 +3,7 @@ module Test.Demo.Examples.RiichiMahjong where
 import Prelude
 
 import Data.Maybe (Maybe(..))
+import Data.Array (range) as Array
 
 import Halogen.Svg.Attributes (Color(..)) as HA
 
@@ -19,10 +20,20 @@ data Wind
     | North
 
 
+newtype ATile =
+    ATile
+        { index :: Int
+        , rotation :: Wind
+        , flipped :: Boolean
+        , faceUp :: Boolean
+        }
+
+
+
 data Cell
     = Root
     | Skip String
-    | Tile Int
+    | Tile ATile
     | HandWrap Wind
     | Hand Wind
     | Table
@@ -201,6 +212,11 @@ instance Show Wind where
         South -> "South"
         West  -> "West"
         North -> "North"
+
+
+instance Show ATile where
+    show (ATile { index }) =
+        show index
 
 
 colorOf :: Wind -> HA.Color

@@ -122,13 +122,19 @@ selectedExamples =
     )
     <>
     ( map NoodleGrowEx <$>
-        [  Noodle.nodeGrowingExperiment {- 23 -}
+        [ Noodle.nodeGrowingExperiment {- 23 -}
         ]
     )
     <>
     ( map Kanji <$>
         Kanji.kanjiExamples
     )
+    <>
+    ( map Mahjong <$>
+        [ Mahjong.mahjongTable
+        ]
+    )
+
 
 
 
