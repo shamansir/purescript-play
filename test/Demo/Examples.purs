@@ -7,10 +7,11 @@ import Play ((~*))
 import Play as Play
 import Test.Demo.Examples.FromClay as FromClay
 import Test.Demo.Examples.Kanji as Kanji
-import Test.Demo.Examples.Noodle.App as Noodle
-import Test.Demo.Examples.Noodle.Experiment as Noodle
-import Test.Demo.Examples.Noodle.Node as Noodle
+import Test.Demo.Examples.Noodle.App (NoodleUI, noodleUI) as Noodle
+import Test.Demo.Examples.Noodle.Experiment (NodeGrowExp, nodeGrowingExperiment) as Noodle
+import Test.Demo.Examples.Noodle.Node (NodeUI, noodleHorzNodeUI, noodleVertNodeUI) as Noodle
 import Test.Demo.Examples.SvgTree as SvgTree
+import Test.Demo.Examples.RiichiMahjong as Mahjong
 import Test.Demo.Examples.Types (class IsItem, class NextItem, class RenderItem, Example, ex, itemColor, itemName, renderItem)
 
 
@@ -23,6 +24,7 @@ data ExItem
     | ClayMenu FromClay.ClayMenu
     | ClayColors FromClay.ClayColors
     | Kanji Kanji.KanjiItem
+    | Mahjong Mahjong.Cell
 
 
 theExamples :: Array (Example ExItem)
@@ -141,23 +143,25 @@ blank =
 
 instance IsItem ExItem where
     itemName = case _ of
-        Basic name       -> name
-        Noodle nui       -> itemName nui
-        NoodleNode nui   -> itemName nui
-        NoodleGrowEx gex -> itemName gex
-        SvgTree svgTree  -> itemName svgTree
-        ClayMenu cmenu   -> itemName cmenu
-        ClayColors ccolors -> itemName ccolors
-        Kanji kanjiItem  -> itemName kanjiItem
+        Basic name          -> name
+        Noodle nui          -> itemName nui
+        NoodleNode nui      -> itemName nui
+        NoodleGrowEx gex    -> itemName gex
+        SvgTree svgTree     -> itemName svgTree
+        ClayMenu cmenu      -> itemName cmenu
+        ClayColors ccolors  -> itemName ccolors
+        Kanji kanjiItem     -> itemName kanjiItem
+        Mahjong mahjongItem -> itemName mahjongItem
     itemColor = case _ of
-        Basic _            -> Nothing
-        Noodle nui         -> itemColor nui
-        NoodleNode nui     -> itemColor nui
-        NoodleGrowEx gex   -> itemColor gex
-        SvgTree svgTree    -> itemColor svgTree
-        ClayMenu cmenu     -> itemColor cmenu
-        ClayColors ccolors -> itemColor ccolors
-        Kanji kanjiItem    -> itemColor kanjiItem
+        Basic _             -> Nothing
+        Noodle nui          -> itemColor nui
+        NoodleNode nui      -> itemColor nui
+        NoodleGrowEx gex    -> itemColor gex
+        SvgTree svgTree     -> itemColor svgTree
+        ClayMenu cmenu      -> itemColor cmenu
+        ClayColors ccolors  -> itemColor ccolors
+        Kanji kanjiItem     -> itemColor kanjiItem
+        Mahjong mahjongItem -> itemColor mahjongItem
 
 
 instance NextItem ExItem where
@@ -183,3 +187,6 @@ instance RenderItem ExItem where
                 Nothing
             Kanji kanjiItem ->
                 renderItem clickAction flags { v: kanjiItem, rect }
+            Mahjong mahjongItem ->
+                Nothing
+                -- renderItem clickAction flags { v: mahjongItem, rect }

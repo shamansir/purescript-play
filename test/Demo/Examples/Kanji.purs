@@ -3,17 +3,19 @@ module Test.Demo.Examples.Kanji where
 import Prelude
 
 import Data.FunctorWithIndex (mapWithIndex)
-import Data.Maybe (Maybe(..), maybe)
-import Data.Tuple (uncurry) as Tuple
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Maybe (Maybe(..))
+import Data.Tuple.Nested ((/\))
+
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Svg.Attributes (Color(..)) as HA
 import Halogen.Svg.Attributes as HA
 import Halogen.Svg.Elements as HS
+
 import Play (Play, (~*))
 import Play as Play
+
 import Test.Demo.Examples.Types (Example, class IsItem, ex, class RenderItem)
 
 
@@ -385,6 +387,9 @@ instance RenderItem KanjiItem where
     renderItem clickAction { isSelected } { v, rect } = case v of
         Root -> Nothing
         Stub -> Nothing
+
+        {- Binary Operation root -}
+
         OpRoot opKey -> Just $
             let
                 offsetX = rect.pos.x
@@ -403,6 +408,9 @@ instance RenderItem KanjiItem where
                 ]
                 [ HH.text $ opKeyToSymbol opKey ]
             else HH.text ""
+
+        {- Kanji part -}
+
         AKanji (KanjiP kanjiP) posKey -> Just $
             let
 
@@ -444,6 +452,9 @@ instance RenderItem KanjiItem where
                         [ HH.text kanjiP ]
                     else HH.text ""
                 ]
+
+        {- Source kanji -}
+
         Source (Kanji kanji) -> Just $
             let
                 offsetX = rect.pos.x
