@@ -8,8 +8,9 @@ import Data.Int (toNumber) as Int
 import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
-import Halogen.Svg.Attributes (a)
+
 import Play.Types (Align(..), Def, Direction(..), HAlign(..), Offset, Percents(..), Pos, Rect, Size, Sizing(..), VAlign(..), WithDef, WithDefRect, WithDefSize) as PT
+
 import Yoga.Tree (Tree)
 import Yoga.Tree.Extended (node, break, value, children, update) as Tree
 
@@ -242,14 +243,13 @@ layoutTree
                 $ case def.direction of
                     PT.BackToFront ->
                         map addBothAxesAlignment  -- apply alignment on both axes
-                            <$> Tree.break (doPositioningFrom $ withPadding zeroPos)
+                            <$> Tree.break (doPositioningFrom $ withPadding pos)
                             <$> xs
                     _ -> -- both LeftToRight and TopToBottom
-                        map (map addSecondaryAxisAlignment) -- adjust each child's position based on secondary axis alignment; positions are changed only on the secondary axis here
-                        $ Tuple.snd
+                        Tuple.snd
                         $ foldl
-                            foldF -- folding function that adds offsets to every next child, starting with the provided one; positions are changed mostly on the main axis here (only padding and gap are considered for secondary axis as well)
-                            (withPadding (addMainAxisAlignment zeroPos) /\ []) -- the provided initial offset, adjusted for padding and main axis alignment
+                            foldF -- folding function that adds offsets to every next child, starting with the provided one; main axis positions change through offset accumulation, secondary axis positions through alignment before recursion
+                            (withPadding (addMainAxisAlignment pos) /\ []) -- the provided initial offset, adjusted for padding and main axis alignment
                         $ xs
 
             where
@@ -274,19 +274,13 @@ layoutTree
                             PT.Vert PT.End    -> srcPos { y = srcPos.y + (availableHeight - totalVertHeightWithGaps) }
                     PT.BackToFront -> srcPos
 
-                addSecondaryAxisAlignment child =
-                    child
-                        { rect = child.rect
-                            { pos = alignChildBy def.direction child.rect.size child.rect.pos }
-                        }
-
                 addBothAxesAlignment child =
                     child
                         { rect = child.rect
-                            { pos = alignChildBy PT.BackToFront child.rect.size child.rect.pos }
+                            { pos = addSecondaryAxisAlignmentToChild PT.BackToFront child.rect.size child.rect.pos }
                         }
 
-                alignChildBy direction childSize childPos = case direction of
+                addSecondaryAxisAlignmentToChild direction childSize childPos = case direction of
                     PT.LeftToRight ->
                         case def.alignment.vertical of
                             PT.Vert PT.Start  -> childPos
@@ -299,8 +293,8 @@ layoutTree
                             PT.Horz PT.End    -> childPos { x = childPos.x + (availableWidth - childSize.width) }
                     PT.BackToFront
                         -> childPos
-                        # alignChildBy PT.LeftToRight childSize
-                        # alignChildBy PT.TopToBottom childSize
+                            # addSecondaryAxisAlignmentToChild PT.LeftToRight childSize
+                            # addSecondaryAxisAlignmentToChild PT.TopToBottom childSize
 
                 foldF
                     :: PT.Offset /\ Array (Tree (PT.WithDefRect a))
@@ -311,6 +305,8 @@ layoutTree
                         curVal  = _.v    $ Tree.value chTree :: a
                         curDef  = _.def  $ Tree.value chTree :: PT.Def
                         curSize = _.size $ Tree.value chTree :: PT.Size
+                        -- align the offset for the children parent before positioning them
+                        alignedOffset = offset # addSecondaryAxisAlignmentToChild def.direction curSize
                         nextOffset =
                             case def.direction of
                                 PT.LeftToRight ->
@@ -327,23 +323,6 @@ layoutTree
                         nextNode :: Tree (PT.WithDefRect a)
                         nextNode =
                             (Tree.node { v : curVal, def : curDef, size : curSize } $ Tree.children chTree)
-                                # Tree.break (doPositioningFrom offset)
-                                -- # Tree.update \wd -> wd { rect = rect offset curSize }
+                                # Tree.break (doPositioningFrom alignedOffset)
                     in nextOffset
                         /\ Array.snoc prev nextNode
-
-        {-
-        shiftAllToParent :: PT.Pos -> Tree (PT.WithDefRect a) -> Tree (PT.WithDefRect a)
-        shiftAllToParent parentPos tree =
-            let
-                node = Tree.value tree
-                absolutePos =
-                    { x: parentPos.x + node.rect.pos.x
-                    , y: parentPos.y + node.rect.pos.y
-                    }
-                updatedNode = node { rect = node.rect { pos = absolutePos } }
-            in
-                -- FIXME: use `Tree.break`
-                Tree.node updatedNode
-                    $ shiftAllToParent absolutePos <$> Tree.children tree
-        -}
