@@ -179,16 +179,14 @@ layoutTree
                             percentageReservedW = size.width * totalPercentageW
                         in  size.width - knownWidth - percentageReservedW
                     availableWidthSec  =
-                        let percentageReservedW = size.width * totalPercentageW
-                        in  size.width - def.padding.right - def.padding.left - percentageReservedW
+                        size.width - def.padding.right - def.padding.left
                     availableHeightMain =
                         let knownHeight = (foldl (+) 0.0 $ (Tree.value >>> _.size >>> _.height) <$> children) + paddingAndGapsByH
                             paddingAndGapsByH = def.padding.top + def.padding.bottom + (def.childGap * (Int.toNumber $ childrenCount - 1))
                             percentageReservedH = size.height * totalPercentageH
                         in  size.height - knownHeight - percentageReservedH
                     availableHeightSec  =
-                        let percentageReservedH = size.height * totalPercentageH
-                        in  size.height - def.padding.top - def.padding.bottom - percentageReservedH
+                        size.height - def.padding.top - def.padding.bottom
 
                     -- if there are growing children by the main axis, distribute available space among them, otherwise give all available space to each growing child on the secondary axis
                     growWidth = case def.direction of
