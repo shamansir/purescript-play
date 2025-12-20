@@ -241,7 +241,7 @@ layoutTree
                     _ -> -- both LeftToRight and TopToBottom
                         Tuple.snd
                         $ foldl
-                            foldF -- folding function that adds offsets to every next child, starting with the provided one; positions are changed on both main and secondary axes here
+                            foldF -- folding function that adds offsets to every next child; main axis positions change through offset accumulation, secondary axis positions through alignment before recursion
                             (withPadding (addMainAxisAlignment pos) /\ []) -- the provided initial offset, adjusted for padding and main axis alignment
                         $ xs
 
@@ -301,7 +301,7 @@ layoutTree
                         -- Apply secondary axis alignment to the offset before recursively positioning.
                         -- This ensures grandchildren are positioned relative to their parent's final aligned position,
                         -- preventing incorrect inheritance of alignment from the grandparent container
-                        -- (e.g., when grandparent has VA:END and parent has no explicit alignment).
+                        -- (e.g., when grandparent has VA:END and parent uses default START alignment).
                         alignedOffset = alignChildBy def.direction curSize offset
                         nextOffset =
                             case def.direction of
