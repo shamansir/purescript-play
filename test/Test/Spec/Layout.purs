@@ -1246,6 +1246,85 @@ spec =
           let parentRect = (Tree.value tree).rect
           parentRect.size.width `shouldEqual` 1000.0
 
+      it "issue #1" do
+        checkLayoutTreeFrom
+            ( "→ W:FIX(500) H:FIX(500) VA:END" :<
+            [ "W:GRW H:PCT(50%)" :<
+              [ leaf "W:FIX(50) H:FIX(50)"
+              , leaf "W:FIX(50) H:FIX(50)"
+              ]
+            ]) \tree -> do
+
+          let children = Tree.children tree
+          Array.length children `shouldEqual` 1
+          let mbFistChild = children !! 0
+          case mbFistChild of
+            Just halfHeightContainer -> do
+              let innerChildren = Tree.children halfHeightContainer
+              let hhRect = (Tree.value halfHeightContainer).rect
+              hhRect.pos.y `shouldEqual` 250.0
+              hhRect.size.height `shouldEqual` 250.0
+              Array.length innerChildren `shouldEqual` 2
+              checkChild innerChildren 0 \c1 -> do
+                c1.rect.pos.y `shouldEqual` 250.0 -- no alignment inside half-height container, even though it is itself aligned to end
+              checkChild innerChildren 1 \c2 -> do
+                c2.rect.pos.y `shouldEqual` 250.0  -- no alignment inside half-height container, even though it is itself aligned to end
+            Nothing -> fail "Expected half-height container child"
+
+      it "issue #1, p.2" do
+        checkLayoutTreeFrom
+            ( "→ W:FIX(500) H:FIX(500) VA:END" :<
+            [ "W:GRW H:PCT(0%)" :<
+              [ leaf "W:FIX(50) H:FIX(50)"
+              , leaf "W:FIX(50) H:FIX(50)"
+              ]
+            ]) \tree -> do
+
+          let children = Tree.children tree
+          Array.length children `shouldEqual` 1
+          let mbFistChild = children !! 0
+          case mbFistChild of
+            Just noHeightContainer -> do
+              let innerChildren = Tree.children noHeightContainer
+              let nhRect = (Tree.value noHeightContainer).rect
+              nhRect.pos.y `shouldEqual` 500.0
+              nhRect.size.height `shouldEqual` 0.0
+              Array.length innerChildren `shouldEqual` 2
+              checkChild innerChildren 0 \c1 -> do
+                c1.rect.pos.y `shouldEqual` 500.0 -- children should be not visible (aligned to top of the container), since container has zero height
+              checkChild innerChildren 1 \c2 -> do
+                c2.rect.pos.y `shouldEqual` 500.0 -- children should be not visible (aligned to top of the container), since container has zero height
+            Nothing -> fail "Expected zero-height container child"
+
+      it "issue #2" do
+        checkLayoutTreeFrom
+            ( "→ W:FIX(500) H:FIX(500)" :<
+            [ "↓ W:GRW H:GRW" :<
+              [ leaf "W:GRW H:PCT(15%)"
+              , leaf "W:PCT(15%) H:GRW"
+              ]
+            ]) \tree -> do
+
+          let children = Tree.children tree
+          Array.length children `shouldEqual` 1
+          let mbFistChild = children !! 0
+          case mbFistChild of
+            Just growContainer -> do
+              let innerChildren = Tree.children growContainer
+              let gcRect = (Tree.value growContainer).rect
+              gcRect.pos.y `shouldEqual` 0.0
+              gcRect.size.height `shouldEqual` 500.0
+              Array.length innerChildren `shouldEqual` 2
+              checkChild innerChildren 0 \c1 -> do
+                c1.rect.size.width `shouldEqual` 500.0 -- should have full width, since we're top-to-bottom layout
+                c1.rect.size.height `shouldEqual` 75.0 -- should have 15% height as it is requested
+              checkChild innerChildren 1 \c2 -> do
+                c2.rect.size.width `shouldEqual` 75.0 -- should have 15% width as it is requested
+                c2.rect.size.height `shouldEqual` 425.0 -- should have 85% height as it is requested
+                c2.rect.pos.y `shouldEqual` 75.0 -- should be at 15% from the top
+                c2.rect.pos.x `shouldEqual` 0.0 -- should be at 0 from the left
+            Nothing -> fail "Expected grow container child"
+
 
 {-- HELPERS --}
 
