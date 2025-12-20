@@ -298,7 +298,9 @@ layoutTree
                         curVal  = _.v    $ Tree.value chTree :: a
                         curDef  = _.def  $ Tree.value chTree :: PT.Def
                         curSize = _.size $ Tree.value chTree :: PT.Size
-                        -- Apply secondary axis alignment to the offset before recursively positioning
+                        -- Apply secondary axis alignment to the offset before recursively positioning.
+                        -- This ensures grandchildren are positioned relative to their parent's final aligned position,
+                        -- preventing incorrect inheritance of alignment from the grandparent container.
                         alignedOffset = alignChildBy def.direction curSize offset
                         nextOffset =
                             case def.direction of
