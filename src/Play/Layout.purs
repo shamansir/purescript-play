@@ -32,8 +32,11 @@ layoutTree
 
     =   Tree.break doFitSizing
     >>> Tree.break doGrowSizing
-    >>> Tree.break (doPositioning { x : 0.0, y : 0.0 })
+    >>> Tree.break doPositioning
+    -- >>> shiftAllToParent zeroPos
     where
+
+        zeroPos = { x: 0.0, y: 0.0 } :: PT.Pos
 
         rect :: PT.Pos -> PT.Size -> PT.Rect
         rect pos size = { pos, size }
@@ -229,28 +232,31 @@ layoutTree
             else
                 Tree.break doGrowSizing <$> children -- leave chidren intact when there aren't any growing or percentage-based children, but iterate further down the tree
 
-        doPositioning :: PT.Pos -> PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefRect a) -- could be `WithRect` easily, but we keep `def` to be able to roll back `Layout` to original `Play`
-        doPositioning pos { v, def, size } xs =
+        doPositioning :: PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefRect a) -- could be `WithRect` easily, but we keep `def` to be able to roll back `Layout` to original `Play`
+        doPositioning = doPositioningFrom zeroPos
+
+        doPositioningFrom :: PT.Pos -> PT.WithDefSize a -> Array (Tree (PT.WithDefSize a)) -> Tree (PT.WithDefRect a) -- could be `WithRect` easily, but we keep `def` to be able to roll back `Layout` to original `Play`
+        doPositioningFrom pos { v, def, size } xs =
             Tree.node
                 { v, def, rect : rect pos size }
                 $ case def.direction of
                     PT.BackToFront ->
                         map addBothAxesAlignment  -- apply alignment on both axes
-                            <$> Tree.break (doPositioning (withPadding pos))
+                            <$> Tree.break (doPositioningFrom $ withPadding zeroPos)
                             <$> xs
                     _ -> -- both LeftToRight and TopToBottom
                         map (map addSecondaryAxisAlignment) -- adjust each child's position based on secondary axis alignment; positions are changed only on the secondary axis here
                         $ Tuple.snd
                         $ foldl
                             foldF -- folding function that adds offsets to every next child, starting with the provided one; positions are changed mostly on the main axis here (only padding and gap are considered for secondary axis as well)
-                            (withPadding (addMainAxisAlignment pos) /\ []) -- the provided initial offset, adjusted for padding and main axis alignment
+                            (withPadding (addMainAxisAlignment zeroPos) /\ []) -- the provided initial offset, adjusted for padding and main axis alignment
                         $ xs
 
             where
                 withPadding padPos = { x : padPos.x + def.padding.left, y : padPos.y + def.padding.top }
                 totalHorzWidth  = foldl (+) 0.0 $ Tree.value >>> _.size >>> _.width  <$> xs
                 totalVertHeight = foldl (+) 0.0 $ Tree.value >>> _.size >>> _.height <$> xs
-                totalHorzWidthWithGaps = totalHorzWidth + (def.childGap * Int.toNumber (Array.length xs - 1))
+                totalHorzWidthWithGaps  = totalHorzWidth  + (def.childGap * Int.toNumber (Array.length xs - 1))
                 totalVertHeightWithGaps = totalVertHeight + (def.childGap * Int.toNumber (Array.length xs - 1))
                 availableWidth  = size.width  - def.padding.left - def.padding.right
                 availableHeight = size.height - def.padding.top  - def.padding.bottom
@@ -321,6 +327,23 @@ layoutTree
                         nextNode :: Tree (PT.WithDefRect a)
                         nextNode =
                             (Tree.node { v : curVal, def : curDef, size : curSize } $ Tree.children chTree)
-                                # Tree.break (doPositioning offset)
+                                # Tree.break (doPositioningFrom offset)
+                                -- # Tree.update \wd -> wd { rect = rect offset curSize }
                     in nextOffset
                         /\ Array.snoc prev nextNode
+
+        {-
+        shiftAllToParent :: PT.Pos -> Tree (PT.WithDefRect a) -> Tree (PT.WithDefRect a)
+        shiftAllToParent parentPos tree =
+            let
+                node = Tree.value tree
+                absolutePos =
+                    { x: parentPos.x + node.rect.pos.x
+                    , y: parentPos.y + node.rect.pos.y
+                    }
+                updatedNode = node { rect = node.rect { pos = absolutePos } }
+            in
+                -- FIXME: use `Tree.break`
+                Tree.node updatedNode
+                    $ shiftAllToParent absolutePos <$> Tree.children tree
+        -}
