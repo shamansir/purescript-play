@@ -285,9 +285,9 @@ layout =
                         ~* Play.widthGrow
                         ~* Play.heightPercent (Play.pct tableCellPct)
                         ~* Play.with
-                        ( makeRow (Skip "TCell 1-1") identity
+                        ( makeRow (Skip "TCell 1-1") (\play -> play ~* Play.with [ makeTriplets North ])
                                   (Skip "TCell 1-2") (\play -> play ~* Play.with [ makeDiscards North ])
-                                  (Skip "TCell 1-3") identity
+                                  (Skip "TCell 1-3") (\play -> play ~* Play.with [ makeTriplets East ])
                         )
 
                     , Play.i (Skip "TRow 2")
@@ -303,9 +303,9 @@ layout =
                         ~* Play.widthGrow
                         ~* Play.heightPercent (Play.pct tableCellPct)
                         ~* Play.with
-                        ( makeRow (Skip "TCell 3-1") identity
+                        ( makeRow (Skip "TCell 3-1") (\play -> play ~* Play.with [ makeTriplets West ])
                                   (Skip "TCell 3-2") (\play -> play ~* Play.with [ makeDiscards South ])
-                                  (Skip "TCell 3-3") identity
+                                  (Skip "TCell 3-3") (\play -> play ~* Play.with [ makeTriplets South ])
                         )
                     ]
 
@@ -355,7 +355,7 @@ makeDiscards wind =
         ~* Play.widthGrow
         ~* Play.heightGrow
         ~* Play.childGap 2.0
-        ~* Play.paddingAll 5.0
+        ~* Play.paddingAll 8.0
         ~* ( if isHorizontal wind
                 then Play.topToBottom
                 else Play.leftToRight
@@ -409,6 +409,112 @@ makeDiscards wind =
                                         ~* Play.height discardTileWidth
                     )
             )
+        )
+
+
+makeTripletTiles :: Wind -> Array Boolean -> Array (Boolean /\ Cell)
+makeTripletTiles wind = mapWithIndex ((/\))
+    >>> map (\(i /\ flipped) ->
+        flipped /\ (Tile $ ATile { index: i + 1, wind, flipped, faceUp: true })
+    )
+
+
+makeTriplets :: Wind -> Play Cell
+makeTriplets wind =
+    let
+        triplets = case wind of
+            East  -> [ [ false, false, true ]
+                     ]
+            South -> [ [ true, false, false ]
+                     , [ true, false, false ]
+                     , [ true, false, false ]
+                     ]
+            West  -> [ [ false, true, false ]
+                     , [ false, false, true ]
+                     ]
+            North -> [ [ false, true, false ]
+                     ]
+    in
+    Play.i (Skip $ "Triplets " <> show wind)
+        ~* Play.widthGrow
+        ~* Play.heightGrow
+        ~* Play.childGap 2.0
+        ~* Play.paddingAll 15.0
+        ~* (if isHorizontal wind
+                then Play.topToBottom
+                else Play.leftToRight
+            )
+        ~* ( case wind of
+                West  -> Play.alignRight
+                South -> Play.alignLeft
+                East  -> Play.alignLeft
+                North -> Play.alignRight
+            )
+        ~* ( case wind of
+                West  -> Play.alignTop
+                South -> Play.alignTop
+                East  -> Play.alignBottom
+                North -> Play.alignBottom
+            )
+        ~* Play.with
+        ( triplets
+            # mapWithIndex ((/\))
+            # map (\(tripletIndex /\ triplet) ->
+                Play.i (Skip $ "Triplet " <> show tripletIndex <> " " <> show wind)
+                    ~* Play.widthFit
+                    ~* Play.heightFit
+                    ~* ( if isHorizontal wind
+                            then Play.leftToRight
+                            else Play.topToBottom
+                        )
+                    ~* (  case wind of
+                            West  -> identity
+                            South -> Play.alignBottom
+                            East  -> Play.alignRight
+                            North -> identity
+                        )
+                    ~* Play.childGap 2.0
+                    ~* Play.with
+                    ( triplet
+                        # makeTripletTiles wind
+                        #  (if isReverseOrder wind
+                                then Array.reverse
+                                else identity
+                          )
+                       <#> (\(flipped /\ tile) ->
+                            if isHorizontal wind && not flipped then
+                                Play.i tile
+                                    ~* Play.width  discardTileWidth
+                                    ~* Play.height discardTileHeight
+                            else if isHorizontal wind && flipped then
+                                Play.i tile
+                                    ~* Play.width  discardTileHeight
+                                    ~* Play.height discardTileWidth
+                            else if not isHorizontal wind && not flipped then
+                                Play.i tile
+                                    ~* Play.width  discardTileHeight
+                                    ~* Play.height discardTileWidth
+                            else
+                                Play.i tile
+                                    ~* Play.width  discardTileWidth
+                                    ~* Play.height discardTileHeight
+                            )
+
+                    )
+            )
+            -- # (if isReverseOrder wind
+            --         then Array.reverse
+            --         else identity
+            --   )
+            -- <#> \i ->
+            --     if isHorizontal wind then
+            --         Play.i (Tile $ ATile { index: i, wind, flipped: true, faceUp: true })
+            --             ~* Play.width  discardTileWidth
+            --             ~* Play.height discardTileHeight
+            --     else
+            --         Play.i (Tile $ ATile { index: i, wind, flipped: true, faceUp: true })
+            --             ~* Play.width  discardTileHeight
+            --             ~* Play.height discardTileWidth
         )
 
 
