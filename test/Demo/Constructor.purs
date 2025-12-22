@@ -455,7 +455,7 @@ renderPropertyEditor state =
             HH.div
                 [ HP.style "display: flex; gap: 10px; align-items: center;" ]
                 [ renderAlignOption groupName (if axis == Horz then "Left" else "Top") PT.Start currentAlign updateAction
-                , renderAlignOption groupName (if axis == Horz then "Middle" else "Center") PT.Center currentAlign updateAction
+                , renderAlignOption groupName (if axis == Horz then "Center" else "Middle") PT.Center currentAlign updateAction
                 , renderAlignOption groupName (if axis == Horz then "Right" else "Bottom") PT.End currentAlign updateAction
                 ]
 

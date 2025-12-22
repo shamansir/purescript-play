@@ -14,7 +14,7 @@ module Play
     , Layout
     , module PT
     , direction, padding, childGap, w, h, with, pct
-    , paddingTop, paddingLeft, paddingBottom, paddingRight
+    , paddingTop, paddingLeft, paddingBottom, paddingRight, paddingAll
     , default, all, tb, lr, p, i
     , toTree, fromTree
     , layout, layoutToTree, layoutToTree_, flattenLayout, rollback, layoutSize
@@ -276,6 +276,11 @@ paddingBottom = _prop \n -> \def -> def { padding = def.padding { bottom = n } }
 -- | Other padding values remain unchanged.
 paddingRight :: forall a. Number -> Play a -> Play a
 paddingRight = _prop \n -> \def -> def { padding = def.padding { right = n } }
+
+
+-- | Set uniform padding on all four sides of an element. An alias for `padding $ all n`.
+paddingAll :: forall a. Number -> Play a -> Play a
+paddingAll = padding <<< all
 
 
 -- | Set horizontal alignment within a container. Use with `PT.HAlign.Horz` for clarity.

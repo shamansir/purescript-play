@@ -3,7 +3,12 @@ module Test.Demo.Examples.RiichiMahjong where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Array (range) as Array
+import Data.Array (range, reverse, groupBy) as Array
+import Data.Array.NonEmpty (toArray) as NEA
+import Data.Bifunctor (lmap)
+import Data.FunctorWithIndex (mapWithIndex)
+import Data.Tuple (fst, snd) as Tuple
+import Data.Tuple.Nested ((/\), type (/\))
 
 import Halogen.Svg.Attributes (Color(..)) as HA
 
@@ -23,19 +28,21 @@ data Wind
 newtype ATile =
     ATile
         { index :: Int
-        , rotation :: Wind
+        , wind :: Wind
         , flipped :: Boolean
         , faceUp :: Boolean
         }
-
 
 
 data Cell
     = Root
     | Skip String
     | Tile ATile
-    | HandWrap Wind
+    | HandArea Wind
     | Hand Wind
+    | ScoresArea Wind
+    | Avatar Wind
+    | Score Wind
     | Table
 
 
@@ -43,6 +50,117 @@ width = 800.0 :: Number
 height = 800.0 :: Number
 handsPct = 0.15 :: Number -- hands take 15% of the table each
 tableCellPct = 0.35 :: Number -- table cells take 35% and leave inner part for discards & inner area
+firstTilePadding = 40.0 :: Number
+groupDiscardsRowsBy = 5 :: Int
+
+
+tileHeight = (if width >= 710.0 then 56.0 else width * 0.07) :: Number   -- 7% of width or 56px minimum
+tileWidth  = (if width >= 710.0 then 40.5 else tileHeight / 1.4) :: Number -- tileHeight == 1.4 * tileWidth
+
+
+discardTileHeight = tileHeight * 0.7 :: Number
+discardTileWidth  = tileWidth  * 0.7 :: Number
+
+
+instance IsItem Cell where
+    itemName = case _ of
+        Root         -> "Root"
+        Skip name    -> name
+        Tile (ATile { index, wind })
+                     -> "Tile: " <> show index <> letterOf wind
+        HandArea w   -> "Hand Area: " <> show w
+        Hand w       -> "Hand: " <> show w
+        Table        -> "Table"
+        ScoresArea w -> "Scores Area: " <> show w
+        Avatar w     -> "Avatar: " <> show w
+        Score w      -> "Score: " <> show w
+    itemColor = case _ of
+        Root       -> Just $ HA.RGBA   0 128   0 1.0
+        Skip _     -> Nothing
+        Tile _     -> Just $ HA.RGBA 255 255 255 1.0
+        HandArea _ -> Nothing
+        Hand w     -> Just $ colorOf w
+        Table      -> Just $ HA.RGBA 100 200 100 1.0
+        ScoresArea _ -> Nothing
+        Avatar w   -> Just $ colorOf w
+        Score w    -> Just $ colorOf w
+
+
+instance Show Wind where
+    show = case _ of
+        East  -> "East"
+        South -> "South"
+        West  -> "West"
+        North -> "North"
+
+
+instance Show ATile where
+    show (ATile { index }) =
+        show index
+
+
+letterOf :: Wind -> String
+letterOf w = case w of
+    East  -> "E"
+    South -> "S"
+    West  -> "W"
+    North -> "N"
+
+
+colorOf :: Wind -> HA.Color
+colorOf w = case w of
+    East  -> HA.RGBA 255 0   0   1.0
+    South -> HA.RGBA 0   255 0   1.0
+    West  -> HA.RGBA 0   0   255 1.0
+    North -> HA.RGBA 255 255 0   1.0
+
+
+isHorizontal :: Wind -> Boolean
+isHorizontal = case _ of
+    West  -> false
+    South -> true
+    East  -> false
+    North -> true
+
+
+isReverseOrder :: Wind -> Boolean
+isReverseOrder = case _ of
+    West  -> false
+    South -> false
+    East  -> true
+    North -> true
+
+
+isDiscardRowsReverseOrder :: Wind -> Boolean
+isDiscardRowsReverseOrder = case _ of
+    West  -> true
+    South -> false
+    East  -> false
+    North -> true
+
+
+handTilesCount :: Wind -> Int
+handTilesCount East = 14
+handTilesCount _ = 13
+
+
+discardTilesCount :: Wind -> Int
+discardTilesCount East = 12
+discardTilesCount West = 9
+discardTilesCount South = 10
+discardTilesCount North = 18
+
+
+makeHandTiles :: Wind -> Array Cell
+makeHandTiles wind =
+    (Array.range 1 $ handTilesCount wind)
+        <#> (\i -> Tile $ ATile { index: i, wind, flipped: false, faceUp: false })
+
+
+makeDiscardTiles :: Wind -> Array Cell
+makeDiscardTiles wind =
+    (Array.range 1 $ discardTilesCount wind)
+        <#> (\i -> Tile $ ATile { index: i, wind, flipped: false, faceUp: true })
 
 
 layout :: Play Cell
@@ -60,9 +178,12 @@ layout =
             ~* Play.heightGrow
             ~* Play.alignBottom
             ~* Play.with
-            [ Play.i (Hand West)
+            [ Play.i (HandArea West)
                 ~* Play.widthPercent (Play.pct handsPct)
                 ~* Play.heightPercent (Play.pct $ 1.0 - handsPct)
+                ~* Play.alignCenter
+                ~* Play.paddingTop firstTilePadding
+                ~* Play.with [ makeHand West ]
             ]
 
         {- South hand (on the bottom) -}
@@ -73,9 +194,12 @@ layout =
             ~* Play.alignRight
             ~* Play.alignBottom
             ~* Play.with
-            [ Play.i (Hand South)
+            [ Play.i (HandArea South)
                 ~* Play.widthPercent (Play.pct $ 1.0 - handsPct)
                 ~* Play.heightPercent (Play.pct handsPct)
+                ~* Play.alignMiddle
+                ~* Play.paddingLeft firstTilePadding
+                ~* Play.with [ makeHand South ]
             ]
 
         {- East hand (on the right) -}
@@ -85,9 +209,13 @@ layout =
             ~* Play.heightGrow
             ~* Play.alignRight
             ~* Play.with
-            [ Play.i (Hand East)
+            [ Play.i (HandArea East)
                 ~* Play.widthPercent (Play.pct handsPct)
                 ~* Play.heightPercent (Play.pct $ 1.0 - handsPct)
+                ~* Play.alignCenter
+                ~* Play.alignBottom
+                ~* Play.paddingBottom firstTilePadding
+                ~* Play.with [ makeHand East ]
             ]
 
         {- North hand (on the top) -}
@@ -96,9 +224,18 @@ layout =
             ~* Play.widthGrow
             ~* Play.heightGrow
             ~* Play.with
-            [ Play.i (Hand North)
+            [ Play.i (HandArea North)
                 ~* Play.widthPercent (Play.pct $ 1.0 - handsPct)
                 ~* Play.heightPercent (Play.pct handsPct)
+                ~* Play.alignRight
+                ~* Play.alignMiddle
+                ~* Play.paddingRight firstTilePadding
+                ~* Play.with
+                [ Play.i (Hand North)
+                    ~* Play.widthFit
+                    ~* Play.heightFit
+                    ~* Play.with [ makeHand North ]
+                ]
             ]
 
         {- Center area -}
@@ -149,7 +286,7 @@ layout =
                         ~* Play.heightPercent (Play.pct tableCellPct)
                         ~* Play.with
                         ( makeRow (Skip "TCell 1-1") identity
-                                  (Skip "TCell 1-2") identity
+                                  (Skip "TCell 1-2") (\play -> play ~* Play.with [ makeDiscards North ])
                                   (Skip "TCell 1-3") identity
                         )
 
@@ -157,9 +294,9 @@ layout =
                         ~* Play.widthGrow
                         ~* Play.heightGrow
                         ~* Play.with
-                        ( makeRow (Skip "TCell 2-1") identity
-                                  (Skip "TCell 2-2") identity
-                                  (Skip "TCell 2-3") identity
+                        ( makeRow (Skip "TCell 2-1") (\play -> play ~* Play.with [ makeDiscards West ])
+                                  (Skip "TCell 2-2") (\play -> play ~* Play.with [ scoresCell ])
+                                  (Skip "TCell 2-3") (\play -> play ~* Play.with [ makeDiscards East ])
                         )
 
                     , Play.i (Skip "TRow 3")
@@ -167,7 +304,7 @@ layout =
                         ~* Play.heightPercent (Play.pct tableCellPct)
                         ~* Play.with
                         ( makeRow (Skip "TCell 3-1") identity
-                                  (Skip "TCell 3-2") identity
+                                  (Skip "TCell 3-2") (\play -> play ~* Play.with [ makeDiscards South ])
                                   (Skip "TCell 3-3") identity
                         )
                     ]
@@ -184,76 +321,188 @@ layout =
         ]
 
 
+makeHand :: Wind -> Play Cell
+makeHand wind =
+    Play.i (Hand wind)
+        ~* Play.widthFit
+        ~* Play.heightFit
+        ~* Play.childGap 2.0
+        ~* (if isHorizontal wind
+                then Play.leftToRight
+                else Play.topToBottom
+            )
+        ~* Play.with
+        ( makeHandTiles wind
+             #  (if isReverseOrder wind
+                    then Array.reverse
+                    else identity
+                )
+            <#> \tile ->
+                if isHorizontal wind then
+                    Play.i tile
+                        ~* Play.width  tileWidth
+                        ~* Play.height tileHeight
+                else
+                    Play.i tile
+                        ~* Play.width  tileHeight
+                        ~* Play.height tileWidth
+        )
+
+
+makeDiscards :: Wind -> Play Cell
+makeDiscards wind =
+    Play.i (Skip $ "Discards " <> show wind)
+        ~* Play.widthGrow
+        ~* Play.heightGrow
+        ~* Play.childGap 2.0
+        ~* Play.paddingAll 5.0
+        ~* ( if isHorizontal wind
+                then Play.topToBottom
+                else Play.leftToRight
+            )
+        ~* ( case wind of
+                West  -> Play.alignRight
+                South -> Play.alignLeft
+                East  -> Play.alignLeft
+                North -> Play.alignRight
+            )
+        ~* ( case wind of
+                West  -> Play.alignTop
+                South -> Play.alignTop
+                East  -> Play.alignBottom
+                North -> Play.alignBottom
+            )
+        ~* Play.with
+        ( makeDiscardTiles wind
+            # mapWithIndex ((/\))
+            # map (lmap (_ `div` groupDiscardsRowsBy))
+            # Array.groupBy (\a b -> Tuple.fst a == Tuple.fst b)
+            # map (NEA.toArray >>> map Tuple.snd)
+            # (if isDiscardRowsReverseOrder wind
+                    then Array.reverse
+                    else identity
+              )
+            # mapWithIndex ((/\))
+            # map (\(rowIndex /\ tilesRow) ->
+                Play.i (Skip $ "Discard Row " <> show rowIndex <> " " <> show wind)
+                    ~* Play.widthFit
+                    ~* Play.heightFit
+                    ~* ( if isHorizontal wind
+                            then Play.leftToRight
+                            else Play.topToBottom
+                        )
+                    ~* Play.childGap 2.0
+                    ~* Play.with
+                    ( tilesRow
+                            #  (if isReverseOrder wind
+                                    then Array.reverse
+                                    else identity
+                                )
+                            <#> \tile ->
+                                if isHorizontal wind then
+                                    Play.i tile
+                                        ~* Play.width  discardTileWidth
+                                        ~* Play.height discardTileHeight
+                                else
+                                    Play.i tile
+                                        ~* Play.width  discardTileHeight
+                                        ~* Play.height discardTileWidth
+                    )
+            )
+        )
+
+
+scoresAreaPct = 0.3 :: Number
+scoresAvatarSize = 40.0 :: Number
+scoresScoreWidth = (scoresAvatarSize / 3.0 * 2.0) :: Number
+
+
+scoresCell :: Play Cell
+scoresCell =
+    Play.i (Skip "Inner Table")
+        ~* Play.backToFront
+        ~* Play.widthGrow
+        ~* Play.heightGrow
+        ~* Play.with
+        [ Play.i (Skip "IT1")
+            ~* Play.widthGrow
+            ~* Play.heightGrow
+            ~* Play.with
+            [ Play.i (ScoresArea East)
+                ~* Play.topToBottom
+                ~* Play.widthPercent  (Play.pct scoresAreaPct)
+                ~* Play.heightPercent (Play.pct $ 1.0 - scoresAreaPct)
+                ~* Play.alignRight
+                ~* Play.with
+                [ Play.i (Avatar East)
+                    ~* Play.width  scoresAvatarSize
+                    ~* Play.height scoresAvatarSize
+                , Play.i (Score East)
+                    ~* Play.width scoresScoreWidth
+                    ~* Play.heightGrow
+                ]
+            ]
+            , Play.i (Skip "IT2")
+                ~* Play.widthGrow
+                ~* Play.heightGrow
+                ~* Play.alignBottom
+                ~* Play.with
+                [ Play.i (ScoresArea South)
+                    ~* Play.widthPercent  (Play.pct $ 1.0 - scoresAreaPct)
+                    ~* Play.heightPercent (Play.pct scoresAreaPct)
+                    ~* Play.with
+                    [ Play.i (Avatar South)
+                        ~* Play.width  scoresAvatarSize
+                        ~* Play.height scoresAvatarSize
+                    , Play.i (Score South)
+                        ~* Play.widthGrow
+                        ~* Play.height scoresScoreWidth
+                    ]
+                ]
+            , Play.i (Skip "IT3")
+                ~* Play.widthGrow
+                ~* Play.heightGrow
+                ~* Play.alignRight
+                ~* Play.alignBottom
+                ~* Play.with
+                [ Play.i (ScoresArea West)
+                    ~* Play.topToBottom
+                    ~* Play.widthPercent  (Play.pct scoresAreaPct)
+                    ~* Play.heightPercent (Play.pct $ 1.0 - scoresAreaPct)
+                    ~* Play.alignBottom
+                    ~* Play.with
+                    [ Play.i (Score West)
+                        ~* Play.width scoresScoreWidth
+                        ~* Play.heightGrow
+                    , Play.i (Avatar West)
+                        ~* Play.width  scoresAvatarSize
+                        ~* Play.height scoresAvatarSize
+                    ]
+                ]
+            , Play.i (Skip "IT4")
+                ~* Play.widthGrow
+                ~* Play.heightGrow
+                ~* Play.alignRight
+                ~* Play.with
+                [ Play.i (ScoresArea North)
+                    ~* Play.widthPercent  (Play.pct $ 1.0 - scoresAreaPct)
+                    ~* Play.heightPercent (Play.pct scoresAreaPct)
+                    ~* Play.alignRight
+                    ~* Play.alignBottom
+                    ~* Play.with
+                    [ Play.i (Score North)
+                        ~* Play.widthGrow
+                        ~* Play.height scoresScoreWidth
+                    , Play.i (Avatar North)
+                        ~* Play.width  scoresAvatarSize
+                        ~* Play.height scoresAvatarSize
+                    ]
+                ]
+            ]
+
+
 mahjongTable :: Example Cell
 mahjongTable =
     ex 300 "Riichi Mahjong Table" width height layout
 
 
-instance IsItem Cell where
-    itemName = case _ of
-        Root         -> "Root"
-        Skip name    -> name
-        Tile n       -> "Tile: " <> show n
-        HandWrap w   -> "HandWrap: " <> show w
-        Hand w       -> "Hand: " <> show w
-        Table        -> "Table"
-    itemColor = case _ of
-        Root       -> Just $ HA.RGBA   0 128   0 1.0
-        Skip _     -> Nothing
-        Tile _     -> Just $ HA.RGBA 255 255 255 1.0
-        HandWrap _ -> Nothing
-        Hand w     -> Just $ colorOf w
-        Table      -> Just $ HA.RGBA 100 200 100 1.0
-
-
-instance Show Wind where
-    show = case _ of
-        East  -> "East"
-        South -> "South"
-        West  -> "West"
-        North -> "North"
-
-
-instance Show ATile where
-    show (ATile { index }) =
-        show index
-
-
-colorOf :: Wind -> HA.Color
-colorOf w = case w of
-    East  -> HA.RGBA 255 0   0   1.0
-    South -> HA.RGBA 0   255 0   1.0
-    West  -> HA.RGBA 0   0   255 1.0
-    North -> HA.RGBA 255 255 0   1.0
-
-
-{-
-, Play.i (Skip "T5")
-    ~* Play.widthGrow
-    ~* Play.heightGrow
-    ~* Play.alignCenter
-    ~* Play.alignMiddle
-    ~* Play.with
-    [ Play.i (Skip "Table")
-        ~* Play.topToBottom
-        ~* Play.widthPercent (Play.pct 0.7)
-        ~* Play.heightPercent (Play.pct 0.7)
-        ~* Play.with
-        [ Play.i (Skip "Table Inner")
-            ~* Play.topToBottom
-            ~* Play.widthGrow
-            ~* Play.heightGrow
-            ~* Play.with
-            [ Play.i (Skip "Row 1")
-                ~* Play.widthGrow
-                ~* Play.heightPercent (Play.pct 0.33)
-            , Play.i (Skip "Row 2")
-                ~* Play.widthGrow
-                ~* Play.heightPercent (Play.pct 0.33)
-            , Play.i (Skip "Row 3")
-                ~* Play.widthGrow
-                ~* Play.heightPercent (Play.pct 0.33)
-            ]
-        ]
-    ]
--}
