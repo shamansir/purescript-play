@@ -16,4 +16,5 @@ result/
 index.js
 web/app.js
 web/constructor.js
+web/kanji.js
 .DS_Store

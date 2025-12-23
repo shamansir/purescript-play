@@ -15,8 +15,9 @@ import Halogen.Svg.Elements as HS
 
 import Play (Play, (~*))
 import Play as Play
+import Play.Types (WithRect) as PT
 
-import Test.Demo.Examples.Types (Example, class IsItem, ex, class RenderItem)
+import Test.Demo.Examples.Types (Example, class IsItem, ex, class RenderItem, RenderFlags)
 
 
 type Config =
@@ -32,7 +33,7 @@ type Config =
     }
 
 
-config =
+defaultConfig =
     { showSource : true
     , showOpSymbol : true
     , showPart : true
@@ -284,12 +285,15 @@ data KanjiPosKey
     | KSurround SurroundKind
 
 
+exampleSide = 400.0 :: Number
+
+
 kanjiPlaySpecToExample :: Int -> String -> Kanji -> Play KanjiItem -> Example KanjiItem
 kanjiPlaySpecToExample id name kanji playSpec =
-    ex id name 400.0 400.0
+    ex id name exampleSide exampleSide
         $ Play.i Stub
-            ~* Play.width 400.0
-            ~* Play.height 400.0
+            ~* Play.width  exampleSide
+            ~* Play.height exampleSide
             ~* Play.backToFront
             ~* Play.with
                 [ playSpec
@@ -384,106 +388,110 @@ toPlaySpecAt posKey = case _ of
 
 
 instance RenderItem KanjiItem where
-    renderItem clickAction { isSelected } { v, rect } = case v of
-        Root -> Nothing
-        Stub -> Nothing
+    renderItem = renderKanjiItem defaultConfig
 
-        {- Binary Operation root -}
 
-        OpRoot opKey -> Just $
-            let
-                offsetX = rect.pos.x
-                offsetY = rect.pos.y
-                centerX = rect.size.width  / 2.0
-                centerY = rect.size.height / 2.0
-            in if config.showOpSymbol then HS.text
-                [ HA.x $ offsetX + 4.0
-                , HA.y $ offsetY + 4.0 -- + centerY -- rect.pos.y + 4.0
-                , HA.fontSize $ HA.FontSizeLength $ HA.Px 25.0
-                , HA.fill $ HA.Named "red"
-                , HA.strokeWidth 1.0
-                , HA.dominantBaseline HA.Hanging
-                , HP.style "pointer-events: none;"
-                , HE.onClick \_ -> clickAction
-                ]
-                [ HH.text $ opKeyToSymbol opKey ]
-            else HH.text ""
+renderKanjiItem :: forall input action. Config -> action -> RenderFlags -> PT.WithRect KanjiItem -> Maybe (HH.HTML input action)
+renderKanjiItem config clickAction { isSelected } { v, rect } = case v of
+    Root -> Nothing
+    Stub -> Nothing
 
-        {- Kanji part -}
+    {- Binary Operation root -}
 
-        AKanji (KanjiP kanjiP) posKey -> Just $
-            let
-
-            baseFontSize = (min rect.size.width rect.size.height) * config.fontProportion
-
-            offsetX = rect.pos.x-- + transform.offsetX
-            offsetY = rect.pos.y-- + transform.offsetY
-
+    OpRoot opKey -> Just $
+        let
+            offsetX = rect.pos.x
+            offsetY = rect.pos.y
             centerX = rect.size.width  / 2.0
             centerY = rect.size.height / 2.0
-            in HS.g
-                [  ]
-                [ if config.showPartRect
-                    then HS.rect
-                        [ HP.style "mix-blend-mode: lighten;" -- "mix-blend-mode: soft-light;"
-                        , HA.x rect.pos.x
-                        , HA.y rect.pos.y
-                        , HA.width rect.size.width
-                        , HA.height rect.size.height
-                        -- , HA.fill $ HA.RGBA 100 149 237 0.1 -- cornflowerblue with transparency
-                        , HA.fill $ colorByPos posKey
-                        , HA.stroke $ HA.Named "cornflowerblue"
-                        , HA.strokeWidth 1.0
-                        ]
-                    else HH.text ""
-                , if config.showPart
-                    then HS.text
-                        [ HA.x $ offsetX + centerX
-                        , HA.y $ offsetY + centerY
-                        , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
-                        , HA.fill $ HA.Named "white"
-                        , HA.strokeWidth 0.5
-                        , HA.stroke $ if config.partHasStroke then HA.Named "black" else HA.RGBA 0 0 0 0.0
-                        , HA.textAnchor HA.AnchorMiddle
-                        , HA.dominantBaseline HA.BaselineMiddle
-                        , HP.style "pointer-events: none;"
-                        , HE.onClick \_ -> clickAction
-                        ]
-                        [ HH.text kanjiP ]
-                    else HH.text ""
-                ]
+        in if config.showOpSymbol then HS.text
+            [ HA.x $ offsetX + 4.0
+            , HA.y $ offsetY + 4.0 -- + centerY -- rect.pos.y + 4.0
+            , HA.fontSize $ HA.FontSizeLength $ HA.Px 25.0
+            , HA.fill $ HA.Named "red"
+            , HA.strokeWidth 1.0
+            , HA.dominantBaseline HA.Hanging
+            , HP.style "pointer-events: none;"
+            , HE.onClick \_ -> clickAction
+            ]
+            [ HH.text $ opKeyToSymbol opKey ]
+        else HH.text ""
 
-        {- Source kanji -}
+    {- Kanji part -}
 
-        Source (Kanji kanji) -> Just $
-            let
-                offsetX = rect.pos.x
-                offsetY = rect.pos.y + (400.0 * 0.07)
+    AKanji (KanjiP kanjiP) posKey -> Just $
+        let
 
-                -- Center point for the transform
-                centerX = rect.size.width  / 2.0
-                centerY = rect.size.height / 2.0
+        baseFontSize = (min rect.size.width rect.size.height) * config.fontProportion
 
-                fontSize = (min rect.size.width rect.size.height)
-            in if config.showSource then HS.g []
+        offsetX = rect.pos.x-- + transform.offsetX
+        offsetY = rect.pos.y-- + transform.offsetY
 
-                $ pure
-                $ HS.text
-                    [ HP.style $ if isSelected then "mix-blend-mode: exclusion;" else ""
-                    , HA.x $ offsetX + centerX
+        centerX = rect.size.width  / 2.0
+        centerY = rect.size.height / 2.0
+        in HS.g
+            [  ]
+            [ if config.showPartRect
+                then HS.rect
+                    [ HP.style "mix-blend-mode: lighten;" -- "mix-blend-mode: soft-light;"
+                    , HA.x rect.pos.x
+                    , HA.y rect.pos.y
+                    , HA.width rect.size.width
+                    , HA.height rect.size.height
+                    -- , HA.fill $ HA.RGBA 100 149 237 0.1 -- cornflowerblue with transparency
+                    , HA.fill $ colorByPos posKey
+                    , HA.stroke $ HA.Named "cornflowerblue"
+                    , HA.strokeWidth 1.0
+                    ]
+                else HH.text ""
+            , if config.showPart
+                then HS.text
+                    [ HA.x $ offsetX + centerX
                     , HA.y $ offsetY + centerY
-                    , HA.fontSize $ HA.FontSizeLength $ HA.Px fontSize
-                    , HA.fill $ HA.Named $ if isSelected then config.sourceSelectedColor else config.sourceColor
-                    , HA.fillOpacity config.sourceOpacity
-                    -- , HA.strokeWidth 0.5
-                    -- , HA.stroke $ HA.Named "black"
+                    , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
+                    , HA.fill $ HA.Named "white"
+                    , HA.strokeWidth 0.5
+                    , HA.stroke $ if config.partHasStroke then HA.Named "black" else HA.RGBA 0 0 0 0.0
                     , HA.textAnchor HA.AnchorMiddle
                     , HA.dominantBaseline HA.BaselineMiddle
                     , HP.style "pointer-events: none;"
                     , HE.onClick \_ -> clickAction
                     ]
-                    [ HH.text kanji ]
-            else HH.text ""
+                    [ HH.text kanjiP ]
+                else HH.text ""
+            ]
+
+    {- Source kanji -}
+
+    Source (Kanji kanji) -> Just $
+        let
+            offsetX = rect.pos.x
+            offsetY = rect.pos.y + (400.0 * 0.07)
+
+            -- Center point for the transform
+            centerX = rect.size.width  / 2.0
+            centerY = rect.size.height / 2.0
+
+            fontSize = (min rect.size.width rect.size.height)
+        in if config.showSource then HS.g []
+
+            $ pure
+            $ HS.text
+                [ HP.style $ if isSelected then "mix-blend-mode: exclusion;" else ""
+                , HA.x $ offsetX + centerX
+                , HA.y $ offsetY + centerY
+                , HA.fontSize $ HA.FontSizeLength $ HA.Px fontSize
+                , HA.fill $ HA.Named $ if isSelected then config.sourceSelectedColor else config.sourceColor
+                , HA.fillOpacity config.sourceOpacity
+                -- , HA.strokeWidth 0.5
+                -- , HA.stroke $ HA.Named "black"
+                , HA.textAnchor HA.AnchorMiddle
+                , HA.dominantBaseline HA.BaselineMiddle
+                , HP.style "pointer-events: none;"
+                , HE.onClick \_ -> clickAction
+                ]
+                [ HH.text kanji ]
+        else HH.text ""
 
 
 colorByPos :: KanjiPosKey -> HA.Color

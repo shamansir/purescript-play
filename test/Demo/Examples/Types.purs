@@ -3,15 +3,13 @@ module Test.Demo.Examples.Types where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-
-import Yoga.JSON (class WriteForeign, writeImpl)
-
-import Halogen.Svg.Attributes (Color(..)) as HA
+import Halogen.HTML (input)
 import Halogen.HTML as HH
-
+import Halogen.Svg.Attributes (Color(..)) as HA
 import Play (Play)
 import Play as Play
 import Play.Types (WithRect) as PT
+import Yoga.JSON (class WriteForeign, writeImpl)
 
 
 class IsItem x where
@@ -29,8 +27,8 @@ type RenderFlags =
     }
 
 
-class RenderItem x where
-    renderItem :: forall i a. a -> RenderFlags -> PT.WithRect x -> Maybe (HH.HTML i a)
+class RenderItem item where
+    renderItem :: forall input action. action -> RenderFlags -> PT.WithRect item -> Maybe (HH.HTML input action)
 
 
 data Example a = Example Int Play.Size String (Play a)
