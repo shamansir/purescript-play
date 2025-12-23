@@ -34,7 +34,7 @@ import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRec
 
 import Test.Demo as Demo
 import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
-import Test.Demo.Constructor.ToCode (toCode, encodeDef) as Play
+import Test.Demo.Constructor.ToCode (toCode, toYAML, encodeDef) as Play
 import Test.Demo.Examples (selectedExamples, ExItem(..))
 import Test.Demo.Examples.Noodle.App (noodleUI)
 import Test.Demo.Examples.Types (class IsItem, itemColor, itemName, nameOf, playOf, nextItem, class RenderItem, renderItem, class NextItem)
@@ -823,6 +823,7 @@ renderCodePanel state =
         mbCurrentPlayTree = state.mbSelectedPath >>= \selPath -> Play.playAt selPath state.playTree
         codeContent = fromMaybe "-" $ Play.toCode (itemName >>> show) <$> mbCurrentPlayTree
         jsonContent = fromMaybe "-" $ Play.toPrettyJSON 2 <$> mbCurrentPlayTree
+        yamlContent = fromMaybe "-" $ Play.toYAML itemName <$> mbCurrentPlayTree
         arrowSymbol = if state.codePanel.expanded then "▼" else "▶"
 
         collapsedStyle = "font-family: monospace; position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: seagreen; color: white; border: none; border-radius: 10%; padding: 10px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; transition: all 0.3s ease;"
@@ -917,6 +918,11 @@ renderCodePanel state =
                         , HE.onClick \_ -> SelectCodeTab 2
                         ]
                         [ HH.text "JSON" ]
+                    , HH.div
+                        [ HP.style $ tabStyle (state.codePanel.tabIndex == 3)
+                        , HE.onClick \_ -> SelectCodeTab 3
+                        ]
+                        [ HH.text "YAML" ]
                     ]
                 , case state.codePanel.tabIndex of
                     0 ->  -- Tree tab (no navigation bar)
@@ -947,6 +953,20 @@ renderCodePanel state =
                                 [ HP.style contentStyle ]
                                 [ HH.textarea
                                     [ HP.value jsonContent
+                                    , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
+                                    , HP.readOnly true
+                                    ]
+                                ]
+                            ]
+
+                    3 ->  -- YAML tab (with navigation bar)
+                        HH.div
+                            [ HP.style "height: 100%;" ]
+                            [ renderNavBar
+                            , HH.div
+                                [ HP.style contentStyle ]
+                                [ HH.textarea
+                                    [ HP.value yamlContent
                                     , HP.style "width: 100%; height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #f0f0f0; border: none; padding: 10px; box-sizing: border-box; resize: none; outline: none;"
                                     , HP.readOnly true
                                     ]

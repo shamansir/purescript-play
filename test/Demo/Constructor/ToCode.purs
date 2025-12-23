@@ -3,15 +3,18 @@ module Test.Demo.Constructor.ToCode where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Array (null, catMaybes) as Array
+import Data.Array (null, catMaybes, replicate) as Array
 import Data.String (joinWith) as String
 
 import Play (Play)
 import Play (toTree) as Play
 import Play.Types (Def, WithDef, Sizing(..), Padding, Direction(..), Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
+import Play.Extra (ItemPath) as Play
 
 import Yoga.Tree (Tree)
-import Yoga.Tree.Extended (value, children) as Tree
+import Yoga.Tree.Extended (break, node, leaf, value, children) as Tree
+import Yoga.Tree.Extended.Convert as TreeCnv
+import Yoga.Tree.Extended.Path (Path) as Tree
 
 
 toCode :: forall a. (a -> String) -> Play a -> String
@@ -156,3 +159,27 @@ encodeDef def =
         PT.End -> "END"
 
 
+data YamlNode
+    = YamlNodeRef { name :: String }
+    | YamlDef { def :: String }
+    | YamlChildrenRoot
+
+
+toYAML :: forall a. (a -> String) -> Play a -> String
+toYAML vToString = Play.toTree >>> Tree.break toYamlNode >>> map encodeYaml >>> TreeCnv.toLines yamlPrefix >>> String.joinWith "\n"
+    where
+        indent = "  "
+        toYamlNode :: PT.WithDef a -> Array (Tree (PT.WithDef a)) -> Tree YamlNode
+        toYamlNode { v, def } children =
+            Tree.node (YamlNodeRef { name : vToString v })
+                [ Tree.leaf (YamlDef { def : encodeDef def })
+                , Tree.node YamlChildrenRoot $ Tree.break toYamlNode <$> children
+                ]
+
+        yamlPrefix :: TreeCnv.Depth -> TreeCnv.IsLast -> Tree.Path -> String
+        yamlPrefix (TreeCnv.Depth n) _ _ = String.joinWith "" $ Array.replicate n indent
+        encodeYaml :: YamlNode -> String
+        encodeYaml = case _ of
+            YamlNodeRef { name } -> "\"" <> name <> "\":"
+            YamlDef { def } -> "def: \"" <> def <> "\""
+            YamlChildrenRoot -> "with:"
