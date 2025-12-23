@@ -1,4 +1,4 @@
-module Test.Demo.Examples.Noodle.Node where
+module Demo.Examples.Noodle.Node where
 
 import Prelude
 
@@ -11,7 +11,7 @@ import Halogen.Svg.Attributes (Color(..)) as HA
 import Play ((~*))
 import Play as Play
 
-import Test.Demo.Examples.Types (class IsItem, Example, ex)
+import Demo.Examples.Types (class IsItem, Example, ex)
 
 
 

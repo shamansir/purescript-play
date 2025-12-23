@@ -1,10 +1,11 @@
-module Test.Demo.Constructor.ToCode where
+module Demo.Constructor.ToCode where
 
 import Prelude
 
 import Data.Maybe (Maybe(..))
 import Data.Array (null, catMaybes, replicate) as Array
 import Data.String (joinWith) as String
+import Data.Number (floor, pow)
 
 import Play (Play)
 import Play (toTree) as Play
@@ -125,14 +126,14 @@ encodeDef def =
     " H:" <> sizingToLabel def.sizing.height
     <> case def.childGap of
         0.0 -> ""
-        n -> " GAP(" <> show n <> ")"
+        n -> " GAP(" <> encnum n <> ")"
     <> case def.padding of
         { top: 0.0, left: 0.0, bottom: 0.0, right: 0.0 } -> ""
         pad ->
             if (pad.top == pad.left) && (pad.left == pad.bottom) && (pad.bottom == pad.right) then
-                " PAD(" <> show pad.top <> ")"
+                " PAD(" <> encnum pad.top <> ")"
             else
-                " PAD(" <> show pad.top <> "," <> show pad.left <> "," <> show pad.bottom <> "," <> show pad.right <> ")"
+                " PAD(" <> encnum pad.top <> "," <> encnum pad.left <> "," <> encnum pad.bottom <> "," <> encnum pad.right <> ")"
     <> case def.alignment of
         { horizontal : PT.Horz hAlign, vertical : PT.Vert vAlign } ->
             (if hAlign == PT.Start then "" else " HA:" <> alignmentToLabel hAlign)
@@ -142,21 +143,25 @@ encodeDef def =
     sizingToLabel :: PT.Sizing -> String
     sizingToLabel = case _ of
         PT.None -> "•"
-        PT.Fixed n -> "FIX(" <> show n <> ")"
-        PT.Percentage (PT.Percents n) -> "PCT(" <> show (100.0 * n) <> "%)"
+        PT.Fixed n -> "FIX(" <> encnum n <> ")"
+        PT.Percentage (PT.Percents n) -> "PCT(" <> encnum (100.0 * n) <> "%)"
         PT.Fit -> "FIT"
         PT.Grow -> "GRW"
         PT.FitGrow -> "FIT-GRW"
-        PT.FitMin { min } -> "FIT(>" <> show min <> ")"
-        PT.FitMax { max } -> "FIT(<" <> show max <> ")"
-        PT.GrowMin { min } -> "GRW(>" <> show min <> ")"
-        PT.FitMinMax { min, max } -> "FIT(" <> show min <> "<>" <> show max <> ")"
+        PT.FitMin { min } -> "FIT(>" <> encnum min <> ")"
+        PT.FitMax { max } -> "FIT(<" <> encnum max <> ")"
+        PT.GrowMin { min } -> "GRW(>" <> encnum min <> ")"
+        PT.FitMinMax { min, max } -> "FIT(" <> encnum min <> "<>" <> encnum max <> ")"
         -- PT.GrowMinMax { min, max } -> "GRW(" <> show min <> "<>" <> show max <> ")"
     alignmentToLabel :: PT.Align -> String
     alignmentToLabel = case _ of
         PT.Start -> "START"
         PT.Center -> "CENTER"
         PT.End -> "END"
+    numsLimit = 4.0
+    limit10 = pow 10.0 numsLimit
+    encnum :: Number -> String
+    encnum n = n * limit10 # floor # (_ / limit10) # show
 
 
 data YamlNode

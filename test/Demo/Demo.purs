@@ -19,9 +19,9 @@ import Play as Play
 
 import Play.Types (WithRect)  as PT
 
-import Test.Demo.Examples.Types (class RenderItem, renderItem, class IsItem, Example, LayedOutExample, layoutExample, itemName, RenderFlags) as ET
-import Test.Demo.Examples (ExItem, theExamples) as ET
-import Test.Demo.Examples (theExamples)
+import Demo.Examples.Types (class RenderItem, renderItem, class IsItem, Example, LayedOutExample, layoutExample, itemName, RenderFlags) as ET
+import Demo.Examples (ExItem, theExamples) as ET
+import Demo.Examples (theExamples)
 
 
 main :: Effect Unit

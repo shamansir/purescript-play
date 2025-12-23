@@ -1,19 +1,21 @@
-module Test.Demo.Examples where
+module Demo.Examples where
 
 import Prelude
 
 import Data.Maybe (Maybe(..))
+
 import Play ((~*))
 import Play as Play
-import Test.Demo.Examples.FromClay as FromClay
-import Test.Demo.Examples.Kanji as Kanji
-import Test.Demo.Examples.Noodle.App (NoodleUI, noodleUI) as Noodle
-import Test.Demo.Examples.Noodle.Experiment (NodeGrowExp, nodeGrowingExperiment) as Noodle
-import Test.Demo.Examples.Noodle.Node (NodeUI, noodleHorzNodeUI, noodleVertNodeUI) as Noodle
-import Test.Demo.Examples.SvgTree as SvgTree
-import Test.Demo.Examples.RiichiMahjong (mahjongTable) as Mahjong
-import Test.Demo.Examples.RiichiMahjong.Types as Mahjong
-import Test.Demo.Examples.Types (class IsItem, class NextItem, class RenderItem, Example, ex, itemColor, itemName, renderItem)
+
+import Demo.Examples.FromClay as FromClay
+import Demo.Examples.Kanji as Kanji
+import Demo.Examples.Noodle.App (NoodleUI, noodleUI) as Noodle
+import Demo.Examples.Noodle.Experiment (NodeGrowExp, nodeGrowingExperiment) as Noodle
+import Demo.Examples.Noodle.Node (NodeUI, noodleHorzNodeUI, noodleVertNodeUI) as Noodle
+import Demo.Examples.SvgTree as SvgTree
+import Demo.Examples.RiichiMahjong (mahjongTable) as Mahjong
+import Demo.Examples.RiichiMahjong.Types as Mahjong
+import Demo.Examples.Types (class IsItem, class NextItem, class RenderItem, Example, ex, itemColor, itemName, renderItem)
 
 
 data ExItem

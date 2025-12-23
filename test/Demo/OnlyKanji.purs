@@ -11,6 +11,7 @@ import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody) as HA
 import Halogen.HTML as HH
 import Halogen.Svg.Attributes as HA
+import Halogen.Svg.Attributes.FontWeight as HA
 import Halogen.Svg.Elements as HS
 import Halogen.VDom.Driver (runUI)
 
@@ -19,8 +20,8 @@ import Play as Play
 import Play.Types (WithRect)  as PT
 
 import Test.Demo (renderFlags, renderItem)
-import Test.Demo.Examples.Types (Example, class RenderItem, class IsItem, layoutExample, RenderFlags) as ET
-import Test.Demo.Examples.Kanji as Kanji
+import Demo.Examples.Types (Example, class RenderItem, class IsItem, layoutExample, RenderFlags) as ET
+import Demo.Examples.Kanji as Kanji
 
 
 main :: Effect Unit
@@ -62,6 +63,9 @@ component =
             HS.svg
                 [ HA.width  10000.0
                 , HA.height 10000.0
+                -- , HA.fontFamily "'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif"
+                , HA.fontWeight $ HA.FWeightNumber 600.0
+                -- font-weight: 600; display: flex; gap: 20px;"
                 ]
                 $ renderItem unit renderFlags <$> (Play.flattenLayout $ Play.layout allKanjiPlay)
 

@@ -1,4 +1,4 @@
-module Test.Demo.Examples.Kanji where
+module Demo.Examples.Kanji where
 
 import Prelude
 
@@ -17,7 +17,7 @@ import Play (Play, (~*))
 import Play as Play
 import Play.Types (WithRect) as PT
 
-import Test.Demo.Examples.Types (Example, class IsItem, ex, class RenderItem, RenderFlags)
+import Demo.Examples.Types (Example, class IsItem, ex, class RenderItem, RenderFlags)
 
 
 type Config =

@@ -1,4 +1,4 @@
-module Test.Demo.Examples.SvgTree where
+module Demo.Examples.SvgTree where
 
 import Prelude
 
@@ -9,7 +9,7 @@ import Halogen.Svg.Attributes (Color(..)) as HA
 import Play ((~*))
 import Play as Play
 
-import Test.Demo.Examples.Types (class IsItem, Example, ex)
+import Demo.Examples.Types (class IsItem, Example, ex)
 
 
 data GraphUI

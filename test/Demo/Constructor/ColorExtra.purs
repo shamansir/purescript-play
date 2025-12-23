@@ -1,4 +1,4 @@
-module Test.Demo.Constructor.ColorExtra where
+module Demo.Constructor.ColorExtra where
 
 import Prelude
 

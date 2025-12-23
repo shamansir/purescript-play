@@ -1,4 +1,4 @@
-module Test.Demo.Examples.RiichiMahjong where
+module Demo.Examples.RiichiMahjong where
 
 import Prelude
 
@@ -12,8 +12,8 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Play (Play, (~*))
 import Play as Play
 
-import Test.Demo.Examples.Types (Example, ex)
-import Test.Demo.Examples.RiichiMahjong.Types (ATile(..), Cell(..), Wind(..))
+import Demo.Examples.Types (Example, ex)
+import Demo.Examples.RiichiMahjong.Types (ATile(..), Cell(..), Wind(..))
 
 
 width = 800.0 :: Number

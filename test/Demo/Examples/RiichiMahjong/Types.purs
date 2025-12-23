@@ -1,4 +1,4 @@
-module Test.Demo.Examples.RiichiMahjong.Types where
+module Demo.Examples.RiichiMahjong.Types where
 
 import Prelude
 
@@ -12,7 +12,7 @@ import Halogen.Svg.Attributes (Color(..)) as HA
 import Halogen.Svg.Attributes as HA
 import Halogen.Svg.Elements as HS
 
-import Test.Demo.Examples.Types (class IsItem, class RenderItem)
+import Demo.Examples.Types (class IsItem, class RenderItem)
 
 data Wind
     = East

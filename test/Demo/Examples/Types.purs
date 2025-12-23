@@ -1,4 +1,4 @@
-module Test.Demo.Examples.Types where
+module Demo.Examples.Types where
 
 import Prelude
 

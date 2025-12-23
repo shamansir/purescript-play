@@ -33,11 +33,11 @@ import Play.Extra as Play
 import Play.Types (Def, Direction(..), Sizing(..), WithDef, WithRect, WithDefRect, Percents(..), Align(..), HAlign(..), VAlign(..)) as PT
 
 import Test.Demo as Demo
-import Test.Demo.Constructor.ColorExtra (colorToText, textToColor)
-import Test.Demo.Constructor.ToCode (toCode, toYAML, encodeDef) as Play
-import Test.Demo.Examples (selectedExamples, ExItem(..))
-import Test.Demo.Examples.Noodle.App (noodleUI)
-import Test.Demo.Examples.Types (class IsItem, itemColor, itemName, nameOf, playOf, nextItem, class RenderItem, renderItem, class NextItem)
+import Demo.Constructor.ColorExtra (colorToText, textToColor)
+import Demo.Constructor.ToCode (toCode, toYAML, encodeDef) as Play
+import Demo.Examples (selectedExamples, ExItem(..))
+import Demo.Examples.Noodle.App (noodleUI)
+import Demo.Examples.Types (class IsItem, itemColor, itemName, nameOf, playOf, nextItem, class RenderItem, renderItem, class NextItem)
 
 
 main :: Effect Unit

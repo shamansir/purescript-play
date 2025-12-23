@@ -1,4 +1,4 @@
-module Test.Demo.Examples.FromClay where
+module Demo.Examples.FromClay where
 
 import Prelude
 
@@ -9,7 +9,7 @@ import Halogen.Svg.Attributes (Color(..)) as HA
 import Play (Play, (~*))
 import Play as Play
 
-import Test.Demo.Examples.Types
+import Demo.Examples.Types
 
 
 data ClayMenu
