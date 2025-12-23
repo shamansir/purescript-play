@@ -11,7 +11,8 @@ import Test.Demo.Examples.Noodle.App (NoodleUI, noodleUI) as Noodle
 import Test.Demo.Examples.Noodle.Experiment (NodeGrowExp, nodeGrowingExperiment) as Noodle
 import Test.Demo.Examples.Noodle.Node (NodeUI, noodleHorzNodeUI, noodleVertNodeUI) as Noodle
 import Test.Demo.Examples.SvgTree as SvgTree
-import Test.Demo.Examples.RiichiMahjong as Mahjong
+import Test.Demo.Examples.RiichiMahjong (mahjongTable) as Mahjong
+import Test.Demo.Examples.RiichiMahjong.Types as Mahjong
 import Test.Demo.Examples.Types (class IsItem, class NextItem, class RenderItem, Example, ex, itemColor, itemName, renderItem)
 
 
@@ -126,16 +127,14 @@ selectedExamples =
         ]
     )
     <>
-    ( map Kanji <$>
-        Kanji.kanjiExamples
-    )
-    <>
     ( map Mahjong <$>
         [ Mahjong.mahjongTable
         ]
     )
-
-
+    <>
+    ( map Kanji <$>
+        Kanji.kanjiExamples
+    )
 
 
 {- 22 -}
@@ -194,5 +193,5 @@ instance RenderItem ExItem where
             Kanji kanjiItem ->
                 renderItem clickAction flags { v: kanjiItem, rect }
             Mahjong mahjongItem ->
-                Nothing
+                renderItem clickAction flags { v: mahjongItem, rect }
                 -- renderItem clickAction flags { v: mahjongItem, rect }

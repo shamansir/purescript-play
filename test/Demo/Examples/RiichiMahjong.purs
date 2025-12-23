@@ -2,7 +2,6 @@ module Test.Demo.Examples.RiichiMahjong where
 
 import Prelude
 
-import Data.Maybe (Maybe(..))
 import Data.Array (range, reverse, groupBy) as Array
 import Data.Array.NonEmpty (toArray) as NEA
 import Data.Bifunctor (lmap)
@@ -10,40 +9,11 @@ import Data.FunctorWithIndex (mapWithIndex)
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 
-import Halogen.Svg.Attributes (Color(..)) as HA
-
 import Play (Play, (~*))
 import Play as Play
 
-import Test.Demo.Examples.Types (class IsItem, Example, ex)
-
-
-data Wind
-    = East
-    | South
-    | West
-    | North
-
-
-newtype ATile =
-    ATile
-        { index :: Int
-        , wind :: Wind
-        , flipped :: Boolean
-        , faceUp :: Boolean
-        }
-
-
-data Cell
-    = Root
-    | Skip String
-    | Tile ATile
-    | HandArea Wind
-    | Hand Wind
-    | ScoresArea Wind
-    | Avatar Wind
-    | Score Wind
-    | Table
+import Test.Demo.Examples.Types (Example, ex)
+import Test.Demo.Examples.RiichiMahjong.Types (ATile(..), Cell(..), Wind(..))
 
 
 width = 800.0 :: Number
@@ -52,6 +22,7 @@ handsPct = 0.15 :: Number -- hands take 15% of the table each
 tableCellPct = 0.35 :: Number -- table cells take 35% and leave inner part for discards & inner area
 firstTilePadding = 40.0 :: Number
 groupDiscardsRowsBy = 5 :: Int
+tilesGap = 3.0 :: Number
 
 
 tileHeight = (if width >= 710.0 then 56.0 else width * 0.07) :: Number   -- 7% of width or 56px minimum
@@ -60,59 +31,6 @@ tileWidth  = (if width >= 710.0 then 40.5 else tileHeight / 1.4) :: Number -- ti
 
 discardTileHeight = tileHeight * 0.7 :: Number
 discardTileWidth  = tileWidth  * 0.7 :: Number
-
-
-instance IsItem Cell where
-    itemName = case _ of
-        Root         -> "Root"
-        Skip name    -> name
-        Tile (ATile { index, wind })
-                     -> "Tile: " <> show index <> letterOf wind
-        HandArea w   -> "Hand Area: " <> show w
-        Hand w       -> "Hand: " <> show w
-        Table        -> "Table"
-        ScoresArea w -> "Scores Area: " <> show w
-        Avatar w     -> "Avatar: " <> show w
-        Score w      -> "Score: " <> show w
-    itemColor = case _ of
-        Root       -> Just $ HA.RGBA   0 128   0 1.0
-        Skip _     -> Nothing
-        Tile _     -> Just $ HA.RGBA 255 255 255 1.0
-        HandArea _ -> Nothing
-        Hand w     -> Just $ colorOf w
-        Table      -> Just $ HA.RGBA 100 200 100 1.0
-        ScoresArea _ -> Nothing
-        Avatar w   -> Just $ colorOf w
-        Score w    -> Just $ colorOf w
-
-
-instance Show Wind where
-    show = case _ of
-        East  -> "East"
-        South -> "South"
-        West  -> "West"
-        North -> "North"
-
-
-instance Show ATile where
-    show (ATile { index }) =
-        show index
-
-
-letterOf :: Wind -> String
-letterOf w = case w of
-    East  -> "E"
-    South -> "S"
-    West  -> "W"
-    North -> "N"
-
-
-colorOf :: Wind -> HA.Color
-colorOf w = case w of
-    East  -> HA.RGBA 255 0   0   1.0
-    South -> HA.RGBA 0   255 0   1.0
-    West  -> HA.RGBA 0   0   255 1.0
-    North -> HA.RGBA 255 255 0   1.0
 
 
 isHorizontal :: Wind -> Boolean
@@ -326,7 +244,7 @@ makeHand wind =
     Play.i (Hand wind)
         ~* Play.widthFit
         ~* Play.heightFit
-        ~* Play.childGap 2.0
+        ~* Play.childGap tilesGap
         ~* (if isHorizontal wind
                 then Play.leftToRight
                 else Play.topToBottom
@@ -354,7 +272,7 @@ makeDiscards wind =
     Play.i (Skip $ "Discards " <> show wind)
         ~* Play.widthGrow
         ~* Play.heightGrow
-        ~* Play.childGap 2.0
+        ~* Play.childGap tilesGap
         ~* Play.paddingAll 8.0
         ~* ( if isHorizontal wind
                 then Play.topToBottom
@@ -391,7 +309,7 @@ makeDiscards wind =
                             then Play.leftToRight
                             else Play.topToBottom
                         )
-                    ~* Play.childGap 2.0
+                    ~* Play.childGap tilesGap
                     ~* Play.with
                     ( tilesRow
                             #  (if isReverseOrder wind
@@ -438,7 +356,7 @@ makeTriplets wind =
     Play.i (Skip $ "Triplets " <> show wind)
         ~* Play.widthGrow
         ~* Play.heightGrow
-        ~* Play.childGap 2.0
+        ~* Play.childGap tilesGap
         ~* Play.paddingAll 15.0
         ~* (if isHorizontal wind
                 then Play.topToBottom
@@ -473,7 +391,7 @@ makeTriplets wind =
                             East  -> Play.alignRight
                             North -> identity
                         )
-                    ~* Play.childGap 2.0
+                    ~* Play.childGap tilesGap
                     ~* Play.with
                     ( triplet
                         # makeTripletTiles wind
@@ -502,19 +420,6 @@ makeTriplets wind =
 
                     )
             )
-            -- # (if isReverseOrder wind
-            --         then Array.reverse
-            --         else identity
-            --   )
-            -- <#> \i ->
-            --     if isHorizontal wind then
-            --         Play.i (Tile $ ATile { index: i, wind, flipped: true, faceUp: true })
-            --             ~* Play.width  discardTileWidth
-            --             ~* Play.height discardTileHeight
-            --     else
-            --         Play.i (Tile $ ATile { index: i, wind, flipped: true, faceUp: true })
-            --             ~* Play.width  discardTileHeight
-            --             ~* Play.height discardTileWidth
         )
 
 
@@ -534,16 +439,17 @@ scoresCell =
             ~* Play.widthGrow
             ~* Play.heightGrow
             ~* Play.with
-            [ Play.i (ScoresArea East)
+            [ Play.i (ScoresArea West)
                 ~* Play.topToBottom
                 ~* Play.widthPercent  (Play.pct scoresAreaPct)
                 ~* Play.heightPercent (Play.pct $ 1.0 - scoresAreaPct)
+                ~* Play.paddingAll 2.0
                 ~* Play.alignRight
                 ~* Play.with
-                [ Play.i (Avatar East)
+                [ Play.i (Avatar West)
                     ~* Play.width  scoresAvatarSize
                     ~* Play.height scoresAvatarSize
-                , Play.i (Score East)
+                , Play.i (Score West)
                     ~* Play.width scoresScoreWidth
                     ~* Play.heightGrow
                 ]
@@ -556,6 +462,7 @@ scoresCell =
                 [ Play.i (ScoresArea South)
                     ~* Play.widthPercent  (Play.pct $ 1.0 - scoresAreaPct)
                     ~* Play.heightPercent (Play.pct scoresAreaPct)
+                    ~* Play.paddingAll 2.0
                     ~* Play.with
                     [ Play.i (Avatar South)
                         ~* Play.width  scoresAvatarSize
@@ -571,16 +478,17 @@ scoresCell =
                 ~* Play.alignRight
                 ~* Play.alignBottom
                 ~* Play.with
-                [ Play.i (ScoresArea West)
+                [ Play.i (ScoresArea East)
                     ~* Play.topToBottom
                     ~* Play.widthPercent  (Play.pct scoresAreaPct)
                     ~* Play.heightPercent (Play.pct $ 1.0 - scoresAreaPct)
+                    ~* Play.paddingAll 2.0
                     ~* Play.alignBottom
                     ~* Play.with
-                    [ Play.i (Score West)
+                    [ Play.i (Score East)
                         ~* Play.width scoresScoreWidth
                         ~* Play.heightGrow
-                    , Play.i (Avatar West)
+                    , Play.i (Avatar East)
                         ~* Play.width  scoresAvatarSize
                         ~* Play.height scoresAvatarSize
                     ]
@@ -593,6 +501,7 @@ scoresCell =
                 [ Play.i (ScoresArea North)
                     ~* Play.widthPercent  (Play.pct $ 1.0 - scoresAreaPct)
                     ~* Play.heightPercent (Play.pct scoresAreaPct)
+                    ~* Play.paddingAll 2.0
                     ~* Play.alignRight
                     ~* Play.alignBottom
                     ~* Play.with
