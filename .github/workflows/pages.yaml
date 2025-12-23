@@ -54,7 +54,9 @@ jobs:
       - name: Build & bundle
         run: |
           npm run build
-          npm run bundle
+          npm run bundle-constructor
+          npm run bundle-demo
+          npm run bundle-kanji
         # run: |
         #   spago build
         #   spago bundle

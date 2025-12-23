@@ -7,7 +7,9 @@
   },
   "scripts": {
     "build": "spago build",
-    "bundle": "spago bundle",
+    "bundle-constructor": "spago bundle --module Demo.Constructor --outfile ./web/constructor.js --platform browser --bundle-type app",
+    "bundle-demo": "spago bundle --module Test.Demo --outfile ./web/app.js --platform browser --bundle-type app",
+    "bundle-kanji": "spago bundle --module Demo.OnlyKanji --outfile ./web/kanji.js --platform browser --bundle-type app",
     "test": "spago text"
   },
   "repository": {
