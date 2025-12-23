@@ -3,15 +3,23 @@ module Demo.Constructor where
 import Prelude
 
 import Effect (Effect)
+import Effect.Class (class MonadEffect)
 
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.Newtype (wrap, unwrap)
+import Data.Int as Int
 import Data.Number as Number
 import Data.String as String
 import Data.Tuple.Nested ((/\), type (/\))
+
+import Web.HTML (window) as Web
+import Web.HTML.Window (location, history) as Web
+import Web.HTML.Location (search, setSearch) as Location
+import Web.HTML.History (URL(..), DocumentTitle(..), state, pushState) as History
+-- import Web.Location (search) as Location
 
 import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody) as HA
@@ -81,6 +89,7 @@ data Action
     | ZoomIn
     | ZoomOut
     | ZoomReset
+    | Initialize
 
 
 data Axis = Horz | Vert
@@ -136,12 +145,15 @@ defaultMinSizeValue = 50.0 :: Number
 defaultMaxSizeValue = 150.0 :: Number
 
 
-component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). H.Component query t output m
+component ∷ ∀ (output ∷ Type) (m ∷ Type -> Type) (query ∷ Type -> Type) (t ∷ Type). MonadEffect m => H.Component query t output m
 component =
     H.mkComponent
         { initialState
         , render
-        , eval: H.mkEval $ H.defaultEval { handleAction = handleAction }
+        , eval: H.mkEval $ H.defaultEval
+            { handleAction = handleAction
+            , initialize = Just Initialize
+            }
         }
     where
         whenJust :: forall hm a. Applicative hm => Maybe a -> (a -> hm Unit) -> hm Unit
@@ -225,6 +237,12 @@ component =
 
         handleAction = case _ of
             Skip -> pure unit
+
+            Initialize -> do
+                mbExampleIndex <- H.liftEffect $ getExampleFromURL
+                whenJust mbExampleIndex \exampleIndex -> do
+                    when (exampleIndex >= 0 && exampleIndex < Array.length selectedExamples) do
+                        handleAction $ SelectExample exampleIndex
 
             SelectItem path -> do
                 H.modify_ \s ->
@@ -341,6 +359,7 @@ component =
                             , editing = loadEditState [] tree
                             , exampleName = Just $ nameOf example
                             }
+                        H.liftEffect $ updateURL exampleIndex
                     Nothing -> pure unit
 
             ToggleCodePanel ->
@@ -373,6 +392,26 @@ component =
             ZoomReset ->
                 H.modify_ \s -> s { zoom = 1.0 }
 
+        getExampleFromURL :: Effect (Maybe Int)
+        getExampleFromURL = do
+            win <- Web.window
+            loc <- Web.location win
+            search <- Location.search loc
+            -- Parse ?example=n from search string
+            let params = String.split (String.Pattern "&") $ String.drop 1 search  -- Drop leading '?'
+            let exampleParam = Array.find (String.contains (String.Pattern "example=")) params
+            pure $ exampleParam >>= \param ->
+                String.stripPrefix (String.Pattern "example=") param >>= Int.fromString
+
+        -- Add helper to update URL
+        updateURL :: Int -> Effect Unit
+        updateURL exampleIndex = do
+            win <- Web.window
+            history <- Web.history win
+            hstate <- History.state history
+            let url = History.URL $ "?example=" <> show exampleIndex
+            let title = History.DocumentTitle ""
+            history # History.pushState hstate title url
 
 -- Set item name
 setItemName :: forall x. String -> ItemWithChanges x -> ItemWithChanges x
