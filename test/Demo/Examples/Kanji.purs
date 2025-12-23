@@ -3,7 +3,7 @@ module Demo.Examples.Kanji where
 import Prelude
 
 import Data.FunctorWithIndex (mapWithIndex)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple.Nested ((/\))
 
 import Halogen.HTML as HH
@@ -17,7 +17,12 @@ import Play (Play, (~*))
 import Play as Play
 import Play.Types (WithRect) as PT
 
-import Demo.Examples.Types (Example, class IsItem, ex, class RenderItem, RenderFlags)
+import Demo.Examples.Types (Example, class IsItem, ex, class RenderItem, RenderFlags, Display(..))
+
+
+data FontKind
+    = SansSerif -- Slubby
+    | Serif -- Traditional
 
 
 type Config =
@@ -30,6 +35,11 @@ type Config =
     , fontProportion :: Number
     , sourceColor :: String
     , sourceSelectedColor :: String
+    , selectedSourceBlendMode :: Maybe String
+    , sourceBlendMode :: Maybe String
+    , bgOpacity :: Number
+    , sourceFontKind :: FontKind
+    , partFontKind :: FontKind
     }
 
 
@@ -43,6 +53,11 @@ defaultConfig =
     , fontProportion : 0.9
     , sourceSelectedColor : "chocolate" -- burlywood, aquamarine, aqua, bisque, aquamarine, brown, burlywood, cadetblue, aliceblue, antiquewhite
     , sourceColor : "burlywood"
+    , sourceBlendMode : Nothing
+    , selectedSourceBlendMode : Just "exclusion"
+    , bgOpacity : 0.2
+    , sourceFontKind : SansSerif
+    , partFontKind : SansSerif
     } :: Config
 
 
@@ -392,7 +407,7 @@ instance RenderItem KanjiItem where
 
 
 renderKanjiItem :: forall input action. Config -> action -> RenderFlags -> PT.WithRect KanjiItem -> Maybe (HH.HTML input action)
-renderKanjiItem config clickAction { isSelected } { v, rect } = case v of
+renderKanjiItem config clickAction f { v, rect } = case v of
     Root -> Nothing
     Stub -> Nothing
 
@@ -439,7 +454,7 @@ renderKanjiItem config clickAction { isSelected } { v, rect } = case v of
                     , HA.width rect.size.width
                     , HA.height rect.size.height
                     -- , HA.fill $ HA.RGBA 100 149 237 0.1 -- cornflowerblue with transparency
-                    , HA.fill $ colorByPos posKey
+                    , HA.fill $ colorByPos config.bgOpacity posKey
                     , HA.stroke $ HA.Named "cornflowerblue"
                     , HA.strokeWidth 1.0
                     ]
@@ -449,6 +464,7 @@ renderKanjiItem config clickAction { isSelected } { v, rect } = case v of
                     [ HA.x $ offsetX + centerX
                     , HA.y $ offsetY + centerY
                     , HA.fontSize $ HA.FontSizeLength $ HA.Px baseFontSize
+                    , HA.fontFamily $ fontFamilyString config.partFontKind
                     , HA.fill $ HA.Named "white"
                     , HA.strokeWidth 0.5
                     , HA.stroke $ if config.partHasStroke then HA.Named "black" else HA.RGBA 0 0 0 0.0
@@ -473,29 +489,35 @@ renderKanjiItem config clickAction { isSelected } { v, rect } = case v of
             centerY = rect.size.height / 2.0
 
             fontSize = (min rect.size.width rect.size.height)
+
+            toCssBlendMode modeStr = "mix-blend-mode: " <> modeStr <> ";"
         in if config.showSource then HS.g []
 
             $ pure
             $ HS.text
-                [ HP.style $ if isSelected then "mix-blend-mode: exclusion;" else ""
+                [ HP.style $
+                    if f.isSelected
+                        then maybe "" toCssBlendMode config.selectedSourceBlendMode
+                        else maybe "" toCssBlendMode config.sourceBlendMode
+                    <> "pointer-events: none;"
                 , HA.x $ offsetX + centerX
                 , HA.y $ offsetY + centerY
                 , HA.fontSize $ HA.FontSizeLength $ HA.Px fontSize
-                , HA.fill $ HA.Named $ if isSelected then config.sourceSelectedColor else config.sourceColor
+                , HA.fontFamily $ fontFamilyString config.sourceFontKind
+                , HA.fill $ HA.Named $ if f.isSelected then config.sourceSelectedColor else config.sourceColor
                 , HA.fillOpacity config.sourceOpacity
                 -- , HA.strokeWidth 0.5
                 -- , HA.stroke $ HA.Named "black"
                 , HA.textAnchor HA.AnchorMiddle
                 , HA.dominantBaseline HA.BaselineMiddle
-                , HP.style "pointer-events: none;"
                 , HE.onClick \_ -> clickAction
                 ]
                 [ HH.text kanji ]
         else HH.text ""
 
 
-colorByPos :: KanjiPosKey -> HA.Color
-colorByPos = let opacity = 0.2 in case _ of
+colorByPos :: Number -> KanjiPosKey -> HA.Color
+colorByPos opacity = case _ of
     KSingle               -> HA.RGBA 100 149 237 opacity -- cornflowerblue
     KLeft                 -> HA.RGBA 255 228 196 opacity -- bisque
     KRight                -> HA.RGBA 255 222 173 opacity -- navajowhite
@@ -522,3 +544,9 @@ opKeyToSymbol = case _ of
         Inbetween       -> "⿲"
         -- FromLowerRight  -> "⿼"
     OpSurroundInside _ -> "⬡"
+
+
+fontFamilyString :: FontKind -> String
+fontFamilyString = case _ of
+    SansSerif -> "'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif"
+    Serif     -> "Times New Roman, Times, serif"

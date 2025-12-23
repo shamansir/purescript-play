@@ -15,6 +15,7 @@ import Demo.Examples.Noodle.Node (NodeUI, noodleHorzNodeUI, noodleVertNodeUI) as
 import Demo.Examples.SvgTree as SvgTree
 import Demo.Examples.RiichiMahjong (mahjongTable) as Mahjong
 import Demo.Examples.RiichiMahjong.Types as Mahjong
+
 import Demo.Examples.Types (class IsItem, class NextItem, class RenderItem, Example, ex, itemColor, itemName, renderItem)
 
 

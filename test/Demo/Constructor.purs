@@ -37,7 +37,7 @@ import Demo.Constructor.ColorExtra (colorToText, textToColor)
 import Demo.Constructor.ToCode (toCode, toYAML, encodeDef) as Play
 import Demo.Examples (selectedExamples, ExItem(..))
 import Demo.Examples.Noodle.App (noodleUI)
-import Demo.Examples.Types (class IsItem, itemColor, itemName, nameOf, playOf, nextItem, class RenderItem, renderItem, class NextItem)
+import Demo.Examples.Types (class IsItem, itemColor, itemName, nameOf, playOf, nextItem, class RenderItem, renderItem, class NextItem, Display(..))
 
 
 main :: Effect Unit
@@ -205,7 +205,7 @@ component =
         render :: State -> _
         render state =
             HH.div
-                [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600; display: flex; gap: 20px;" ]
+                [ HP.style $ "font-family: " <> Demo.sansSerifFamily <> "; font-weight: 600; display: flex; gap: 20px;" ]
                 [ HH.div
                     [ HP.style "flex: 1; padding: 10px;" ]
                     [ renderExampleSelector state
@@ -1095,7 +1095,7 @@ renderClickableItem state (path /\ { v, def, rect }) =
         isSelected = maybe false (_ == path) state.mbSelectedPath
         labelText = Play.encodeDef def
         mbCol = itemColor v
-        renderFlags = { isSelected, isDemo : false }
+        renderFlags = { isSelected, displayMode : LabelOnly }
     in HS.g
         [ HE.onClick \_ -> SelectItem path
         , HP.style "pointer-events: all; cursor: pointer;"

@@ -2,7 +2,7 @@ module Test.Demo where
 
 import Prelude
 
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 
 import Effect (Effect)
 
@@ -19,7 +19,7 @@ import Play as Play
 
 import Play.Types (WithRect)  as PT
 
-import Demo.Examples.Types (class RenderItem, renderItem, class IsItem, Example, LayedOutExample, layoutExample, itemName, RenderFlags) as ET
+import Demo.Examples.Types (class RenderItem, renderItem, class IsItem, Example, LayedOutExample, layoutExample, itemName, itemColor, RenderFlags, Display(..)) as ET
 import Demo.Examples (ExItem, theExamples) as ET
 import Demo.Examples (theExamples)
 
@@ -51,7 +51,7 @@ component =
         render :: State -> _
         render examples =
             HH.div
-                [ HP.style "font-family: 'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif; font-weight: 600;" ]
+                [ HP.style $ "font-family: " <> sansSerifFamily <> "; font-weight: 600;" ]
                 [ HH.div
                     [  ]
                      $  renderExample unit
@@ -83,6 +83,26 @@ renderItem clickAction flags { v, rect } =
     case ET.renderItem clickAction flags { v, rect } of
         Just html -> html
         Nothing   ->
+            case flags.displayMode of
+                ET.LabelAndBgRect ->
+                    HS.g
+                        []
+                        [ HS.rect
+                            [ HA.x rect.pos.x
+                            , HA.y rect.pos.y
+                            , HA.width rect.size.width
+                            , HA.height rect.size.height
+                            , HA.fill $ fromMaybe (HA.RGBA 100 149 237 0.2) $ ET.itemColor v -- cornflowerblue
+                            , HA.stroke $ HA.Named "black"
+                            , HA.strokeWidth 1.0
+                            , HE.onClick \_ -> clickAction
+                            ]
+                        , renderTextLabel
+                        ]
+                ET.LabelOnly ->
+                    renderTextLabel
+    where
+        renderTextLabel =
             HS.text
                 [ HA.x $ rect.pos.x + 5.0
                 , HA.y $ rect.pos.y + 7.0
@@ -97,7 +117,11 @@ renderItem clickAction flags { v, rect } =
                 ]
 
 
+sansSerifFamily = "'TeX Gyre Adventor', 'JetBrains Sans', Monaco, Helvetica, sans-serif" :: String
+serifFamily = "Times, serif" :: String
+
+
 renderFlags =
     { isSelected: false
-    , isDemo: true
+    , displayMode: ET.LabelAndBgRect
     } :: ET.RenderFlags

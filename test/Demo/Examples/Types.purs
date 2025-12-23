@@ -21,9 +21,14 @@ class NextItem x where
     nextItem :: String -> x
 
 
+data Display
+    = LabelAndBgRect
+    | LabelOnly
+
+
 type RenderFlags =
     { isSelected :: Boolean
-    , isDemo     :: Boolean
+    , displayMode :: Display
     }
 
 
