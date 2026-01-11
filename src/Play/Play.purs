@@ -1,7 +1,7 @@
 -- | The Play API provides a way to define declarative layout for creating flexible,
 -- | responsive user interfaces in PureScript.
 -- |
--- | It is inspired by Clay UI layouting system for C++ by Nic Baker. It inherits its simple yet powerful design.
+-- | It is inspired by Clay UI layouting system for C++ by Nic Barker. It inherits its simple yet powerful design.
 -- |
 -- | The API supports:
 -- | - Flexbox-like layout with direction control (horizontal/vertical)

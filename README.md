@@ -1,12 +1,13 @@
 # purescript-play
 
-UI layout system, as simple and minimal as possible, inspired by Clay (C Layout) from Nic Baker: [YouTube Video](https://www.youtube.com/watch?v=by9lQvpvMIc).
+UI layout system, as simple and minimal as possible, inspired by Clay (C Layout) from Nic Barker: [YouTube Video](https://www.youtube.com/watch?v=by9lQvpvMIc).
 
 No text measurement (since the library is not bound to any UI engine, web or server) and so no auto-fit support yet.
 
-Quick overview with `test/Demo` module running: [as YT shorts](https://youtube.com/shorts/cRGQw67-7FQ).
-
-Constructor Demo: https://shamansir.github.io/purescript-play/constructor.html
+* [Detailed blog post in my own blog](https://shamansir.github.io/Blog/blog-en/aa-2026-01-11-play-ui-layouts-in-purescript.html)
+* [Detailed blog post at dev.to](https://dev.to/shamansir/play-ui-layouts-in-purescript-1cb5)
+* Quick overview with `test/Demo` module running: [as YT shorts](https://youtube.com/shorts/cRGQw67-7FQ).
+* Constructor Demo: https://shamansir.github.io/purescript-play/constructor.html
 
 Pursuit Page: https://pursuit.purescript.org/packages/purescript-play/
 
