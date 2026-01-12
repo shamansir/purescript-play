@@ -4,16 +4,29 @@ UI layout system, as simple and minimal as possible, inspired by Clay (C Layout)
 
 No text measurement (since the library is not bound to any UI engine, web or server) and so no auto-fit support yet.
 
+* Pursuit Page: https://pursuit.purescript.org/packages/purescript-play/
 * [Detailed blog post in my own blog](https://shamansir.github.io/Blog/blog-en/aa-2026-01-11-play-ui-layouts-in-purescript.html)
 * [Detailed blog post at dev.to](https://dev.to/shamansir/play-ui-layouts-in-purescript-1cb5)
+* UI Constructor: https://shamansir.github.io/purescript-play/constructor.html
+* Kanji example: https://shamansir.github.io/purescript-play/kanji.html
+* Layouting algorithm code: https://github.com/shamansir/purescript-play/blob/main/src/Play/Layout.purs#L27
 * Quick overview with `test/Demo` module running: [as YT shorts](https://youtube.com/shorts/cRGQw67-7FQ).
-* Constructor Demo: https://shamansir.github.io/purescript-play/constructor.html
-
-Pursuit Page: https://pursuit.purescript.org/packages/purescript-play/
 
 # Developing with NixOS
 
 Just use `nix develop` in the repository and everything should work.
+
+# The samples from the constructor:
+
+![Riichi Mahjong](https://shamansir.github.io/Blog/assets/en/play-ui-layouts-in-purescript/mahjong-example-full-screen-2.png)
+
+![SVG Tree Project](https://shamansir.github.io/Blog/assets/en/play-ui-layouts-in-purescript/svg-tree-example.png)
+
+![Kanji example](https://shamansir.github.io/Blog/assets/en/play-ui-layouts-in-purescript/kanji-example.png)
+
+![Noodle node](https://shamansir.github.io/Blog/assets/en/play-ui-layouts-in-purescript/noodle-node-example-full-screen-with-tree-root.png)
+
+![Ornament](https://shamansir.github.io/Blog/assets/en/play-ui-layouts-in-purescript/row-3-inverted.jpg)
 
 # Examples:
 
@@ -368,6 +381,10 @@ menuPositionedTree  = Play.layoutToTree  menuLayout :: Yoga.Tree (Play.WithRect 
 noodleHorzNodeItems = Play.flattenLayout noodleHorzNodeLayout :: Array (Play.WithRect NItem)
 noodleHorzNodeTree  = Play.layoutToTree  noodleHorzNodeLayout :: Yoga.Tree (Play.WithRect NItem)
 ```
+
+![Nic Barker's video screenshot](https://shamansir.github.io/Blog/assets/en/play-ui-layouts-in-purescript/clay-ui-video-screen.png)
+
+[How Clay’s UI Layout Algorithm Works by Nic Barker](https://www.youtube.com/watch?v=by9lQvpvMIc)
 
 # TODO
 
